@@ -8,7 +8,7 @@
         body { font-family: Arial, sans-serif; padding: 20px; }
         #map { height: 500px; margin-top: 20px; border: 1px solid #ddd; }
         #output { margin-top: 20px; }
-        button { padding: 10px 15px; background: #4285f4; color: white; border: none; cursor: pointer; }
+        button { padding: 10px 15px; background: #4285f4; color: white; border: none; cursor: pointer; margin-top: 10px; }
         img { max-width: 100%; margin-top: 10px; }
     </style>
 </head>
@@ -16,7 +16,10 @@
     <h1>海流轨迹模拟</h1>
     <p>点击地图选择起始点</p>
     <div>
+        <label>经度: <input type="text" id="lon" readonly></label>
+        <label>纬度: <input type="text" id="lat" readonly></label>
         <label>时长(小时): <input type="number" id="duration" value="12" min="1"></label>
+        <button onclick="runSimulation()">开始模拟</button>
     </div>
     <div id="map"></div>
     <div id="output"></div>
@@ -28,17 +31,30 @@
             attribution: '&copy; OpenStreetMap'
         }).addTo(map);
 
-        let marker;
+        let marker = null;
 
-        // 點擊地圖時觸發模擬
-        map.on('click', async function (e) {
-            const lat = e.latlng.lat;
-            const lon = e.latlng.lng;
-            const duration = parseFloat(document.getElementById('duration').value);
+        // 地圖點擊事件：顯示經緯度 + 加入標記
+        map.on('click', function (e) {
+            const lat = e.latlng.lat.toFixed(6);
+            const lon = e.latlng.lng.toFixed(6);
 
-            // 顯示標記
+            document.getElementById('lat').value = lat;
+            document.getElementById('lon').value = lon;
+
             if (marker) map.removeLayer(marker);
             marker = L.marker([lat, lon]).addTo(map).bindPopup("起始點").openPopup();
+        });
+
+        // 按下按鈕後送出模擬請求
+        async function runSimulation() {
+            const lat = parseFloat(document.getElementById('lat').value);
+            const lon = parseFloat(document.getElementById('lon').value);
+            const duration = parseFloat(document.getElementById('duration').value);
+
+            if (isNaN(lat) || isNaN(lon)) {
+                alert("請先在地圖上選取一個點");
+                return;
+            }
 
             document.getElementById('output').innerHTML = '模擬中...';
 
@@ -52,16 +68,21 @@
                 const data = await response.json();
 
                 if (data.status === 'success') {
-                    // 若回傳的是圖片 URL
-                    const imgUrl = data.image_url; // 假設後端回傳的 key 是 image_url
-                    document.getElementById('output').innerHTML = `<img src="${imgUrl}" alt="模擬結果圖">`;
+                    // 假設後端回傳 image_url 或 image_base64
+                    if (data.image_url) {
+                        document.getElementById('output').innerHTML = `<img src="${data.image_url}" alt="模擬結果圖">`;
+                    } else if (data.image_base64) {
+                        document.getElementById('output').innerHTML = `<img src="${data.image_base64}" alt="模擬結果圖">`;
+                    } else {
+                        document.getElementById('output').innerHTML = '未收到圖片資料';
+                    }
                 } else {
                     document.getElementById('output').innerHTML = '模擬失敗: ' + data.message;
                 }
             } catch (err) {
                 document.getElementById('output').innerHTML = '請求錯誤: ' + err.message;
             }
-        });
+        }
     </script>
 </body>
 </html>
