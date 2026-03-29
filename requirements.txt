@@ -1,0 +1,23 @@
+# Core scientific stack
+numpy
+scipy
+pandas
+xarray
+netCDF4
+cftime
+
+# Ocean/drift forecast modeling
+opendrift
+pyproj
+
+# Data access / formats
+requests
+lxml
+
+# Visualization / mapping (optional but commonly used in forecast workflows)
+matplotlib
+cartopy
+cmocean
+
+# Utilities
+tqdm
