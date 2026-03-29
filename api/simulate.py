@@ -15,9 +15,9 @@ CLOUD_RUN_URL = "https://opendrift-leeway-1087471739366.europe-west1.run.app"
 
 def trigger_github_actions(lon: float, lat: float, duration: int, email: str, request_id: str) -> dict:
     """Trigger the run-simulation workflow via GitHub API workflow_dispatch."""
-    token = os.environ.get("GITHUB_TOKEN", "")
+    token = os.environ.get("MyGIT_TOKEN", "")
     if not token:
-        return {"error": "GITHUB_TOKEN not configured", "status_code": 500}
+        return {"error": "MyGIT_TOKEN not configured", "status_code": 500}
 
     url = f"{GITHUB_API}/repos/{REPO}/actions/workflows/{WORKFLOW_FILE}/dispatches"
     payload = {
