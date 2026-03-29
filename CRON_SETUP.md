@@ -1,30 +1,19 @@
-# SeaCurrent `.nc` 自動下載（每 2 天）
+# SeaCurrent `.nc` 下載 + 轉換排程（每 2 天）
 
-目標：每隔 2 天自動下載 SeaCurrent 相關的 NetCDF (`.nc`) 檔案，作為後續「人員落水漂流預測」資料來源。
+目標：每隔 2 天自動下載 SeaCurrent 相關 NetCDF (`.nc`) 並轉成漂流預測可直接使用的格式。
 
-## 0) 建立預測環境（requirements）
+## 1) 手動測試
 
-建議先建立虛擬環境，再安裝預測與下載所需套件：
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install --upgrade pip
-pip install -r requirements.txt
-```
-
-## 1) 手動先測試一次
-
-在專案根目錄執行：
+在專案根目錄執行下載：
 
 ```bash
 python3 scripts/download_seacurrent_nc.py --output data/nc_files
 ```
 
-若想抓取 `Model/` 底下所有 `.nc`（不只關鍵字過濾）：
+執行轉換（把 `UC/VC` 改為 OpenDrift 常用欄位）：
 
 ```bash
-python3 scripts/download_seacurrent_nc.py --output data/nc_files --all-nc
+python3 scripts/convert_seacurrent_for_drift.py --input-dir data/nc_files --output-dir data/nc_converted
 ```
 
 ## 2) 設定 cron（每 2 天）
@@ -33,39 +22,35 @@ python3 scripts/download_seacurrent_nc.py --output data/nc_files --all-nc
 crontab -e
 ```
 
-加入以下內容（UTC 02:00，每 2 天執行一次）：
+加入以下內容（UTC 02:00，每 2 天執行一次；下載後立刻做轉換）：
 
 ```cron
 0 2 */2 * * /bin/bash /workspace/seacurrent/scripts/run_download_seacurrent.sh
 ```
 
-> 如果你想用台灣時間（UTC+8）凌晨 2 點，可以改成 UTC 前一天 18:00：
->
-> ```cron
-> 0 18 */2 * * /bin/bash /workspace/seacurrent/scripts/run_download_seacurrent.sh
-> ```
+## 3) 只排轉換（可選）
 
-## 3) 檢查是否有成功執行
+如果你已經有別的下載來源，只想排「轉換」也可加：
 
-```bash
-tail -n 100 logs/download_seacurrent.log
+```cron
+30 2 */2 * * cd /workspace/seacurrent && /usr/bin/python3 scripts/convert_seacurrent_for_drift.py --input-dir data/nc_files --output-dir data/nc_converted >> logs/convert_seacurrent.log 2>&1
 ```
 
-下載檔案會放在：
+## 4) 檢查排程結果
+
+```bash
+tail -n 100 logs/download_and_convert_seacurrent.log
+```
+
+轉換後檔案位置：
+
+- `data/nc_converted/`
+
+下載原始檔與清單位置：
 
 - `data/nc_files/`
-- `data/nc_files/manifest.json`（紀錄下載清單）
+- `data/nc_files/manifest.json`
 
-## 4) 與漂流預測流程銜接（建議）
+## 5) 與漂流預測銜接
 
-你可以把預測主程式也放進 cron，在下載成功後接著跑：
-
-```bash
-python3 your_drift_forecast.py --current data/nc_files/M-B0071-000.nc
-```
-
-建議在預測程式內檢查：
-
-1. `manifest.json` 是否存在。
-2. `.nc` 檔案時間戳是否為最近一次更新。
-3. 若無新資料則沿用前次資料並發出警示（避免流程中斷）。
+後續可直接使用轉換後的流場檔案（`x_sea_water_velocity` / `y_sea_water_velocity`）進入落水漂流模擬。
