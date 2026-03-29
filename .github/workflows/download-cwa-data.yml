@@ -1,0 +1,41 @@
+name: Download CWA SeaCurrent Data
+
+on:
+  schedule:
+    - cron: '0 2 */2 * *'  # Every 2 days at 02:00 UTC
+  workflow_dispatch: {}
+
+jobs:
+  download-and-convert:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install xarray netCDF4 numpy
+
+      - name: Download NC files from CWA
+        run: python scripts/download_seacurrent_nc.py --output data/nc_files
+
+      - name: Convert for OpenDrift
+        run: |
+          python scripts/convert_seacurrent_for_drift.py \
+            --input-dir data/nc_files \
+            --output-dir data/nc_converted
+
+      - name: Cache converted data
+        uses: actions/cache/save@v4
+        with:
+          path: data/nc_converted
+          key: cwa-nc-${{ github.run_id }}
+
+      - name: Upload as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cwa-nc-converted
+          path: data/nc_converted/
+          retention-days: 7

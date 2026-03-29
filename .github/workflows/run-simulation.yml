@@ -1,0 +1,77 @@
+name: Run Drift Simulation
+
+on:
+  workflow_dispatch:
+    inputs:
+      lon:
+        description: 'Longitude'
+        required: true
+        type: string
+      lat:
+        description: 'Latitude'
+        required: true
+        type: string
+      duration:
+        description: 'Duration in hours'
+        required: true
+        type: string
+      email:
+        description: 'Email for results'
+        required: true
+        type: string
+      request_id:
+        description: 'Unique request ID for tracking'
+        required: true
+        type: string
+
+jobs:
+  simulate:
+    runs-on: ubuntu-latest
+    container:
+      image: opendrift/opendrift:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore cached CWA data
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: data/nc_converted
+          key: cwa-nc-
+          restore-keys: cwa-nc-
+
+      - name: Fallback - download fresh data if cache miss
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          pip install xarray netCDF4 --quiet
+          python scripts/download_seacurrent_nc.py --output data/nc_files
+          python scripts/convert_seacurrent_for_drift.py \
+            --input-dir data/nc_files \
+            --output-dir data/nc_converted
+
+      - name: Run OpenDrift Leeway simulation
+        run: |
+          python scripts/run_simulation.py \
+            --lon "${{ inputs.lon }}" \
+            --lat "${{ inputs.lat }}" \
+            --duration "${{ inputs.duration }}" \
+            --nc-dir data/nc_converted \
+            --output-dir results/
+
+      - name: Send results via email
+        if: inputs.email != ''
+        env:
+          SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
+          SENDGRID_FROM_EMAIL: ${{ secrets.SENDGRID_FROM_EMAIL }}
+        run: |
+          python scripts/send_results_email.py \
+            --to "${{ inputs.email }}" \
+            --results-dir results/ \
+            --request-id "${{ inputs.request_id }}"
+
+      - name: Upload results artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: simulation-${{ inputs.request_id }}
+          path: results/
+          retention-days: 7
