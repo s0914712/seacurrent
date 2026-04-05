@@ -237,10 +237,13 @@ function selectPoint(id) {
     document.getElementById('infoPanelTitle').textContent = pt.name_zh + ' / ' + pt.name;
     document.getElementById('infoPanelCoords').textContent = pt.lat + ', ' + pt.lon;
 
-    // Load GeoJSON
+    // Load GeoJSON or fallback to PNG image overlay
     if (pt.geojson) {
         fetch('scheduled_results/' + pt.geojson + '?t=' + Date.now())
-            .then(function(r) { return r.json(); })
+            .then(function(r) {
+                if (!r.ok) throw new Error('GeoJSON not found');
+                return r.json();
+            })
             .then(function(geojson) {
                 var idx = Object.keys(pointData).indexOf(id);
                 drawGeoJSON(geojson, COLORS[idx % COLORS.length]);
@@ -257,9 +260,23 @@ function selectPoint(id) {
                 document.getElementById('infoPanelParticles').textContent = '--';
                 document.getElementById('infoPanelDuration').textContent = '--';
             });
+    } else if (pt.image) {
+        // Fallback: show PNG image in a popup at the point location
+        trajectoryLayer.clearLayers();
+        var popup = L.popup({ maxWidth: 500, className: 'img-popup' })
+            .setLatLng([pt.lat, pt.lon])
+            .setContent(
+                '<div style="text-align:center;">' +
+                '<b>' + pt.name_zh + '</b><br>' +
+                '<img src="scheduled_results/' + pt.image + '?t=' + Date.now() + '" style="max-width:480px;width:100%;border-radius:4px;margin-top:6px;" alt="' + pt.name + '">' +
+                '</div>'
+            )
+            .openOn(map);
+        map.setView([pt.lat, pt.lon], 8);
+        document.getElementById('infoPanelParticles').textContent = '300';
+        document.getElementById('infoPanelDuration').textContent = '24h';
     } else {
         trajectoryLayer.clearLayers();
-        // Show static image fallback - zoom to point
         map.setView([pt.lat, pt.lon], 9);
     }
 }
@@ -336,6 +353,14 @@ loadForecast();
 </script>
 
 <style>
+.img-popup .leaflet-popup-content-wrapper {
+    background: rgba(16,29,51,0.95) !important;
+    color: #e0e6ed !important;
+    border: 1px solid #1e3050 !important;
+    border-radius: 8px !important;
+}
+.img-popup .leaflet-popup-tip { background: rgba(16,29,51,0.95) !important; }
+.img-popup .leaflet-popup-close-button { color: #7a8fa6 !important; }
 .point-tooltip {
     background: rgba(16,29,51,0.9) !important;
     color: #e0e6ed !important;
