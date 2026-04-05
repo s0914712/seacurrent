@@ -36,16 +36,25 @@ def build_email_payload(
     if results_json.exists():
         metadata = json.loads(results_json.read_text(encoding="utf-8"))
 
+    MODEL_LABELS = {
+        "leeway": "Person Overboard",
+        "oceandrift": "Marine Debris",
+        "openoil": "Oil Spill",
+    }
+
     lon = metadata.get("lon", "N/A")
     lat = metadata.get("lat", "N/A")
     duration = metadata.get("duration_hours", "N/A")
     start_time = metadata.get("start_time", "N/A")
     timestamp = metadata.get("timestamp", "N/A")
+    model_type = metadata.get("model_type", "leeway")
+    model_label = metadata.get("model_label", MODEL_LABELS.get(model_type, model_type))
 
     html_body = f"""\
-<h2>Drift Simulation Results</h2>
+<h2>{model_label} - Drift Simulation Results</h2>
 <table border="1" cellpadding="6" cellspacing="0">
   <tr><td><b>Request ID</b></td><td>{request_id}</td></tr>
+  <tr><td><b>Simulation Type</b></td><td>{model_label}</td></tr>
   <tr><td><b>Longitude</b></td><td>{lon}</td></tr>
   <tr><td><b>Latitude</b></td><td>{lat}</td></tr>
   <tr><td><b>Duration</b></td><td>{duration} hours</td></tr>
@@ -71,7 +80,7 @@ def build_email_payload(
     payload = {
         "personalizations": [{"to": [{"email": to_email}]}],
         "from": {"email": from_email, "name": "SeaCurrent Drift Simulator"},
-        "subject": f"Drift Simulation Results - {request_id}",
+        "subject": f"SeaCurrent {model_label} Results - {request_id}",
         "content": [{"type": "text/html", "value": html_body}],
     }
     if attachments:
