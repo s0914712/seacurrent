@@ -28,13 +28,13 @@ jobs:
       - name: Fallback - download fresh data if cache miss
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
-          python3 scripts/download_seacurrent_nc.py --output data/nc_files
-          python3 scripts/convert_seacurrent_for_drift.py \
+          /opt/conda/bin/python3 scripts/download_seacurrent_nc.py --output data/nc_files
+          /opt/conda/bin/python3 scripts/convert_seacurrent_for_drift.py \
             --input-dir data/nc_files \
             --output-dir data/nc_converted
 
       - name: Run 5-point forecast simulations
-        run: python3 scripts/run_scheduled_forecasts.py
+        run: /opt/conda/bin/python3 scripts/run_scheduled_forecasts.py
 
       - name: Upload forecast results
         uses: actions/upload-artifact@v4
