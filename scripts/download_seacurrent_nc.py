@@ -16,6 +16,10 @@ BUCKET_BASE = "https://cwaopendata.s3.ap-northeast-1.amazonaws.com"
 DEFAULT_PREFIX = "Model/"
 FALLBACK_KEYS = ["Model/M-B0071-000.nc"]
 
+# Wind forecast GRIB2 files (M-A0064, every 6 hours, 0-84h)
+WIND_BASE_URL = f"{BUCKET_BASE}/Model/M-A0064-"
+WIND_HOURS = range(0, 85, 6)  # 0, 6, 12, ..., 84 → 15 files
+
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
@@ -30,6 +34,8 @@ def parse_args() -> argparse.Namespace:
         help="Keyword filter for key names. Repeat to add more.",
     )
     p.add_argument("--all-nc", action="store_true", help="Download all .nc files")
+    p.add_argument("--wind", action="store_true", help="Also download wind GRIB2 files (M-A0064)")
+    p.add_argument("--wind-output", default="data/grib2_files", help="Directory for wind GRIB2 files")
     p.add_argument("--force", action="store_true", help="Always re-download")
     p.add_argument("--timeout", type=int, default=30, help="HTTP timeout seconds")
     return p.parse_args()
@@ -107,6 +113,51 @@ def download_file(url: str, dest: Path, timeout: int) -> None:
 
 def build_url(key: str) -> str:
     return f"{BUCKET_BASE}/{quote(key)}"
+
+
+def download_wind_files(out_dir: Path, timeout: int, force: bool) -> tuple[int, int, int]:
+    """Download CWA wind forecast GRIB2 files (M-A0064-000 ~ M-A0064-084)."""
+    out_dir.mkdir(parents=True, exist_ok=True)
+    downloaded = skipped = failed = 0
+    manifest: list[dict[str, str | int]] = []
+
+    for hour in WIND_HOURS:
+        filename = f"M-A0064-{hour:03d}.grb2"
+        url = f"{WIND_BASE_URL}{hour:03d}.grb2"
+        local = out_dir / filename
+
+        remote_size = remote_file_size(url, timeout)
+        if (
+            not force
+            and local.exists()
+            and remote_size is not None
+            and local.stat().st_size == remote_size
+        ):
+            print(f"⏭️ 跳過（已存在）：{filename}")
+            skipped += 1
+        else:
+            print(f"⬇️ 下載風場：{filename}")
+            try:
+                download_file(url, local, timeout)
+                downloaded += 1
+            except Exception as exc:  # noqa: BLE001
+                print(f"❌ 下載失敗：{filename} ({exc})")
+                failed += 1
+
+        manifest.append({
+            "filename": filename,
+            "url": url,
+            "local": str(local),
+            "size": local.stat().st_size if local.exists() else 0,
+        })
+
+    manifest_path = out_dir / "manifest.json"
+    manifest_path.write_text(
+        json.dumps({"source": "wind-grib2", "count": len(manifest), "files": manifest},
+                   ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    return downloaded, skipped, failed
 
 
 def main() -> int:
@@ -187,6 +238,15 @@ def main() -> int:
 
     print(f"✅ 完成。下載 {downloaded} 個、跳過 {skipped} 個、失敗 {failed} 個。")
     print(f"📄 清單：{manifest_path}")
+
+    if args.wind:
+        print(f"\n🌬️ 開始下載風場 GRIB2 檔案...")
+        w_down, w_skip, w_fail = download_wind_files(
+            Path(args.wind_output), args.timeout, args.force,
+        )
+        print(f"✅ 風場完成。下載 {w_down} 個、跳過 {w_skip} 個、失敗 {w_fail} 個。")
+        failed += w_fail
+
     return 1 if failed > 0 else 0
 
 
