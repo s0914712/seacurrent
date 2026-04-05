@@ -12,8 +12,24 @@ REPO = "s0914712/seacurrent"
 WORKFLOW_FILE = "run-simulation.yml"
 CLOUD_RUN_URL = "https://opendrift-leeway-1087471739366.europe-west1.run.app"
 
+VALID_MODEL_TYPES = {"leeway", "oceandrift", "openoil"}
+ALLOWED_MODEL_PARAMS = {
+    "leeway": ["object_type"],
+    "oceandrift": ["wind_drift_factor"],
+    "openoil": ["oil_type", "amount"],
+}
 
-def trigger_github_actions(lon: float, lat: float, duration: int, email: str, request_id: str) -> dict:
+
+def extract_model_params(data: dict, model_type: str) -> dict:
+    """Extract only whitelisted model-specific params from the request."""
+    allowed = ALLOWED_MODEL_PARAMS.get(model_type, [])
+    return {k: data[k] for k in allowed if k in data}
+
+
+def trigger_github_actions(
+    lon: float, lat: float, duration: int, email: str,
+    request_id: str, model_type: str, model_params: dict,
+) -> dict:
     """Trigger the run-simulation workflow via GitHub API workflow_dispatch."""
     token = os.environ.get("MyGIT_TOKEN", "")
     if not token:
@@ -28,6 +44,8 @@ def trigger_github_actions(lon: float, lat: float, duration: int, email: str, re
             "duration": str(duration),
             "email": email,
             "request_id": request_id,
+            "model_type": model_type,
+            "model_params": json.dumps(model_params),
         },
     }
 
@@ -54,7 +72,7 @@ def trigger_github_actions(lon: float, lat: float, duration: int, email: str, re
 
 
 def fallback_cloud_run(lon: float, lat: float, duration: int) -> dict:
-    """Fallback: call existing Cloud Run backend for immediate results."""
+    """Fallback: call existing Cloud Run backend for immediate results (Leeway only)."""
     payload = json.dumps({"lon": lon, "lat": lat, "duration": duration}).encode("utf-8")
     req = Request(
         CLOUD_RUN_URL,
@@ -89,7 +107,8 @@ class handler(BaseHTTPRequestHandler):
         lat = data.get("lat")
         duration = data.get("duration")
         email = data.get("email", "")
-        mode = data.get("mode", "email")  # "email" or "instant"
+        mode = data.get("mode", "email")
+        model_type = data.get("model_type", "leeway")
 
         # Validate required fields
         if lon is None or lat is None or duration is None:
@@ -108,8 +127,19 @@ class handler(BaseHTTPRequestHandler):
             self._respond(400, {"error": "Duration must be between 1 and 168 hours"})
             return
 
-        # Instant mode: proxy to Cloud Run
+        if model_type not in VALID_MODEL_TYPES:
+            self._respond(400, {"error": f"Invalid model_type. Must be one of: {', '.join(VALID_MODEL_TYPES)}"})
+            return
+
+        model_params = extract_model_params(data, model_type)
+
+        # Instant mode: proxy to Cloud Run (Leeway only)
         if mode == "instant":
+            if model_type != "leeway":
+                self._respond(400, {
+                    "error": "Instant mode only supports Person Overboard (Leeway). Please use Email mode for other simulation types.",
+                })
+                return
             result = fallback_cloud_run(lon, lat, duration)
             self._respond(200, result)
             return
@@ -120,21 +150,27 @@ class handler(BaseHTTPRequestHandler):
             return
 
         request_id = str(uuid.uuid4())[:8]
-        result = trigger_github_actions(lon, lat, duration, email, request_id)
+        result = trigger_github_actions(lon, lat, duration, email, request_id, model_type, model_params)
 
         if result.get("ok"):
             self._respond(200, {
                 "status": "queued",
                 "request_id": request_id,
+                "model_type": model_type,
                 "message": f"Simulation queued. Results will be emailed to {email}.",
             })
         else:
-            # Fallback to Cloud Run on GitHub API failure
-            print(f"GitHub Actions trigger failed: {result.get('error')}, falling back to Cloud Run")
-            cr_result = fallback_cloud_run(lon, lat, duration)
-            cr_result["fallback"] = True
-            cr_result["note"] = "GitHub Actions unavailable, using Cloud Run instant mode"
-            self._respond(200, cr_result)
+            # Fallback to Cloud Run only for Leeway
+            if model_type == "leeway":
+                print(f"GitHub Actions trigger failed: {result.get('error')}, falling back to Cloud Run")
+                cr_result = fallback_cloud_run(lon, lat, duration)
+                cr_result["fallback"] = True
+                cr_result["note"] = "GitHub Actions unavailable, using Cloud Run instant mode"
+                self._respond(200, cr_result)
+            else:
+                self._respond(502, {
+                    "error": f"Failed to trigger simulation: {result.get('error')}",
+                })
 
     def _respond(self, status: int, data: dict):
         self.send_response(status)

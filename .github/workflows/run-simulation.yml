@@ -23,6 +23,16 @@ on:
         description: 'Unique request ID for tracking'
         required: true
         type: string
+      model_type:
+        description: 'Model type: leeway, oceandrift, or openoil'
+        required: false
+        default: 'leeway'
+        type: string
+      model_params:
+        description: 'JSON string of model-specific parameters'
+        required: false
+        default: '{}'
+        type: string
 
 jobs:
   simulate:
@@ -49,12 +59,14 @@ jobs:
             --input-dir data/nc_files \
             --output-dir data/nc_converted
 
-      - name: Run OpenDrift Leeway simulation
+      - name: Run OpenDrift simulation
         run: |
           python scripts/run_simulation.py \
             --lon "${{ inputs.lon }}" \
             --lat "${{ inputs.lat }}" \
             --duration "${{ inputs.duration }}" \
+            --model-type "${{ inputs.model_type }}" \
+            --model-params '${{ inputs.model_params }}' \
             --nc-dir data/nc_converted \
             --output-dir results/
 

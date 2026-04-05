@@ -1,57 +1,73 @@
-
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Leeway Drift Simulation</title>
+    <title>SeaCurrent Drift Simulator</title>
     <style>
+        * { box-sizing: border-box; }
         body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            max-width: 860px;
             margin: 0 auto;
             padding: 20px;
-            background-color: #f4f4f4;
+            background-color: #f0f2f5;
+            color: #333;
         }
         .container {
             background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            padding: 28px;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
         }
-        label {
-            font-weight: bold;
-            margin-top: 8px;
-            display: inline-block;
+        h2 {
+            margin: 0 0 4px 0;
+            font-size: 1.6em;
         }
-        input, select, button {
-            margin: 6px 0 12px 0;
-            padding: 8px;
-            font-size: 16px;
-            width: 100%;
-            box-sizing: border-box;
+        .subtitle {
+            color: #666;
+            margin: 0 0 20px 0;
+            font-size: 0.95em;
         }
-        button {
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 4px;
+
+        /* Simulation type cards */
+        .sim-type-cards {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .sim-card {
+            flex: 1;
+            padding: 14px 12px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            background: #fafafa;
             cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
             width: auto;
-            padding: 10px 24px;
+            margin: 0;
         }
-        button:hover {
-            background-color: #0056b3;
+        .sim-card:hover {
+            border-color: #90b8f8;
+            background: #f0f5ff;
         }
-        button:disabled {
-            background-color: #999;
-            cursor: not-allowed;
+        .sim-card.active {
+            border-color: #007bff;
+            background: #e8f0fe;
+            color: #333;
         }
+        .sim-card .sim-icon { font-size: 1.8em; display: block; margin-bottom: 6px; }
+        .sim-card .sim-label { font-weight: bold; display: block; font-size: 0.95em; }
+        .sim-card .sim-desc { display: block; font-size: 0.78em; color: #666; margin-top: 3px; }
+        .sim-card.active .sim-desc { color: #555; }
+
+        /* Mode toggle */
         .mode-toggle {
             display: flex;
             gap: 0;
-            margin: 12px 0;
-            border-radius: 4px;
+            margin: 0 0 18px 0;
+            border-radius: 6px;
             overflow: hidden;
             border: 2px solid #007bff;
             width: fit-content;
@@ -59,71 +75,131 @@
         .mode-toggle button {
             margin: 0;
             border-radius: 0;
-            padding: 8px 16px;
+            padding: 7px 18px;
             background-color: white;
             color: #007bff;
             border: none;
             width: auto;
+            font-size: 14px;
         }
         .mode-toggle button.active {
             background-color: #007bff;
             color: white;
         }
-        .mode-toggle button:hover {
-            background-color: #e0edff;
+        .mode-toggle button:hover { background-color: #e0edff; }
+        .mode-toggle button.active:hover { background-color: #0056b3; }
+        .mode-toggle button:disabled {
+            background-color: #eee;
+            color: #aaa;
+            cursor: not-allowed;
         }
-        .mode-toggle button.active:hover {
-            background-color: #0056b3;
-        }
-        .email-section {
+        .mode-note {
+            font-size: 0.82em;
+            color: #e67700;
+            margin: -12px 0 14px 0;
             display: none;
-            padding: 10px;
+        }
+        .mode-note.visible { display: block; }
+
+        /* Form */
+        label { font-weight: 600; margin-top: 6px; display: inline-block; font-size: 0.92em; }
+        input, select {
+            margin: 4px 0 14px 0;
+            padding: 9px;
+            font-size: 15px;
+            width: 100%;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+        input:focus, select:focus { border-color: #007bff; outline: none; box-shadow: 0 0 0 2px rgba(0,123,255,0.15); }
+        button { font-size: 15px; cursor: pointer; }
+        .submit-btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 11px 28px;
+            font-size: 15px;
+            width: auto;
+            margin-top: 4px;
+        }
+        .submit-btn:hover { background-color: #0056b3; }
+        .submit-btn:disabled { background-color: #999; cursor: not-allowed; }
+
+        /* Conditional sections */
+        .model-params, .email-section { display: none; }
+        .model-params.visible, .email-section.visible { display: block; }
+        .email-section {
+            padding: 12px;
             background: #f0f7ff;
-            border-radius: 4px;
-            margin-bottom: 12px;
+            border-radius: 8px;
+            margin-bottom: 14px;
         }
-        .email-section.visible {
-            display: block;
+        .param-group {
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 14px;
         }
-        #output {
-            margin-top: 20px;
-        }
-        #output img {
-            max-width: 100%;
-            margin-bottom: 10px;
-        }
-        #output p {
-            margin: 5px 0;
-            font-weight: bold;
-        }
-        #error {
-            color: red;
-            margin-top: 10px;
-        }
-        #success {
-            color: #28a745;
-            margin-top: 10px;
-            font-weight: bold;
-        }
+        .param-group label:first-child { margin-top: 0; }
+
+        /* Output */
+        #output { margin-top: 20px; }
+        #output img { max-width: 100%; margin-bottom: 10px; border-radius: 6px; }
+        #output p { margin: 5px 0; font-weight: bold; }
+        #error { color: #d32f2f; margin-top: 10px; }
+        #success { color: #2e7d32; margin-top: 10px; font-weight: bold; }
         #logs {
             white-space: pre-wrap;
-            background-color: #eee;
-            padding: 10px;
-            border-radius: 4px;
+            background-color: #f5f5f5;
+            padding: 12px;
+            border-radius: 6px;
             margin-top: 10px;
+            font-family: monospace;
+            font-size: 0.88em;
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .sim-type-cards { flex-direction: column; }
+            .sim-card { padding: 10px; }
+            .container { padding: 16px; }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2>Leeway Drift Simulation</h2>
+        <h2>SeaCurrent Drift Simulator</h2>
+        <p class="subtitle">OpenDrift-based ocean drift simulation for Taiwan waters</p>
 
+        <!-- Simulation Type Selector -->
+        <div class="sim-type-cards">
+            <button type="button" class="sim-card active" data-type="leeway" onclick="setSimType('leeway')">
+                <span class="sim-icon">&#x1F6DF;</span>
+                <span class="sim-label">Person Overboard</span>
+                <span class="sim-desc">Leeway SAR model</span>
+            </button>
+            <button type="button" class="sim-card" data-type="oceandrift" onclick="setSimType('oceandrift')">
+                <span class="sim-icon">&#x1F30A;</span>
+                <span class="sim-label">Marine Debris</span>
+                <span class="sim-desc">OceanDrift model</span>
+            </button>
+            <button type="button" class="sim-card" data-type="openoil" onclick="setSimType('openoil')">
+                <span class="sim-icon">&#x1F6E2;</span>
+                <span class="sim-label">Oil Spill</span>
+                <span class="sim-desc">OpenOil model</span>
+            </button>
+        </div>
+
+        <!-- Mode Toggle -->
         <div class="mode-toggle">
             <button type="button" id="modeInstant" class="active" onclick="setMode('instant')">Instant</button>
             <button type="button" id="modeEmail" onclick="setMode('email')">Email Results</button>
         </div>
+        <p id="modeNote" class="mode-note">This simulation type only supports Email mode (runs via GitHub Actions).</p>
 
         <form id="simulationForm">
+            <!-- Common fields -->
             <label for="lon">Longitude:</label>
             <input type="number" step="any" id="lon" name="lon" value="122" required>
 
@@ -133,13 +209,60 @@
             <label for="duration">Duration (hours):</label>
             <input type="number" id="duration" name="duration" value="6" min="1" max="168" required>
 
+            <!-- Leeway params -->
+            <div id="leewayParams" class="model-params visible">
+                <div class="param-group">
+                    <label for="objectType">Object Type:</label>
+                    <select id="objectType">
+                        <option value="26" selected>Life raft, no ballast (default)</option>
+                        <option value="1">Person in water (PIW)</option>
+                        <option value="4">Person in water, vertical</option>
+                        <option value="14">Life raft, ballast, canopy</option>
+                        <option value="27">Life raft, ballast, no canopy</option>
+                        <option value="40">Life raft, capsized</option>
+                        <option value="52">Fishing vessel, general</option>
+                        <option value="56">Sailboat, monohull</option>
+                        <option value="63">Skiff, flat bottom</option>
+                        <option value="72">Surfboard</option>
+                        <option value="78">Windsurfer</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- OceanDrift params -->
+            <div id="oceandriftParams" class="model-params">
+                <div class="param-group">
+                    <label for="windDriftFactor">Wind Drift Factor (0 = no wind effect, 0.03 = typical):</label>
+                    <input type="number" step="0.001" id="windDriftFactor" value="0.02" min="0" max="0.1">
+                </div>
+            </div>
+
+            <!-- OpenOil params -->
+            <div id="openoilParams" class="model-params">
+                <div class="param-group">
+                    <label for="oilType">Oil Type:</label>
+                    <select id="oilType">
+                        <option value="GENERIC MEDIUM CRUDE" selected>Generic Medium Crude</option>
+                        <option value="GENERIC HEAVY CRUDE">Generic Heavy Crude</option>
+                        <option value="GENERIC LIGHT CRUDE">Generic Light Crude</option>
+                        <option value="GENERIC DIESEL">Diesel</option>
+                        <option value="GENERIC BUNKER C">Bunker C (Heavy Fuel Oil)</option>
+                        <option value="GENERIC GASOLINE">Gasoline</option>
+                    </select>
+                    <label for="oilAmount">Amount (m&sup3;):</label>
+                    <input type="number" step="1" id="oilAmount" value="100" min="1" max="10000">
+                </div>
+            </div>
+
+            <!-- Email section -->
             <div id="emailSection" class="email-section">
                 <label for="email">Email (results will be sent here):</label>
                 <input type="email" id="email" name="email" placeholder="your@email.com">
             </div>
 
-            <button type="submit" id="submitBtn">Run Simulation</button>
+            <button type="submit" id="submitBtn" class="submit-btn">Run Simulation</button>
         </form>
+
         <div id="success"></div>
         <div id="output"></div>
         <div id="error"></div>
@@ -148,8 +271,39 @@
 
 <script>
 let currentMode = 'instant';
+let currentSimType = 'leeway';
 const CLOUD_RUN_URL = 'https://opendrift-leeway-1087471739366.europe-west1.run.app';
 const VERCEL_API_URL = '/api/simulate';
+
+const MODEL_CONFIG = {
+    leeway:     { label: 'Person Overboard', instantOk: true,  paramsId: 'leewayParams' },
+    oceandrift: { label: 'Marine Debris',    instantOk: false, paramsId: 'oceandriftParams' },
+    openoil:    { label: 'Oil Spill',        instantOk: false, paramsId: 'openoilParams' },
+};
+
+function setSimType(type) {
+    currentSimType = type;
+    // Toggle active card
+    document.querySelectorAll('.sim-card').forEach(function(card) {
+        card.classList.toggle('active', card.dataset.type === type);
+    });
+    // Toggle param sections
+    document.querySelectorAll('.model-params').forEach(function(el) { el.classList.remove('visible'); });
+    var cfg = MODEL_CONFIG[type];
+    document.getElementById(cfg.paramsId).classList.add('visible');
+
+    // Handle instant mode availability
+    var instantBtn = document.getElementById('modeInstant');
+    var modeNote = document.getElementById('modeNote');
+    if (!cfg.instantOk) {
+        if (currentMode === 'instant') setMode('email');
+        instantBtn.disabled = true;
+        modeNote.classList.add('visible');
+    } else {
+        instantBtn.disabled = false;
+        modeNote.classList.remove('visible');
+    }
+}
 
 function setMode(mode) {
     currentMode = mode;
@@ -159,18 +313,35 @@ function setMode(mode) {
     document.getElementById('submitBtn').textContent = mode === 'instant' ? 'Run Simulation' : 'Submit & Email Results';
 }
 
-document.getElementById('simulationForm').addEventListener('submit', async (event) => {
+function getModelParams() {
+    if (currentSimType === 'leeway') {
+        return { object_type: document.getElementById('objectType').value };
+    }
+    if (currentSimType === 'oceandrift') {
+        return { wind_drift_factor: document.getElementById('windDriftFactor').value };
+    }
+    if (currentSimType === 'openoil') {
+        return {
+            oil_type: document.getElementById('oilType').value,
+            amount: document.getElementById('oilAmount').value,
+        };
+    }
+    return {};
+}
+
+document.getElementById('simulationForm').addEventListener('submit', async function(event) {
     event.preventDefault();
     document.getElementById('output').innerHTML = '';
     document.getElementById('error').innerText = '';
     document.getElementById('success').innerText = '';
     document.getElementById('logs').innerText = '';
 
-    const lon = parseFloat(document.getElementById('lon').value);
-    const lat = parseFloat(document.getElementById('lat').value);
-    const duration = parseInt(document.getElementById('duration').value, 10);
-    const email = document.getElementById('email').value.trim();
-    const submitBtn = document.getElementById('submitBtn');
+    var lon = parseFloat(document.getElementById('lon').value);
+    var lat = parseFloat(document.getElementById('lat').value);
+    var duration = parseInt(document.getElementById('duration').value, 10);
+    var email = document.getElementById('email').value.trim();
+    var submitBtn = document.getElementById('submitBtn');
+    var modelParams = getModelParams();
 
     if (currentMode === 'email' && !email) {
         document.getElementById('error').innerText = 'Please enter an email address for email mode.';
@@ -180,44 +351,49 @@ document.getElementById('simulationForm').addEventListener('submit', async (even
     submitBtn.disabled = true;
 
     if (currentMode === 'instant') {
-        // Instant mode: call Cloud Run directly
+        // Instant mode: call Cloud Run directly (Leeway only)
         document.getElementById('logs').innerText = 'Running simulation...';
         try {
-            const response = await fetch(CLOUD_RUN_URL, {
+            var response = await fetch(CLOUD_RUN_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ lon, lat, duration })
+                body: JSON.stringify({ lon: lon, lat: lat, duration: duration })
             });
-            const data = await response.json();
+            var data = await response.json();
             handleInstantResponse(response.ok, data);
         } catch (err) {
             document.getElementById('error').innerText = 'Request failed: ' + err.message;
         }
     } else {
         // Email mode: call Vercel API -> triggers GitHub Actions
-        document.getElementById('logs').innerText = 'Submitting simulation request...';
+        document.getElementById('logs').innerText = 'Submitting ' + MODEL_CONFIG[currentSimType].label + ' simulation...';
+        var payload = Object.assign(
+            { lon: lon, lat: lat, duration: duration, email: email, mode: 'email', model_type: currentSimType },
+            modelParams
+        );
         try {
-            const response = await fetch(VERCEL_API_URL, {
+            var response = await fetch(VERCEL_API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ lon, lat, duration, email, mode: 'email' })
+                body: JSON.stringify(payload)
             });
-            const data = await response.json();
+            var data = await response.json();
 
             if (data.status === 'queued') {
                 document.getElementById('success').innerText =
-                    'Simulation queued! Request ID: ' + data.request_id +
+                    MODEL_CONFIG[currentSimType].label + ' simulation queued! Request ID: ' + data.request_id +
                     '. Results will be emailed to ' + email + '.';
                 document.getElementById('logs').innerText = '';
             } else if (data.fallback) {
-                // Fell back to Cloud Run
                 document.getElementById('success').innerText = data.note || 'Results returned via Cloud Run fallback.';
                 handleInstantResponse(true, data);
             } else {
                 document.getElementById('error').innerText = 'Error: ' + (data.error || 'Unknown error');
+                document.getElementById('logs').innerText = '';
             }
         } catch (err) {
             document.getElementById('error').innerText = 'Request failed: ' + err.message;
+            document.getElementById('logs').innerText = '';
         }
     }
 
@@ -226,7 +402,7 @@ document.getElementById('simulationForm').addEventListener('submit', async (even
 
 function handleInstantResponse(ok, data) {
     if (ok) {
-        let imagesArray = [];
+        var imagesArray = [];
         if (Array.isArray(data.images)) {
             imagesArray = data.images;
         } else if (data.image) {
@@ -259,6 +435,5 @@ function handleInstantResponse(ok, data) {
     }
 }
 </script>
-
 </body>
 </html>
