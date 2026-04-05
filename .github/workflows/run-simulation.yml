@@ -54,7 +54,6 @@ jobs:
       - name: Fallback - download fresh data if cache miss
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
-          python3 -m pip install --user xarray netCDF4 --quiet
           python3 scripts/download_seacurrent_nc.py --output data/nc_files
           python3 scripts/convert_seacurrent_for_drift.py \
             --input-dir data/nc_files \
