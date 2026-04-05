@@ -13,6 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: opendrift/opendrift:latest
+      options: --user root
     steps:
       - uses: actions/checkout@v4
 
