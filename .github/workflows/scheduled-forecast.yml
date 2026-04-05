@@ -17,7 +17,20 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Check data availability
+        id: data-check
+        run: |
+          if ls data/nc_converted/*.nc 1>/dev/null 2>&1; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "✅ NC files found in repo checkout"
+            ls -lh data/nc_converted/*.nc
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "⚠️ No NC files found, will try cache then download"
+          fi
+
       - name: Restore cached CWA data
+        if: steps.data-check.outputs.found != 'true'
         id: cache
         uses: actions/cache/restore@v4
         with:
@@ -26,11 +39,11 @@ jobs:
           restore-keys: cwa-nc-
 
       - name: Ensure cfgrib available
-        if: steps.cache.outputs.cache-hit != 'true'
+        if: steps.data-check.outputs.found != 'true' && steps.cache.outputs.cache-hit != 'true'
         run: /opt/conda/bin/python3 -c "import cfgrib" 2>/dev/null || /opt/conda/bin/micromamba install -y -n base -c conda-forge cfgrib eccodes
 
-      - name: Fallback - download fresh data if cache miss
-        if: steps.cache.outputs.cache-hit != 'true'
+      - name: Fallback - download fresh data
+        if: steps.data-check.outputs.found != 'true' && steps.cache.outputs.cache-hit != 'true'
         run: |
           /opt/conda/bin/python3 scripts/download_seacurrent_nc.py \
             --output data/nc_files \
