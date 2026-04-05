@@ -2,5 +2,6 @@
 data/nc_files/
 data/grib2_files/
 
-# Large NC file exceeding GitHub 100MB limit (re-downloadable + convertable)
+# Individual converted files (replaced by current_fixed.nc / wind_fixed.nc)
 data/nc_converted/M-B0071-000.nc
+data/nc_converted/M-A0064-*.nc
