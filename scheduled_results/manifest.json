@@ -1,0 +1,53 @@
+{
+  "generated_at": "2026-04-05T10:00:56.436112Z",
+  "data_start_time": "2026-04-05 00:00:00",
+  "duration_hours": 24,
+  "model": "Leeway (Person Overboard)",
+  "points": [
+    {
+      "id": "keelung",
+      "name": "Keelung",
+      "name_zh": "基隆外海",
+      "lon": 121.75,
+      "lat": 25.2,
+      "image": "keelung.png",
+      "status": "ok"
+    },
+    {
+      "id": "kaohsiung",
+      "name": "Kaohsiung",
+      "name_zh": "高雄外海",
+      "lon": 120.25,
+      "lat": 22.5,
+      "image": "kaohsiung.png",
+      "status": "ok"
+    },
+    {
+      "id": "hualien",
+      "name": "Hualien",
+      "name_zh": "花蓮外海",
+      "lon": 121.7,
+      "lat": 24.0,
+      "image": "hualien.png",
+      "status": "ok"
+    },
+    {
+      "id": "penghu",
+      "name": "Penghu Channel",
+      "name_zh": "澎湖水道",
+      "lon": 119.6,
+      "lat": 23.5,
+      "image": "penghu.png",
+      "status": "ok"
+    },
+    {
+      "id": "taitung",
+      "name": "Taitung / Green Isl.",
+      "name_zh": "台東綠島",
+      "lon": 121.5,
+      "lat": 22.65,
+      "image": "taitung.png",
+      "status": "ok"
+    }
+  ]
+}
