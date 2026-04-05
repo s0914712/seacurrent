@@ -51,13 +51,20 @@ jobs:
           key: cwa-nc-
           restore-keys: cwa-nc-
 
+      - name: Ensure cfgrib available
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: /opt/conda/bin/python3 -c "import cfgrib" 2>/dev/null || /opt/conda/bin/micromamba install -y -n base -c conda-forge cfgrib eccodes
+
       - name: Fallback - download fresh data if cache miss
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
-          /opt/conda/bin/python3 scripts/download_seacurrent_nc.py --output data/nc_files
+          /opt/conda/bin/python3 scripts/download_seacurrent_nc.py \
+            --output data/nc_files \
+            --wind --wind-output data/grib2_files
           /opt/conda/bin/python3 scripts/convert_seacurrent_for_drift.py \
             --input-dir data/nc_files \
-            --output-dir data/nc_converted
+            --output-dir data/nc_converted \
+            --wind-input-dir data/grib2_files
 
       - name: Run OpenDrift simulation
         run: |

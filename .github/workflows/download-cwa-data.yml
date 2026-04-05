@@ -16,16 +16,20 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install xarray netCDF4 numpy
+        run: pip install xarray netCDF4 numpy cfgrib eccodes
 
-      - name: Download NC files from CWA
-        run: python scripts/download_seacurrent_nc.py --output data/nc_files
+      - name: Download NC and wind GRIB2 files from CWA
+        run: |
+          python scripts/download_seacurrent_nc.py \
+            --output data/nc_files \
+            --wind --wind-output data/grib2_files
 
       - name: Convert for OpenDrift
         run: |
           python scripts/convert_seacurrent_for_drift.py \
             --input-dir data/nc_files \
-            --output-dir data/nc_converted
+            --output-dir data/nc_converted \
+            --wind-input-dir data/grib2_files
 
       - name: Cache converted data
         uses: actions/cache/save@v4
