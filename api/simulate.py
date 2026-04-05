@@ -10,7 +10,6 @@ from urllib.request import Request, urlopen
 GITHUB_API = "https://api.github.com"
 REPO = "s0914712/seacurrent"
 WORKFLOW_FILE = "run-simulation.yml"
-CLOUD_RUN_URL = "https://opendrift-leeway-1087471739366.europe-west1.run.app"
 
 VALID_MODEL_TYPES = {"leeway", "oceandrift", "openoil"}
 ALLOWED_MODEL_PARAMS = {
@@ -71,22 +70,6 @@ def trigger_github_actions(
         return {"error": str(exc), "status_code": 502}
 
 
-def fallback_cloud_run(lon: float, lat: float, duration: int) -> dict:
-    """Fallback: call existing Cloud Run backend for immediate results (Leeway only)."""
-    payload = json.dumps({"lon": lon, "lat": lat, "duration": duration}).encode("utf-8")
-    req = Request(
-        CLOUD_RUN_URL,
-        data=payload,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    try:
-        with urlopen(req, timeout=300) as resp:
-            return json.loads(resp.read().decode("utf-8"))
-    except Exception as exc:
-        return {"error": f"Cloud Run fallback failed: {exc}"}
-
-
 class handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         self.send_response(200)
@@ -107,7 +90,6 @@ class handler(BaseHTTPRequestHandler):
         lat = data.get("lat")
         duration = data.get("duration")
         email = data.get("email", "")
-        mode = data.get("mode", "email")
         model_type = data.get("model_type", "leeway")
 
         # Validate required fields
@@ -131,23 +113,11 @@ class handler(BaseHTTPRequestHandler):
             self._respond(400, {"error": f"Invalid model_type. Must be one of: {', '.join(VALID_MODEL_TYPES)}"})
             return
 
-        model_params = extract_model_params(data, model_type)
-
-        # Instant mode: proxy to Cloud Run (Leeway only)
-        if mode == "instant":
-            if model_type != "leeway":
-                self._respond(400, {
-                    "error": "Instant mode only supports Person Overboard (Leeway). Please use Email mode for other simulation types.",
-                })
-                return
-            result = fallback_cloud_run(lon, lat, duration)
-            self._respond(200, result)
-            return
-
-        # Email mode: trigger GitHub Actions
         if not email:
-            self._respond(400, {"error": "Email is required for email mode"})
+            self._respond(400, {"error": "Email is required. Results will be sent to your email."})
             return
+
+        model_params = extract_model_params(data, model_type)
 
         request_id = str(uuid.uuid4())[:8]
         result = trigger_github_actions(lon, lat, duration, email, request_id, model_type, model_params)
@@ -160,17 +130,9 @@ class handler(BaseHTTPRequestHandler):
                 "message": f"Simulation queued. Results will be emailed to {email}.",
             })
         else:
-            # Fallback to Cloud Run only for Leeway
-            if model_type == "leeway":
-                print(f"GitHub Actions trigger failed: {result.get('error')}, falling back to Cloud Run")
-                cr_result = fallback_cloud_run(lon, lat, duration)
-                cr_result["fallback"] = True
-                cr_result["note"] = "GitHub Actions unavailable, using Cloud Run instant mode"
-                self._respond(200, cr_result)
-            else:
-                self._respond(502, {
-                    "error": f"Failed to trigger simulation: {result.get('error')}",
-                })
+            self._respond(502, {
+                "error": f"Failed to trigger simulation: {result.get('error')}",
+            })
 
     def _respond(self, status: int, data: dict):
         self.send_response(status)
