@@ -62,45 +62,6 @@
         .sim-card .sim-desc { display: block; font-size: 0.78em; color: #666; margin-top: 3px; }
         .sim-card.active .sim-desc { color: #555; }
 
-        /* Mode toggle */
-        .mode-toggle {
-            display: flex;
-            gap: 0;
-            margin: 0 0 18px 0;
-            border-radius: 6px;
-            overflow: hidden;
-            border: 2px solid #007bff;
-            width: fit-content;
-        }
-        .mode-toggle button {
-            margin: 0;
-            border-radius: 0;
-            padding: 7px 18px;
-            background-color: white;
-            color: #007bff;
-            border: none;
-            width: auto;
-            font-size: 14px;
-        }
-        .mode-toggle button.active {
-            background-color: #007bff;
-            color: white;
-        }
-        .mode-toggle button:hover { background-color: #e0edff; }
-        .mode-toggle button.active:hover { background-color: #0056b3; }
-        .mode-toggle button:disabled {
-            background-color: #eee;
-            color: #aaa;
-            cursor: not-allowed;
-        }
-        .mode-note {
-            font-size: 0.82em;
-            color: #e67700;
-            margin: -12px 0 14px 0;
-            display: none;
-        }
-        .mode-note.visible { display: block; }
-
         /* Form */
         label { font-weight: 600; margin-top: 6px; display: inline-block; font-size: 0.92em; }
         input, select {
@@ -127,14 +88,8 @@
         .submit-btn:disabled { background-color: #999; cursor: not-allowed; }
 
         /* Conditional sections */
-        .model-params, .email-section { display: none; }
-        .model-params.visible, .email-section.visible { display: block; }
-        .email-section {
-            padding: 12px;
-            background: #f0f7ff;
-            border-radius: 8px;
-            margin-bottom: 14px;
-        }
+        .model-params { display: none; }
+        .model-params.visible { display: block; }
         .param-group {
             padding: 12px;
             background: #f8f9fa;
@@ -142,6 +97,13 @@
             margin-bottom: 14px;
         }
         .param-group label:first-child { margin-top: 0; }
+        .email-group {
+            padding: 12px;
+            background: #f0f7ff;
+            border-radius: 8px;
+            margin-bottom: 14px;
+        }
+        .email-group label { margin-top: 0; }
 
         /* Output */
         #output { margin-top: 20px; }
@@ -157,6 +119,11 @@
             margin-top: 10px;
             font-family: monospace;
             font-size: 0.88em;
+        }
+        .info-note {
+            font-size: 0.85em;
+            color: #666;
+            margin: -8px 0 14px 0;
         }
 
         /* Responsive */
@@ -190,13 +157,6 @@
                 <span class="sim-desc">OpenOil model</span>
             </button>
         </div>
-
-        <!-- Mode Toggle -->
-        <div class="mode-toggle">
-            <button type="button" id="modeInstant" class="active" onclick="setMode('instant')">Instant</button>
-            <button type="button" id="modeEmail" onclick="setMode('email')">Email Results</button>
-        </div>
-        <p id="modeNote" class="mode-note">This simulation type only supports Email mode (runs via GitHub Actions).</p>
 
         <form id="simulationForm">
             <!-- Common fields -->
@@ -254,13 +214,14 @@
                 </div>
             </div>
 
-            <!-- Email section -->
-            <div id="emailSection" class="email-section">
-                <label for="email">Email (results will be sent here):</label>
-                <input type="email" id="email" name="email" placeholder="your@email.com">
+            <!-- Email (always visible, required) -->
+            <div class="email-group">
+                <label for="email">Email (simulation results will be sent here):</label>
+                <input type="email" id="email" name="email" placeholder="your@email.com" required>
             </div>
+            <p class="info-note">Simulation runs via GitHub Actions. Results typically arrive within 10-15 minutes.</p>
 
-            <button type="submit" id="submitBtn" class="submit-btn">Run Simulation</button>
+            <button type="submit" id="submitBtn" class="submit-btn">Submit & Email Results</button>
         </form>
 
         <div id="success"></div>
@@ -270,47 +231,22 @@
     </div>
 
 <script>
-let currentMode = 'instant';
-let currentSimType = 'leeway';
-const CLOUD_RUN_URL = 'https://opendrift-leeway-1087471739366.europe-west1.run.app';
-const VERCEL_API_URL = 'https://seacurrent.vercel.app/api/simulate';
+var currentSimType = 'leeway';
+var VERCEL_API_URL = 'https://seacurrent.vercel.app/api/simulate';
 
-const MODEL_CONFIG = {
-    leeway:     { label: 'Person Overboard', instantOk: true,  paramsId: 'leewayParams' },
-    oceandrift: { label: 'Marine Debris',    instantOk: false, paramsId: 'oceandriftParams' },
-    openoil:    { label: 'Oil Spill',        instantOk: false, paramsId: 'openoilParams' },
+var MODEL_CONFIG = {
+    leeway:     { label: 'Person Overboard', paramsId: 'leewayParams' },
+    oceandrift: { label: 'Marine Debris',    paramsId: 'oceandriftParams' },
+    openoil:    { label: 'Oil Spill',        paramsId: 'openoilParams' },
 };
 
 function setSimType(type) {
     currentSimType = type;
-    // Toggle active card
     document.querySelectorAll('.sim-card').forEach(function(card) {
         card.classList.toggle('active', card.dataset.type === type);
     });
-    // Toggle param sections
     document.querySelectorAll('.model-params').forEach(function(el) { el.classList.remove('visible'); });
-    var cfg = MODEL_CONFIG[type];
-    document.getElementById(cfg.paramsId).classList.add('visible');
-
-    // Handle instant mode availability
-    var instantBtn = document.getElementById('modeInstant');
-    var modeNote = document.getElementById('modeNote');
-    if (!cfg.instantOk) {
-        if (currentMode === 'instant') setMode('email');
-        instantBtn.disabled = true;
-        modeNote.classList.add('visible');
-    } else {
-        instantBtn.disabled = false;
-        modeNote.classList.remove('visible');
-    }
-}
-
-function setMode(mode) {
-    currentMode = mode;
-    document.getElementById('modeInstant').classList.toggle('active', mode === 'instant');
-    document.getElementById('modeEmail').classList.toggle('active', mode === 'email');
-    document.getElementById('emailSection').classList.toggle('visible', mode === 'email');
-    document.getElementById('submitBtn').textContent = mode === 'instant' ? 'Run Simulation' : 'Submit & Email Results';
+    document.getElementById(MODEL_CONFIG[type].paramsId).classList.add('visible');
 }
 
 function getModelParams() {
@@ -343,97 +279,43 @@ document.getElementById('simulationForm').addEventListener('submit', async funct
     var submitBtn = document.getElementById('submitBtn');
     var modelParams = getModelParams();
 
-    if (currentMode === 'email' && !email) {
-        document.getElementById('error').innerText = 'Please enter an email address for email mode.';
+    if (!email) {
+        document.getElementById('error').innerText = 'Please enter your email address.';
         return;
     }
 
     submitBtn.disabled = true;
+    document.getElementById('logs').innerText = 'Submitting ' + MODEL_CONFIG[currentSimType].label + ' simulation...';
 
-    if (currentMode === 'instant') {
-        // Instant mode: call Cloud Run directly (Leeway only)
-        document.getElementById('logs').innerText = 'Running simulation...';
-        try {
-            var response = await fetch(CLOUD_RUN_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ lon: lon, lat: lat, duration: duration })
-            });
-            var data = await response.json();
-            handleInstantResponse(response.ok, data);
-        } catch (err) {
-            document.getElementById('error').innerText = 'Request failed: ' + err.message;
-        }
-    } else {
-        // Email mode: call Vercel API -> triggers GitHub Actions
-        document.getElementById('logs').innerText = 'Submitting ' + MODEL_CONFIG[currentSimType].label + ' simulation...';
-        var payload = Object.assign(
-            { lon: lon, lat: lat, duration: duration, email: email, mode: 'email', model_type: currentSimType },
-            modelParams
-        );
-        try {
-            var response = await fetch(VERCEL_API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            var data = await response.json();
+    var payload = Object.assign(
+        { lon: lon, lat: lat, duration: duration, email: email, model_type: currentSimType },
+        modelParams
+    );
 
-            if (data.status === 'queued') {
-                document.getElementById('success').innerText =
-                    MODEL_CONFIG[currentSimType].label + ' simulation queued! Request ID: ' + data.request_id +
-                    '. Results will be emailed to ' + email + '.';
-                document.getElementById('logs').innerText = '';
-            } else if (data.fallback) {
-                document.getElementById('success').innerText = data.note || 'Results returned via Cloud Run fallback.';
-                handleInstantResponse(true, data);
-            } else {
-                document.getElementById('error').innerText = 'Error: ' + (data.error || 'Unknown error');
-                document.getElementById('logs').innerText = '';
-            }
-        } catch (err) {
-            document.getElementById('error').innerText = 'Request failed: ' + err.message;
+    try {
+        var response = await fetch(VERCEL_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        var data = await response.json();
+
+        if (data.status === 'queued') {
+            document.getElementById('success').innerText =
+                MODEL_CONFIG[currentSimType].label + ' simulation queued! Request ID: ' + data.request_id +
+                '. Results will be emailed to ' + email + '.';
+            document.getElementById('logs').innerText = '';
+        } else {
+            document.getElementById('error').innerText = 'Error: ' + (data.error || 'Unknown error');
             document.getElementById('logs').innerText = '';
         }
+    } catch (err) {
+        document.getElementById('error').innerText = 'Request failed: ' + err.message;
+        document.getElementById('logs').innerText = '';
     }
 
     submitBtn.disabled = false;
 });
-
-function handleInstantResponse(ok, data) {
-    if (ok) {
-        var imagesArray = [];
-        if (Array.isArray(data.images)) {
-            imagesArray = data.images;
-        } else if (data.image) {
-            imagesArray = [data.image];
-        }
-
-        if (imagesArray.length === 0) {
-            document.getElementById('output').innerHTML = '<p>No images returned.</p>';
-        } else {
-            document.getElementById('output').innerHTML = imagesArray.map(function(img) {
-                return '<div>' +
-                    '<p>Time: ' + (img.time || '') + '</p>' +
-                    '<img src="data:' + (img.content_type || 'image/png') + ';base64,' + img.data + '">' +
-                    '</div>';
-            }).join('');
-        }
-
-        if (Array.isArray(data.logs)) {
-            document.getElementById('logs').innerText = data.logs.join('\n');
-        } else if (typeof data.logs === 'string') {
-            document.getElementById('logs').innerText = data.logs;
-        } else {
-            document.getElementById('logs').innerText = '';
-        }
-    } else {
-        document.getElementById('error').innerText = 'Error: ' + (data.error || 'Unknown error');
-        if (Array.isArray(data.logs)) {
-            document.getElementById('logs').innerText = data.logs.join('\n');
-        }
-    }
-}
 </script>
 </body>
 </html>
