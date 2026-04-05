@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SeaCurrent - Drift Forecast</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0f2f5;
+            color: #333;
+        }
+        .header {
+            background-color: white;
+            padding: 24px 28px;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            margin-bottom: 20px;
+        }
+        .header h2 { margin: 0 0 4px 0; font-size: 1.6em; }
+        .header .subtitle { color: #666; margin: 0; font-size: 0.95em; }
+        .meta-info {
+            margin-top: 12px;
+            padding: 10px 14px;
+            background: #f0f7ff;
+            border-radius: 8px;
+            font-size: 0.9em;
+            color: #555;
+        }
+        .meta-info span { font-weight: 600; color: #333; }
+        .nav-link {
+            display: inline-block;
+            margin-top: 12px;
+            color: #007bff;
+            text-decoration: none;
+            font-size: 0.92em;
+        }
+        .nav-link:hover { text-decoration: underline; }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+            gap: 16px;
+        }
+        .card {
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+        .card-header {
+            padding: 14px 18px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #eee;
+        }
+        .card-header h3 { margin: 0; font-size: 1.1em; }
+        .card-header .coords { color: #888; font-size: 0.85em; margin-top: 2px; }
+        .card-body { padding: 12px; }
+        .card-body img {
+            width: 100%;
+            border-radius: 6px;
+            display: block;
+        }
+        .card-error {
+            padding: 30px;
+            text-align: center;
+            color: #999;
+            font-size: 0.95em;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: #888;
+            font-size: 1.1em;
+        }
+        .error-banner {
+            text-align: center;
+            padding: 40px 20px;
+            color: #d32f2f;
+        }
+
+        @media (max-width: 560px) {
+            .grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>Taiwan Waters Drift Forecast</h2>
+        <p class="subtitle">Automated Leeway (person overboard) simulation for 5 monitoring points</p>
+        <div id="metaInfo" class="meta-info" style="display:none;"></div>
+        <a href="index.html" class="nav-link">&larr; Back to Custom Simulation</a>
+    </div>
+
+    <div id="loading" class="loading">Loading forecast data...</div>
+    <div id="errorBanner" class="error-banner" style="display:none;"></div>
+    <div id="grid" class="grid"></div>
+
+<script>
+var MANIFEST_URL = 'scheduled_results/manifest.json';
+
+async function loadForecast() {
+    var loading = document.getElementById('loading');
+    var errorBanner = document.getElementById('errorBanner');
+    var grid = document.getElementById('grid');
+    var metaInfo = document.getElementById('metaInfo');
+
+    try {
+        var resp = await fetch(MANIFEST_URL + '?t=' + Date.now());
+        if (!resp.ok) {
+            loading.style.display = 'none';
+            errorBanner.style.display = 'block';
+            errorBanner.innerHTML = '<h3>No forecast data yet</h3>' +
+                '<p>Scheduled forecasts will appear here after the first GitHub Actions run.</p>' +
+                '<p>You can trigger it manually: Actions &rarr; Scheduled Drift Forecast &rarr; Run workflow</p>';
+            return;
+        }
+
+        var manifest = await resp.json();
+        loading.style.display = 'none';
+
+        // Show metadata
+        var genDate = new Date(manifest.generated_at);
+        metaInfo.style.display = 'block';
+        metaInfo.innerHTML =
+            '<span>Last updated:</span> ' + genDate.toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' }) +
+            ' &nbsp;|&nbsp; <span>Data start:</span> ' + manifest.data_start_time +
+            ' &nbsp;|&nbsp; <span>Duration:</span> ' + manifest.duration_hours + 'h' +
+            ' &nbsp;|&nbsp; <span>Model:</span> ' + manifest.model;
+
+        // Render cards
+        var points = manifest.points || [];
+        grid.innerHTML = points.map(function(pt) {
+            var header = '<div class="card-header">' +
+                '<h3>' + pt.name_zh + ' / ' + pt.name + '</h3>' +
+                '<div class="coords">(' + pt.lon + ', ' + pt.lat + ')</div>' +
+                '</div>';
+
+            if (pt.status === 'ok' && pt.image) {
+                return '<div class="card">' + header +
+                    '<div class="card-body">' +
+                    '<img src="scheduled_results/' + pt.image + '?t=' + Date.now() + '" alt="' + pt.name + ' trajectory">' +
+                    '</div></div>';
+            } else {
+                return '<div class="card">' + header +
+                    '<div class="card-error">Simulation failed: ' + (pt.status || 'unknown') + '</div>' +
+                    '</div>';
+            }
+        }).join('');
+
+    } catch (err) {
+        loading.style.display = 'none';
+        errorBanner.style.display = 'block';
+        errorBanner.innerHTML = '<h3>Failed to load forecast</h3><p>' + err.message + '</p>';
+    }
+}
+
+loadForecast();
+</script>
+</body>
+</html>

@@ -1,0 +1,46 @@
+name: Scheduled Drift Forecast
+
+on:
+  schedule:
+    - cron: '30 2 */2 * *'  # Every 2 days at 02:30 UTC (after data download at 02:00)
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  forecast:
+    runs-on: ubuntu-latest
+    container:
+      image: opendrift/opendrift:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore cached CWA data
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: data/nc_converted
+          key: cwa-nc-
+          restore-keys: cwa-nc-
+
+      - name: Fallback - download fresh data if cache miss
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          pip install xarray netCDF4 --quiet
+          python scripts/download_seacurrent_nc.py --output data/nc_files
+          python scripts/convert_seacurrent_for_drift.py \
+            --input-dir data/nc_files \
+            --output-dir data/nc_converted
+
+      - name: Run 5-point forecast simulations
+        run: python scripts/run_scheduled_forecasts.py
+
+      - name: Commit results to repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add scheduled_results/
+          git diff --cached --quiet && echo "No changes" && exit 0
+          git commit -m "Update scheduled drift forecast $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          git push origin HEAD:main
