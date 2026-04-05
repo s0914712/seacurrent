@@ -1,0 +1,6 @@
+# Raw data files (too large for GitHub, re-downloadable via scripts)
+data/nc_files/
+data/grib2_files/
+
+# Large NC file exceeding GitHub 100MB limit (re-downloadable + convertable)
+data/nc_converted/M-B0071-000.nc
