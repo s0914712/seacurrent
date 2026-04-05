@@ -89,6 +89,94 @@ def seed_model(o, model_type: str, params: dict, lon: float, lat: float,
         )
 
 
+def export_trajectory_geojson(o, model_type: str) -> dict:
+    """Extract particle trajectories from OpenDrift and return GeoJSON."""
+    import numpy as np
+
+    history = o.history
+    lons = history["lon"].data
+    lats = history["lat"].data
+    status = history["status"].data
+    num_elements, num_steps = lons.shape
+    times = [str(t) for t in o.get_time_array()[0]]
+
+    # Sample particles for manageable GeoJSON size (max 50 trajectories)
+    step = max(1, num_elements // 50)
+    sample_idx = list(range(0, num_elements, step))
+
+    features = []
+
+    # Individual particle trajectories as LineStrings
+    for i in sample_idx:
+        coords = []
+        for t in range(num_steps):
+            lon_val = float(lons[i, t])
+            lat_val = float(lats[i, t])
+            if np.isfinite(lon_val) and np.isfinite(lat_val):
+                coords.append([round(lon_val, 5), round(lat_val, 5)])
+        if len(coords) >= 2:
+            features.append({
+                "type": "Feature",
+                "properties": {"type": "trajectory", "particle": int(i)},
+                "geometry": {"type": "LineString", "coordinates": coords},
+            })
+
+    # Start point
+    features.append({
+        "type": "Feature",
+        "properties": {"type": "start", "label": "Start"},
+        "geometry": {"type": "Point", "coordinates": [
+            round(float(np.nanmean(lons[:, 0])), 5),
+            round(float(np.nanmean(lats[:, 0])), 5),
+        ]},
+    })
+
+    # End points (final position of all particles)
+    end_lons, end_lats = [], []
+    for i in range(num_elements):
+        for t in range(num_steps - 1, -1, -1):
+            if np.isfinite(lons[i, t]) and np.isfinite(lats[i, t]):
+                end_lons.append(float(lons[i, t]))
+                end_lats.append(float(lats[i, t]))
+                break
+    if end_lons:
+        features.append({
+            "type": "Feature",
+            "properties": {"type": "end_center", "label": "End (mean)"},
+            "geometry": {"type": "Point", "coordinates": [
+                round(float(np.mean(end_lons)), 5),
+                round(float(np.mean(end_lats)), 5),
+            ]},
+        })
+
+    # Convex hull of end positions
+    if len(end_lons) >= 3:
+        from scipy.spatial import ConvexHull
+        points = np.array(list(zip(end_lons, end_lats)))
+        try:
+            hull = ConvexHull(points)
+            hull_coords = [[round(points[v, 0], 5), round(points[v, 1], 5)] for v in hull.vertices]
+            hull_coords.append(hull_coords[0])  # close polygon
+            features.append({
+                "type": "Feature",
+                "properties": {"type": "end_hull", "label": "Spread area"},
+                "geometry": {"type": "Polygon", "coordinates": [hull_coords]},
+            })
+        except Exception:
+            pass
+
+    return {
+        "type": "FeatureCollection",
+        "properties": {
+            "model_type": model_type,
+            "times": times[:num_steps],
+            "num_particles": num_elements,
+            "num_steps": num_steps,
+        },
+        "features": features,
+    }
+
+
 def main() -> int:
     args = parse_args()
     model_params = json.loads(args.model_params)
@@ -156,6 +244,12 @@ def main() -> int:
     o.plot(filename=trajectory_path, fast=True)
     print(f"Saved trajectory plot: {trajectory_path}")
 
+    # Export trajectory GeoJSON for interactive map
+    geojson = export_trajectory_geojson(o, args.model_type)
+    geojson_path = output_dir / "trajectory.geojson"
+    geojson_path.write_text(json.dumps(geojson, ensure_ascii=False), encoding="utf-8")
+    print(f"Saved trajectory GeoJSON: {geojson_path}")
+
     # Save results metadata
     results = {
         "model_type": args.model_type,
@@ -168,6 +262,7 @@ def main() -> int:
         "start_time": str(readers[0].start_time),
         "timestamp": datetime.utcnow().isoformat() + "Z",
         "images": ["trajectory.png"],
+        "geojson": "trajectory.geojson",
     }
 
     results_path = output_dir / "results.json"

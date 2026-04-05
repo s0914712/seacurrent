@@ -8,6 +8,8 @@ import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from run_simulation import export_trajectory_geojson
+
 
 # 5 monitoring points around Taiwan
 MONITORING_POINTS = [
@@ -91,6 +93,14 @@ def main() -> int:
             o.plot(filename=img_path, fast=True)
             print(f"Saved: {img_path}")
 
+            # Save GeoJSON for interactive map
+            geojson_name = f"{point['id']}.geojson"
+            geojson = export_trajectory_geojson(o, "leeway")
+            (output_dir / geojson_name).write_text(
+                json.dumps(geojson, ensure_ascii=False), encoding="utf-8",
+            )
+            print(f"Saved: {geojson_name}")
+
             all_results.append({
                 "id": point["id"],
                 "name": point["name"],
@@ -98,6 +108,7 @@ def main() -> int:
                 "lon": point["lon"],
                 "lat": point["lat"],
                 "image": img_name,
+                "geojson": geojson_name,
                 "status": "ok",
             })
 

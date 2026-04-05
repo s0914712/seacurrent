@@ -4,319 +4,362 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SeaCurrent Drift Simulator</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
-        * { box-sizing: border-box; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
-            max-width: 860px;
-            margin: 0 auto;
+            background: #0a1628;
+            color: #e0e6ed;
+            min-height: 100vh;
+        }
+        .layout {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 380px;
+            min-width: 380px;
+            background: #101d33;
+            border-right: 1px solid #1e3050;
+            overflow-y: auto;
             padding: 20px;
-            background-color: #f0f2f5;
-            color: #333;
+            display: flex;
+            flex-direction: column;
         }
-        .container {
-            background-color: white;
-            padding: 28px;
-            border-radius: 12px;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-        }
-        h2 {
-            margin: 0 0 4px 0;
-            font-size: 1.6em;
+        .sidebar h2 {
+            font-size: 1.3em;
+            margin-bottom: 4px;
+            color: #fff;
         }
         .subtitle {
-            color: #666;
-            margin: 0 0 20px 0;
-            font-size: 0.95em;
+            color: #7a8fa6;
+            font-size: 0.85em;
+            margin-bottom: 16px;
         }
+        .subtitle a { color: #5ba3f5; text-decoration: none; }
+        .subtitle a:hover { text-decoration: underline; }
 
-        /* Simulation type cards */
-        .sim-type-cards {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
+        /* Sim type cards */
+        .sim-type-cards { display: flex; gap: 6px; margin-bottom: 16px; }
         .sim-card {
             flex: 1;
-            padding: 14px 12px;
-            border: 2px solid #ddd;
-            border-radius: 10px;
-            background: #fafafa;
+            padding: 10px 6px;
+            border: 2px solid #1e3050;
+            border-radius: 8px;
+            background: #152238;
             cursor: pointer;
             text-align: center;
-            transition: all 0.2s;
-            width: auto;
-            margin: 0;
+            transition: all 0.15s;
+            color: #8a9bb5;
         }
-        .sim-card:hover {
-            border-color: #90b8f8;
-            background: #f0f5ff;
-        }
-        .sim-card.active {
-            border-color: #007bff;
-            background: #e8f0fe;
-            color: #333;
-        }
-        .sim-card .sim-icon { font-size: 1.8em; display: block; margin-bottom: 6px; }
-        .sim-card .sim-label { font-weight: bold; display: block; font-size: 0.95em; }
-        .sim-card .sim-desc { display: block; font-size: 0.78em; color: #666; margin-top: 3px; }
-        .sim-card.active .sim-desc { color: #555; }
+        .sim-card:hover { border-color: #3a6ea5; background: #182d4a; }
+        .sim-card.active { border-color: #4a9eff; background: #1a3558; color: #fff; }
+        .sim-card .sim-icon { font-size: 1.4em; display: block; margin-bottom: 4px; }
+        .sim-card .sim-label { font-weight: 600; display: block; font-size: 0.8em; }
 
         /* Form */
-        label { font-weight: 600; margin-top: 6px; display: inline-block; font-size: 0.92em; }
+        .form-section { margin-bottom: 12px; }
+        label { font-weight: 600; font-size: 0.82em; color: #8a9bb5; display: block; margin-bottom: 3px; }
         input, select {
-            margin: 4px 0 14px 0;
-            padding: 9px;
-            font-size: 15px;
             width: 100%;
-            border: 1px solid #ccc;
+            padding: 8px 10px;
+            font-size: 14px;
+            border: 1px solid #1e3050;
             border-radius: 6px;
+            background: #0d1a2e;
+            color: #e0e6ed;
+            margin-bottom: 10px;
         }
-        input:focus, select:focus { border-color: #007bff; outline: none; box-shadow: 0 0 0 2px rgba(0,123,255,0.15); }
-        button { font-size: 15px; cursor: pointer; }
+        input:focus, select:focus { border-color: #4a9eff; outline: none; }
+        .row { display: flex; gap: 10px; }
+        .row > div { flex: 1; }
+        .param-group {
+            padding: 10px;
+            background: #152238;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            border: 1px solid #1e3050;
+        }
+        .model-params { display: none; }
+        .model-params.visible { display: block; }
+        .map-hint {
+            font-size: 0.78em;
+            color: #5a7a9a;
+            margin: -6px 0 10px 0;
+        }
+
         .submit-btn {
-            background-color: #007bff;
+            width: 100%;
+            padding: 11px;
+            background: #2563eb;
             color: white;
             border: none;
             border-radius: 6px;
-            padding: 11px 28px;
-            font-size: 15px;
-            width: auto;
-            margin-top: 4px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s;
         }
-        .submit-btn:hover { background-color: #0056b3; }
-        .submit-btn:disabled { background-color: #999; cursor: not-allowed; }
+        .submit-btn:hover { background: #1d4ed8; }
+        .submit-btn:disabled { background: #374151; cursor: not-allowed; color: #6b7280; }
 
-        /* Conditional sections */
-        .model-params { display: none; }
-        .model-params.visible { display: block; }
-        .param-group {
-            padding: 12px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            margin-bottom: 14px;
-        }
-        .param-group label:first-child { margin-top: 0; }
-        .email-group {
-            padding: 12px;
-            background: #f0f7ff;
-            border-radius: 8px;
-            margin-bottom: 14px;
-        }
-        .email-group label { margin-top: 0; }
-
-        /* Output */
-        #output { margin-top: 20px; }
-        #output img { max-width: 100%; margin-bottom: 10px; border-radius: 6px; }
-        #output p { margin: 5px 0; font-weight: bold; }
-        #error { color: #d32f2f; margin-top: 10px; }
-        #success { color: #2e7d32; margin-top: 10px; font-weight: bold; }
+        /* Status messages */
+        #success { color: #34d399; margin-top: 10px; font-size: 0.88em; }
+        #error { color: #f87171; margin-top: 10px; font-size: 0.88em; }
         #logs {
-            white-space: pre-wrap;
-            background-color: #f5f5f5;
-            padding: 12px;
-            border-radius: 6px;
-            margin-top: 10px;
             font-family: monospace;
-            font-size: 0.88em;
+            font-size: 0.78em;
+            color: #7a8fa6;
+            margin-top: 8px;
+            white-space: pre-wrap;
         }
-        .info-note {
-            font-size: 0.85em;
-            color: #666;
-            margin: -8px 0 14px 0;
+
+        /* Map */
+        .map-container {
+            flex: 1;
+            position: relative;
         }
+        #map { width: 100%; height: 100%; }
+        .map-overlay {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: rgba(16, 29, 51, 0.9);
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.82em;
+            color: #8a9bb5;
+            z-index: 1000;
+            backdrop-filter: blur(8px);
+            border: 1px solid #1e3050;
+        }
+        .map-overlay .coord-display { color: #4a9eff; font-weight: 600; font-size: 1em; }
 
         /* Responsive */
-        @media (max-width: 600px) {
-            .sim-type-cards { flex-direction: column; }
-            .sim-card { padding: 10px; }
-            .container { padding: 16px; }
+        @media (max-width: 800px) {
+            .layout { flex-direction: column; }
+            .sidebar { width: 100%; min-width: 0; max-height: 55vh; }
+            .map-container { min-height: 45vh; }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h2>SeaCurrent Drift Simulator</h2>
-        <p class="subtitle">OpenDrift-based ocean drift simulation for Taiwan waters
-            &nbsp;|&nbsp; <a href="forecast.html" style="color:#007bff; text-decoration:none;">View Latest Forecast &rarr;</a>
-        </p>
+    <div class="layout">
+        <div class="sidebar">
+            <h2>SeaCurrent Drift Simulator</h2>
+            <p class="subtitle">
+                OpenDrift ocean drift simulation
+                &nbsp;|&nbsp; <a href="forecast.html">Forecast Map &rarr;</a>
+            </p>
 
-        <!-- Simulation Type Selector -->
-        <div class="sim-type-cards">
-            <button type="button" class="sim-card active" data-type="leeway" onclick="setSimType('leeway')">
-                <span class="sim-icon">&#x1F6DF;</span>
-                <span class="sim-label">Person Overboard</span>
-                <span class="sim-desc">Leeway SAR model</span>
-            </button>
-            <button type="button" class="sim-card" data-type="oceandrift" onclick="setSimType('oceandrift')">
-                <span class="sim-icon">&#x1F30A;</span>
-                <span class="sim-label">Marine Debris</span>
-                <span class="sim-desc">OceanDrift model</span>
-            </button>
-            <button type="button" class="sim-card" data-type="openoil" onclick="setSimType('openoil')">
-                <span class="sim-icon">&#x1F6E2;</span>
-                <span class="sim-label">Oil Spill</span>
-                <span class="sim-desc">OpenOil model</span>
-            </button>
+            <div class="sim-type-cards">
+                <button type="button" class="sim-card active" data-type="leeway" onclick="setSimType('leeway')">
+                    <span class="sim-icon">&#x1F6DF;</span>
+                    <span class="sim-label">Person</span>
+                </button>
+                <button type="button" class="sim-card" data-type="oceandrift" onclick="setSimType('oceandrift')">
+                    <span class="sim-icon">&#x1F30A;</span>
+                    <span class="sim-label">Debris</span>
+                </button>
+                <button type="button" class="sim-card" data-type="openoil" onclick="setSimType('openoil')">
+                    <span class="sim-icon">&#x1F6E2;</span>
+                    <span class="sim-label">Oil Spill</span>
+                </button>
+            </div>
+
+            <form id="simulationForm">
+                <div class="row">
+                    <div>
+                        <label for="lon">Longitude</label>
+                        <input type="number" step="any" id="lon" value="121.5" required>
+                    </div>
+                    <div>
+                        <label for="lat">Latitude</label>
+                        <input type="number" step="any" id="lat" value="24.0" required>
+                    </div>
+                </div>
+                <p class="map-hint">Click the map to set coordinates</p>
+
+                <div class="form-section">
+                    <label for="duration">Duration (hours)</label>
+                    <input type="number" id="duration" value="24" min="1" max="84">
+                </div>
+
+                <!-- Leeway params -->
+                <div id="leewayParams" class="model-params visible">
+                    <div class="param-group">
+                        <label for="objectType">Object Type</label>
+                        <select id="objectType">
+                            <option value="26" selected>Life raft, no ballast</option>
+                            <option value="1">Person in water (PIW)</option>
+                            <option value="4">Person in water, vertical</option>
+                            <option value="14">Life raft, ballast, canopy</option>
+                            <option value="27">Life raft, ballast, no canopy</option>
+                            <option value="40">Life raft, capsized</option>
+                            <option value="52">Fishing vessel</option>
+                            <option value="56">Sailboat, monohull</option>
+                            <option value="63">Skiff, flat bottom</option>
+                            <option value="72">Surfboard</option>
+                        </select>
+                    </div>
+                </div>
+                <!-- OceanDrift params -->
+                <div id="oceandriftParams" class="model-params">
+                    <div class="param-group">
+                        <label for="windDriftFactor">Wind Drift Factor</label>
+                        <input type="number" step="0.001" id="windDriftFactor" value="0.02" min="0" max="0.1">
+                    </div>
+                </div>
+                <!-- OpenOil params -->
+                <div id="openoilParams" class="model-params">
+                    <div class="param-group">
+                        <label for="oilType">Oil Type</label>
+                        <select id="oilType">
+                            <option value="GENERIC MEDIUM CRUDE" selected>Medium Crude</option>
+                            <option value="GENERIC HEAVY CRUDE">Heavy Crude</option>
+                            <option value="GENERIC LIGHT CRUDE">Light Crude</option>
+                            <option value="GENERIC DIESEL">Diesel</option>
+                            <option value="GENERIC BUNKER C">Bunker C</option>
+                        </select>
+                        <label for="oilAmount">Amount (m&sup3;)</label>
+                        <input type="number" step="1" id="oilAmount" value="100" min="1" max="10000">
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <label for="email">Email (results sent here)</label>
+                    <input type="email" id="email" placeholder="your@email.com" required>
+                </div>
+
+                <button type="submit" id="submitBtn" class="submit-btn">Submit Simulation</button>
+            </form>
+
+            <div id="success"></div>
+            <div id="error"></div>
+            <div id="logs"></div>
         </div>
 
-        <form id="simulationForm">
-            <!-- Common fields -->
-            <label for="lon">Longitude:</label>
-            <input type="number" step="any" id="lon" name="lon" value="122" required>
-
-            <label for="lat">Latitude:</label>
-            <input type="number" step="any" id="lat" name="lat" value="21" required>
-
-            <label for="duration">Duration (hours):</label>
-            <input type="number" id="duration" name="duration" value="6" min="1" max="168" required>
-
-            <!-- Leeway params -->
-            <div id="leewayParams" class="model-params visible">
-                <div class="param-group">
-                    <label for="objectType">Object Type:</label>
-                    <select id="objectType">
-                        <option value="26" selected>Life raft, no ballast (default)</option>
-                        <option value="1">Person in water (PIW)</option>
-                        <option value="4">Person in water, vertical</option>
-                        <option value="14">Life raft, ballast, canopy</option>
-                        <option value="27">Life raft, ballast, no canopy</option>
-                        <option value="40">Life raft, capsized</option>
-                        <option value="52">Fishing vessel, general</option>
-                        <option value="56">Sailboat, monohull</option>
-                        <option value="63">Skiff, flat bottom</option>
-                        <option value="72">Surfboard</option>
-                        <option value="78">Windsurfer</option>
-                    </select>
-                </div>
+        <div class="map-container">
+            <div id="map"></div>
+            <div class="map-overlay">
+                <div>Cursor: <span class="coord-display" id="cursorCoords">--</span></div>
             </div>
-
-            <!-- OceanDrift params -->
-            <div id="oceandriftParams" class="model-params">
-                <div class="param-group">
-                    <label for="windDriftFactor">Wind Drift Factor (0 = no wind effect, 0.03 = typical):</label>
-                    <input type="number" step="0.001" id="windDriftFactor" value="0.02" min="0" max="0.1">
-                </div>
-            </div>
-
-            <!-- OpenOil params -->
-            <div id="openoilParams" class="model-params">
-                <div class="param-group">
-                    <label for="oilType">Oil Type:</label>
-                    <select id="oilType">
-                        <option value="GENERIC MEDIUM CRUDE" selected>Generic Medium Crude</option>
-                        <option value="GENERIC HEAVY CRUDE">Generic Heavy Crude</option>
-                        <option value="GENERIC LIGHT CRUDE">Generic Light Crude</option>
-                        <option value="GENERIC DIESEL">Diesel</option>
-                        <option value="GENERIC BUNKER C">Bunker C (Heavy Fuel Oil)</option>
-                        <option value="GENERIC GASOLINE">Gasoline</option>
-                    </select>
-                    <label for="oilAmount">Amount (m&sup3;):</label>
-                    <input type="number" step="1" id="oilAmount" value="100" min="1" max="10000">
-                </div>
-            </div>
-
-            <!-- Email (always visible, required) -->
-            <div class="email-group">
-                <label for="email">Email (simulation results will be sent here):</label>
-                <input type="email" id="email" name="email" placeholder="your@email.com" required>
-            </div>
-            <p class="info-note">Simulation runs via GitHub Actions. Results typically arrive within 10-15 minutes.</p>
-
-            <button type="submit" id="submitBtn" class="submit-btn">Submit & Email Results</button>
-        </form>
-
-        <div id="success"></div>
-        <div id="output"></div>
-        <div id="error"></div>
-        <div id="logs"></div>
+        </div>
     </div>
 
 <script>
-var currentSimType = 'leeway';
-var VERCEL_API_URL = 'https://seacurrent.vercel.app/api/simulate';
+// --- Map ---
+var map = L.map('map', { zoomControl: false }).setView([23.5, 121], 7);
+L.control.zoom({ position: 'bottomright' }).addTo(map);
 
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap &copy; CARTO',
+    maxZoom: 18,
+}).addTo(map);
+
+var seedMarker = null;
+var trajectoryLayer = L.layerGroup().addTo(map);
+
+// Click to set coordinates
+map.on('click', function(e) {
+    document.getElementById('lon').value = e.latlng.lng.toFixed(4);
+    document.getElementById('lat').value = e.latlng.lat.toFixed(4);
+    updateSeedMarker(e.latlng.lat, e.latlng.lng);
+});
+
+map.on('mousemove', function(e) {
+    document.getElementById('cursorCoords').textContent =
+        e.latlng.lat.toFixed(4) + ', ' + e.latlng.lng.toFixed(4);
+});
+
+function updateSeedMarker(lat, lng) {
+    if (seedMarker) map.removeLayer(seedMarker);
+    seedMarker = L.circleMarker([lat, lng], {
+        radius: 8, color: '#ff4444', fillColor: '#ff4444', fillOpacity: 0.8, weight: 2,
+    }).addTo(map).bindPopup('Seed: ' + lat.toFixed(4) + ', ' + lng.toFixed(4));
+}
+
+// Init marker
+updateSeedMarker(24.0, 121.5);
+
+// Update marker when inputs change
+['lon', 'lat'].forEach(function(id) {
+    document.getElementById(id).addEventListener('change', function() {
+        var lat = parseFloat(document.getElementById('lat').value);
+        var lng = parseFloat(document.getElementById('lon').value);
+        if (!isNaN(lat) && !isNaN(lng)) updateSeedMarker(lat, lng);
+    });
+});
+
+// --- Simulation type ---
+var currentSimType = 'leeway';
 var MODEL_CONFIG = {
-    leeway:     { label: 'Person Overboard', paramsId: 'leewayParams' },
-    oceandrift: { label: 'Marine Debris',    paramsId: 'oceandriftParams' },
-    openoil:    { label: 'Oil Spill',        paramsId: 'openoilParams' },
+    leeway:     { paramsId: 'leewayParams' },
+    oceandrift: { paramsId: 'oceandriftParams' },
+    openoil:    { paramsId: 'openoilParams' },
 };
 
 function setSimType(type) {
     currentSimType = type;
-    document.querySelectorAll('.sim-card').forEach(function(card) {
-        card.classList.toggle('active', card.dataset.type === type);
+    document.querySelectorAll('.sim-card').forEach(function(c) {
+        c.classList.toggle('active', c.dataset.type === type);
     });
     document.querySelectorAll('.model-params').forEach(function(el) { el.classList.remove('visible'); });
     document.getElementById(MODEL_CONFIG[type].paramsId).classList.add('visible');
 }
 
 function getModelParams() {
-    if (currentSimType === 'leeway') {
-        return { object_type: document.getElementById('objectType').value };
-    }
-    if (currentSimType === 'oceandrift') {
-        return { wind_drift_factor: document.getElementById('windDriftFactor').value };
-    }
-    if (currentSimType === 'openoil') {
-        return {
-            oil_type: document.getElementById('oilType').value,
-            amount: document.getElementById('oilAmount').value,
-        };
-    }
+    if (currentSimType === 'leeway') return { object_type: document.getElementById('objectType').value };
+    if (currentSimType === 'oceandrift') return { wind_drift_factor: document.getElementById('windDriftFactor').value };
+    if (currentSimType === 'openoil') return { oil_type: document.getElementById('oilType').value, amount: document.getElementById('oilAmount').value };
     return {};
 }
 
-document.getElementById('simulationForm').addEventListener('submit', async function(event) {
-    event.preventDefault();
-    document.getElementById('output').innerHTML = '';
-    document.getElementById('error').innerText = '';
-    document.getElementById('success').innerText = '';
-    document.getElementById('logs').innerText = '';
+// --- Submit ---
+var VERCEL_API_URL = 'https://seacurrent.vercel.app/api/simulate';
 
-    var lon = parseFloat(document.getElementById('lon').value);
-    var lat = parseFloat(document.getElementById('lat').value);
-    var duration = parseInt(document.getElementById('duration').value, 10);
-    var email = document.getElementById('email').value.trim();
-    var submitBtn = document.getElementById('submitBtn');
-    var modelParams = getModelParams();
+document.getElementById('simulationForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    var btn = document.getElementById('submitBtn');
+    var successEl = document.getElementById('success');
+    var errorEl = document.getElementById('error');
+    successEl.textContent = '';
+    errorEl.textContent = '';
 
-    if (!email) {
-        document.getElementById('error').innerText = 'Please enter your email address.';
-        return;
-    }
+    var payload = Object.assign({
+        lon: parseFloat(document.getElementById('lon').value),
+        lat: parseFloat(document.getElementById('lat').value),
+        duration: parseInt(document.getElementById('duration').value),
+        email: document.getElementById('email').value.trim(),
+        model_type: currentSimType,
+    }, getModelParams());
 
-    submitBtn.disabled = true;
-    document.getElementById('logs').innerText = 'Submitting ' + MODEL_CONFIG[currentSimType].label + ' simulation...';
+    if (!payload.email) { errorEl.textContent = 'Please enter your email.'; return; }
 
-    var payload = Object.assign(
-        { lon: lon, lat: lat, duration: duration, email: email, model_type: currentSimType },
-        modelParams
-    );
+    btn.disabled = true;
+    btn.textContent = 'Submitting...';
 
     try {
-        var response = await fetch(VERCEL_API_URL, {
+        var resp = await fetch(VERCEL_API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            body: JSON.stringify(payload),
         });
-        var data = await response.json();
-
+        var data = await resp.json();
         if (data.status === 'queued') {
-            document.getElementById('success').innerText =
-                MODEL_CONFIG[currentSimType].label + ' simulation queued! Request ID: ' + data.request_id +
-                '. Results will be emailed to ' + email + '.';
-            document.getElementById('logs').innerText = '';
+            successEl.textContent = 'Simulation queued (ID: ' + data.request_id + '). Results will be emailed to ' + payload.email;
         } else {
-            document.getElementById('error').innerText = 'Error: ' + (data.error || 'Unknown error');
-            document.getElementById('logs').innerText = '';
+            errorEl.textContent = 'Error: ' + (data.error || 'Unknown error');
         }
     } catch (err) {
-        document.getElementById('error').innerText = 'Request failed: ' + err.message;
-        document.getElementById('logs').innerText = '';
+        errorEl.textContent = 'Request failed: ' + err.message;
     }
-
-    submitBtn.disabled = false;
+    btn.disabled = false;
+    btn.textContent = 'Submit Simulation';
 });
 </script>
 </body>
