@@ -54,15 +54,15 @@ jobs:
       - name: Fallback - download fresh data if cache miss
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
-          python -m pip install --user xarray netCDF4 --quiet
-          python scripts/download_seacurrent_nc.py --output data/nc_files
-          python scripts/convert_seacurrent_for_drift.py \
+          python3 -m pip install --user xarray netCDF4 --quiet
+          python3 scripts/download_seacurrent_nc.py --output data/nc_files
+          python3 scripts/convert_seacurrent_for_drift.py \
             --input-dir data/nc_files \
             --output-dir data/nc_converted
 
       - name: Run OpenDrift simulation
         run: |
-          python scripts/run_simulation.py \
+          python3 scripts/run_simulation.py \
             --lon "${{ inputs.lon }}" \
             --lat "${{ inputs.lat }}" \
             --duration "${{ inputs.duration }}" \
@@ -77,7 +77,7 @@ jobs:
           SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
           SENDGRID_FROM_EMAIL: ${{ secrets.SENDGRID_FROM_EMAIL }}
         run: |
-          python scripts/send_results_email.py \
+          python3 scripts/send_results_email.py \
             --to "${{ inputs.email }}" \
             --results-dir results/ \
             --request-id "${{ inputs.request_id }}"

@@ -28,14 +28,14 @@ jobs:
       - name: Fallback - download fresh data if cache miss
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
-          python -m pip install --user xarray netCDF4 --quiet
-          python scripts/download_seacurrent_nc.py --output data/nc_files
-          python scripts/convert_seacurrent_for_drift.py \
+          python3 -m pip install --user xarray netCDF4 --quiet
+          python3 scripts/download_seacurrent_nc.py --output data/nc_files
+          python3 scripts/convert_seacurrent_for_drift.py \
             --input-dir data/nc_files \
             --output-dir data/nc_converted
 
       - name: Run 5-point forecast simulations
-        run: python scripts/run_scheduled_forecasts.py
+        run: python3 scripts/run_scheduled_forecasts.py
 
       - name: Commit results to repo
         run: |
