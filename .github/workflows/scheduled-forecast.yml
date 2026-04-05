@@ -13,9 +13,9 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: opendrift/opendrift:latest
-      options: --user root
+      options: --user 1001
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Restore cached CWA data
         id: cache
@@ -28,7 +28,7 @@ jobs:
       - name: Fallback - download fresh data if cache miss
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
-          pip install xarray netCDF4 --quiet
+          python -m pip install --user xarray netCDF4 --quiet
           python scripts/download_seacurrent_nc.py --output data/nc_files
           python scripts/convert_seacurrent_for_drift.py \
             --input-dir data/nc_files \
