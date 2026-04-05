@@ -28,7 +28,6 @@ jobs:
       - name: Fallback - download fresh data if cache miss
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
-          python3 -m pip install --user xarray netCDF4 --quiet
           python3 scripts/download_seacurrent_nc.py --output data/nc_files
           python3 scripts/convert_seacurrent_for_drift.py \
             --input-dir data/nc_files \
@@ -37,7 +36,26 @@ jobs:
       - name: Run 5-point forecast simulations
         run: python3 scripts/run_scheduled_forecasts.py
 
-      - name: Commit results to repo
+      - name: Upload forecast results
+        uses: actions/upload-artifact@v4
+        with:
+          name: forecast-results
+          path: scheduled_results/
+
+  commit:
+    needs: forecast
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: forecast-results
+          path: scheduled_results/
+
+      - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
