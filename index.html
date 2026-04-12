@@ -6,6 +6,7 @@
     <title>SeaCurrent Drift Simulator</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet-velocity@2.1.4/dist/leaflet-velocity.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -138,6 +139,36 @@
             border: 1px solid #1e3050;
         }
         .map-overlay .coord-display { color: #4a9eff; font-weight: 600; font-size: 1em; }
+
+        /* Layer toggle */
+        .map-layer-controls {
+            position: absolute;
+            bottom: 12px;
+            left: 12px;
+            z-index: 1000;
+            display: flex;
+            gap: 4px;
+        }
+        .map-layer-btn {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 6px 10px;
+            background: rgba(16, 29, 51, 0.9);
+            border: 1px solid #1e3050;
+            border-radius: 6px;
+            color: #7a8fa6;
+            font-size: 0.75em;
+            cursor: pointer;
+            backdrop-filter: blur(8px);
+            transition: all 0.15s;
+            font-family: inherit;
+        }
+        .map-layer-btn:hover { background: rgba(26, 53, 88, 0.95); color: #e0e6ed; }
+        .map-layer-btn.active { color: #fff; border-color: #4a9eff; background: rgba(26, 53, 88, 0.95); }
+        .map-layer-btn .dot {
+            width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+        }
 
         /* Responsive - Tablet */
         @media (max-width: 900px) {
@@ -305,6 +336,17 @@
             <div class="map-overlay">
                 <div>Cursor: <span class="coord-display" id="cursorCoords">--</span></div>
             </div>
+            <div class="map-layer-controls">
+                <button class="map-layer-btn active" id="btnCurrentIdx" onclick="toggleIdxLayer('current')">
+                    <span class="dot" style="background:#4af;"></span> Current
+                </button>
+                <button class="map-layer-btn" id="btnWindIdx" onclick="toggleIdxLayer('wind')">
+                    <span class="dot" style="background:#f5f5f5;"></span> Wind
+                </button>
+                <button class="map-layer-btn" id="btnOffIdx" onclick="toggleIdxLayer('off')">
+                    Off
+                </button>
+            </div>
         </div>
     </div>
 
@@ -418,6 +460,83 @@ document.getElementById('simulationForm').addEventListener('submit', async funct
     btn.disabled = false;
     btn.textContent = 'Submit Simulation';
 });
+
+// --- Velocity layers (Windy-style animated flow) ---
+var CURRENT_VELOCITY_URL = 'scheduled_results/current_velocity.json';
+var WIND_VELOCITY_URL = 'scheduled_results/wind_velocity.json';
+var idxCurrentLayer = null;
+var idxWindLayer = null;
+var idxActiveLayer = 'current';
+
+function loadIdxVelocity(url, type) {
+    return fetch(url + '?t=' + Date.now())
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(data) {
+            if (!data) return null;
+            var isCurrent = type === 'current';
+            var layer = L.velocityLayer({
+                displayValues: true,
+                displayOptions: {
+                    velocityType: isCurrent ? 'Ocean Current' : 'Wind',
+                    displayPosition: 'bottomleft',
+                    displayEmptyString: '',
+                    speedUnit: 'm/s',
+                },
+                data: data,
+                maxVelocity: isCurrent ? 1.5 : 15,
+                velocityScale: isCurrent ? 0.01 : 0.005,
+                particleAge: 60,
+                lineWidth: isCurrent ? 2 : 1.5,
+                particleMultiplier: 1 / 250,
+                colorScale: isCurrent
+                    ? ["#1a237e","#1565c0","#42a5f5","#29b6f6","#26c6da","#00e5ff","#76ff03","#ffeb3b","#ff9800","#f44336"]
+                    : ["#364fc7","#4c6ef5","#748ffc","#91a7ff","#bac8ff","#dbe4ff","#f8f9fa","#ffe8cc","#ffc078","#ff922b"],
+                frameRate: 30,
+                opacity: 0.85,
+            });
+            if (isCurrent) idxCurrentLayer = layer; else idxWindLayer = layer;
+            return layer;
+        })
+        .catch(function() { return null; });
+}
+
+function toggleIdxLayer(type) {
+    idxActiveLayer = type;
+    document.getElementById('btnCurrentIdx').classList.toggle('active', type === 'current');
+    document.getElementById('btnWindIdx').classList.toggle('active', type === 'wind');
+    document.getElementById('btnOffIdx').classList.toggle('active', type === 'off');
+
+    if (idxCurrentLayer && map.hasLayer(idxCurrentLayer)) map.removeLayer(idxCurrentLayer);
+    if (idxWindLayer && map.hasLayer(idxWindLayer)) map.removeLayer(idxWindLayer);
+
+    if (type === 'current' && idxCurrentLayer) map.addLayer(idxCurrentLayer);
+    if (type === 'wind' && idxWindLayer) map.addLayer(idxWindLayer);
+}
+
+Promise.all([
+    loadIdxVelocity(CURRENT_VELOCITY_URL, 'current'),
+    loadIdxVelocity(WIND_VELOCITY_URL, 'wind'),
+]).then(function() {
+    if (idxCurrentLayer) map.addLayer(idxCurrentLayer);
+});
 </script>
+
+<style>
+.leaflet-control-velocity {
+    background: rgba(16,29,51,0.9) !important;
+    color: #e0e6ed !important;
+    padding: 4px 10px !important;
+    border-radius: 6px !important;
+    border: 1px solid #1e3050 !important;
+    font-size: 0.8em !important;
+    backdrop-filter: blur(8px) !important;
+}
+@media (max-width: 700px) {
+    .leaflet-control-velocity {
+        font-size: 0.72em !important;
+        padding: 3px 8px !important;
+    }
+}
+</style>
 </body>
 </html>

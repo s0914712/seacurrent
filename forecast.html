@@ -6,6 +6,7 @@
     <title>SeaCurrent - Drift Forecast</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet-velocity@2.1.4/dist/leaflet-velocity.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -69,6 +70,40 @@
         .map-area { flex: 1; position: relative; }
         #map { width: 100%; height: 100%; }
 
+        /* Layer toggle controls */
+        .layer-controls {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .layer-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            background: rgba(16, 29, 51, 0.92);
+            border: 1px solid #1e3050;
+            border-radius: 8px;
+            color: #7a8fa6;
+            font-size: 0.8em;
+            cursor: pointer;
+            backdrop-filter: blur(8px);
+            transition: all 0.15s;
+            white-space: nowrap;
+            font-family: inherit;
+        }
+        .layer-btn:hover { background: rgba(26, 53, 88, 0.95); color: #e0e6ed; }
+        .layer-btn.active { background: rgba(26, 53, 88, 0.95); color: #fff; border-color: #4a9eff; }
+        .layer-btn .dot {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
         /* Legend overlay */
         .legend {
             position: absolute;
@@ -89,6 +124,34 @@
         }
         .legend-line {
             width: 20px; height: 3px; border-radius: 2px; flex-shrink: 0;
+        }
+
+        /* Velocity color bar */
+        .velocity-bar {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(16, 29, 51, 0.92);
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.75em;
+            z-index: 1000;
+            border: 1px solid #1e3050;
+            backdrop-filter: blur(8px);
+            display: none;
+        }
+        .velocity-bar-title { color: #fff; font-weight: 600; margin-bottom: 6px; font-size: 0.9em; }
+        .velocity-gradient {
+            width: 160px;
+            height: 12px;
+            border-radius: 3px;
+            margin-bottom: 4px;
+        }
+        .velocity-labels {
+            display: flex;
+            justify-content: space-between;
+            color: #7a8fa6;
+            font-size: 0.9em;
         }
 
         /* Info panel */
@@ -122,7 +185,6 @@
 
         /* Responsive - Mobile */
         @media (max-width: 700px) {
-            /* Topbar - stack on small screens */
             .topbar {
                 flex-direction: column;
                 align-items: flex-start;
@@ -133,10 +195,8 @@
             .topbar a { font-size: 0.82em; }
             .topbar .meta { font-size: 0.75em; line-height: 1.4; }
 
-            /* Main layout - vertical stacking */
             .main { flex-direction: column; }
 
-            /* Point list - horizontal scrollable strip */
             .point-list {
                 width: 100%; min-width: 0;
                 max-height: none;
@@ -160,10 +220,20 @@
             .point-item .name-en { font-size: 0.75em; }
             .point-item .coords { font-size: 0.7em; }
 
-            /* Map area takes remaining space */
             .map-area { flex: 1; min-height: 0; }
 
-            /* Info panel - bottom positioned, full width */
+            /* Layer controls - horizontal on mobile */
+            .layer-controls {
+                top: 8px; left: 8px;
+                flex-direction: row;
+                gap: 4px;
+            }
+            .layer-btn {
+                padding: 6px 10px;
+                font-size: 0.75em;
+                border-radius: 6px;
+            }
+
             .info-panel {
                 top: auto;
                 bottom: 60px;
@@ -175,7 +245,6 @@
             }
             .info-panel h4 { font-size: 0.95em; }
 
-            /* Legend - compact */
             .legend {
                 bottom: 12px;
                 left: 10px;
@@ -184,14 +253,21 @@
             }
             .legend-color { width: 12px; height: 12px; }
             .legend-line { width: 16px; height: 3px; }
+
+            .velocity-bar {
+                bottom: 12px;
+                right: 10px;
+                padding: 8px 10px;
+            }
+            .velocity-gradient { width: 120px; height: 10px; }
         }
 
-        /* Small phones */
         @media (max-width: 380px) {
             .topbar { padding: 8px 10px; }
             .topbar h2 { font-size: 0.95em; }
             .point-list { padding: 6px 8px; }
             .point-item { min-width: 115px; padding: 8px; }
+            .layer-btn { padding: 5px 8px; font-size: 0.7em; }
         }
     </style>
 </head>
@@ -212,12 +288,34 @@
             <div id="map"></div>
             <div class="loading-msg" id="loadingMsg">Loading forecast data...</div>
 
+            <!-- Layer toggle buttons -->
+            <div class="layer-controls">
+                <button class="layer-btn active" id="btnCurrent" onclick="toggleLayer('current')">
+                    <span class="dot" style="background:#4af;"></span>
+                    Ocean Current
+                </button>
+                <button class="layer-btn" id="btnWind" onclick="toggleLayer('wind')">
+                    <span class="dot" style="background:#f5f5f5;"></span>
+                    Wind
+                </button>
+            </div>
+
             <div class="legend" id="legend" style="display:none;">
-                <div class="legend-title">Legend</div>
+                <div class="legend-title">Drift Forecast</div>
                 <div class="legend-item"><div class="legend-color" style="background:#ff4444;border-radius:50%;"></div> Start point</div>
                 <div class="legend-item"><div class="legend-line" style="background:#4a9eff;"></div> Trajectories</div>
                 <div class="legend-item"><div class="legend-color" style="background:rgba(255,165,0,0.3);border:1px solid orange;"></div> Spread area</div>
                 <div class="legend-item"><div class="legend-color" style="background:#34d399;border-radius:50%;"></div> End center</div>
+            </div>
+
+            <!-- Velocity color bar -->
+            <div class="velocity-bar" id="velocityBar">
+                <div class="velocity-bar-title" id="velocityBarTitle">Ocean Current (m/s)</div>
+                <div class="velocity-gradient" id="velocityGradient"></div>
+                <div class="velocity-labels">
+                    <span>0</span>
+                    <span id="velocityMax">1.5</span>
+                </div>
             </div>
 
             <div class="info-panel" id="infoPanel">
@@ -231,6 +329,9 @@
 
 <script>
 var MANIFEST_URL = 'scheduled_results/manifest.json';
+var CURRENT_VELOCITY_URL = 'scheduled_results/current_velocity.json';
+var WIND_VELOCITY_URL = 'scheduled_results/wind_velocity.json';
+
 var map = L.map('map', { zoomControl: false }).setView([23.5, 121], 7);
 L.control.zoom({ position: 'bottomright' }).addTo(map);
 
@@ -244,8 +345,104 @@ var pointMarkers = {};
 var pointData = {};
 var activePointId = null;
 
-// Color palette for different monitoring points
+// Velocity layers
+var currentVelocityLayer = null;
+var windVelocityLayer = null;
+var activeVelocityLayer = 'current';
+
 var COLORS = ['#4a9eff', '#34d399', '#f59e0b', '#a78bfa', '#f87171'];
+
+// ── Velocity layer loading ──
+
+function loadVelocityLayer(url, type) {
+    return fetch(url + '?t=' + Date.now())
+        .then(function(r) {
+            if (!r.ok) throw new Error(type + ' data not available');
+            return r.json();
+        })
+        .then(function(data) {
+            var isCurrent = type === 'current';
+            var layer = L.velocityLayer({
+                displayValues: true,
+                displayOptions: {
+                    velocityType: isCurrent ? 'Ocean Current' : 'Wind',
+                    displayPosition: 'bottomleft',
+                    displayEmptyString: 'No data',
+                    speedUnit: 'm/s',
+                    angleConvention: 'bearingCW',
+                },
+                data: data,
+                maxVelocity: isCurrent ? 1.5 : 15,
+                velocityScale: isCurrent ? 0.01 : 0.005,
+                particleAge: 60,
+                lineWidth: isCurrent ? 2 : 1.5,
+                particleMultiplier: 1 / 200,
+                colorScale: isCurrent
+                    ? ["#1a237e","#1565c0","#42a5f5","#29b6f6","#26c6da","#00e5ff","#76ff03","#ffeb3b","#ff9800","#f44336"]
+                    : ["#364fc7","#4c6ef5","#748ffc","#91a7ff","#bac8ff","#dbe4ff","#f8f9fa","#ffe8cc","#ffc078","#ff922b"],
+                frameRate: 30,
+                opacity: 0.92,
+            });
+
+            if (isCurrent) {
+                currentVelocityLayer = layer;
+            } else {
+                windVelocityLayer = layer;
+            }
+            return layer;
+        })
+        .catch(function(err) {
+            console.warn('Failed to load ' + type + ' velocity:', err.message);
+            return null;
+        });
+}
+
+function toggleLayer(type) {
+    activeVelocityLayer = type;
+
+    // Update button styles
+    document.getElementById('btnCurrent').classList.toggle('active', type === 'current');
+    document.getElementById('btnWind').classList.toggle('active', type === 'wind');
+
+    // Remove both layers
+    if (currentVelocityLayer && map.hasLayer(currentVelocityLayer)) map.removeLayer(currentVelocityLayer);
+    if (windVelocityLayer && map.hasLayer(windVelocityLayer)) map.removeLayer(windVelocityLayer);
+
+    // Add selected layer
+    if (type === 'current' && currentVelocityLayer) {
+        map.addLayer(currentVelocityLayer);
+        updateVelocityBar('Ocean Current (m/s)', 1.5, 'current');
+    } else if (type === 'wind' && windVelocityLayer) {
+        map.addLayer(windVelocityLayer);
+        updateVelocityBar('Wind (m/s)', 15, 'wind');
+    }
+}
+
+function updateVelocityBar(title, maxVal, type) {
+    var bar = document.getElementById('velocityBar');
+    bar.style.display = 'block';
+    document.getElementById('velocityBarTitle').textContent = title;
+    document.getElementById('velocityMax').textContent = maxVal;
+
+    var gradient = type === 'current'
+        ? 'linear-gradient(to right, #1a237e, #1565c0, #42a5f5, #26c6da, #00e5ff, #76ff03, #ffeb3b, #ff9800, #f44336)'
+        : 'linear-gradient(to right, #364fc7, #4c6ef5, #91a7ff, #dbe4ff, #f8f9fa, #ffe8cc, #ffc078, #ff922b)';
+    document.getElementById('velocityGradient').style.background = gradient;
+}
+
+// Load both velocity datasets
+Promise.all([
+    loadVelocityLayer(CURRENT_VELOCITY_URL, 'current'),
+    loadVelocityLayer(WIND_VELOCITY_URL, 'wind'),
+]).then(function() {
+    // Show current by default
+    if (currentVelocityLayer) {
+        map.addLayer(currentVelocityLayer);
+        updateVelocityBar('Ocean Current (m/s)', 1.5, 'current');
+    }
+});
+
+// ── Trajectory drawing ──
 
 function drawGeoJSON(geojson, color) {
     trajectoryLayer.clearLayers();
@@ -285,7 +482,6 @@ function selectPoint(id) {
     if (activePointId === id) return;
     activePointId = id;
 
-    // Update sidebar active state
     document.querySelectorAll('.point-item').forEach(function(el) {
         el.classList.toggle('active', el.dataset.id === id);
     });
@@ -293,13 +489,11 @@ function selectPoint(id) {
     var pt = pointData[id];
     if (!pt) return;
 
-    // Update info panel
     var panel = document.getElementById('infoPanel');
     panel.style.display = 'block';
     document.getElementById('infoPanelTitle').textContent = pt.name_zh + ' / ' + pt.name;
     document.getElementById('infoPanelCoords').textContent = pt.lat + ', ' + pt.lon;
 
-    // Load GeoJSON or fallback to PNG image overlay
     if (pt.geojson) {
         fetch('scheduled_results/' + pt.geojson + '?t=' + Date.now())
             .then(function(r) {
@@ -312,7 +506,6 @@ function selectPoint(id) {
                 document.getElementById('infoPanelParticles').textContent = geojson.properties.num_particles || '--';
                 document.getElementById('infoPanelDuration').textContent = (geojson.properties.num_steps || '--') + ' steps';
 
-                // Fit bounds to trajectory
                 if (trajectoryLayer.getLayers().length > 0) {
                     map.fitBounds(trajectoryLayer.getBounds(), { padding: [40, 40] });
                 }
@@ -323,7 +516,6 @@ function selectPoint(id) {
                 document.getElementById('infoPanelDuration').textContent = '--';
             });
     } else if (pt.image) {
-        // Fallback: show PNG image in a popup at the point location
         trajectoryLayer.clearLayers();
         var isMobile = window.innerWidth <= 700;
         var popupMaxW = isMobile ? Math.min(window.innerWidth - 40, 500) : 500;
@@ -360,21 +552,18 @@ async function loadForecast() {
         var manifest = await resp.json();
         loadingMsg.style.display = 'none';
 
-        // Show metadata
         var genDate = new Date(manifest.generated_at);
         document.getElementById('metaInfo').innerHTML =
             '<span>Updated:</span> ' + genDate.toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' }) +
             ' | <span>Duration:</span> ' + manifest.duration_hours + 'h' +
             ' | <span>Model:</span> ' + manifest.model;
 
-        // Build point list
         var points = manifest.points || [];
         pointList.innerHTML = '';
 
         points.forEach(function(pt, idx) {
             pointData[pt.id] = pt;
 
-            // Add marker to map
             var marker = L.circleMarker([pt.lat, pt.lon], {
                 radius: 7,
                 color: COLORS[idx % COLORS.length],
@@ -386,7 +575,6 @@ async function loadForecast() {
             marker.on('click', function() { selectPoint(pt.id); });
             pointMarkers[pt.id] = marker;
 
-            // Add sidebar item
             var item = document.createElement('div');
             item.className = 'point-item';
             item.dataset.id = pt.id;
@@ -401,10 +589,8 @@ async function loadForecast() {
             pointList.appendChild(item);
         });
 
-        // Show legend
         document.getElementById('legend').style.display = 'block';
 
-        // Select first point
         if (points.length > 0) selectPoint(points[0].id);
 
     } catch (err) {
@@ -417,6 +603,7 @@ loadForecast();
 </script>
 
 <style>
+/* Popup & tooltip styles */
 .img-popup .leaflet-popup-content-wrapper {
     background: rgba(16,29,51,0.95) !important;
     color: #e0e6ed !important;
@@ -437,11 +624,26 @@ loadForecast();
 }
 .point-tooltip::before { border-right-color: #1e3050 !important; }
 
+/* Override leaflet-velocity display panel */
+.leaflet-control-velocity {
+    background: rgba(16,29,51,0.9) !important;
+    color: #e0e6ed !important;
+    padding: 4px 10px !important;
+    border-radius: 6px !important;
+    border: 1px solid #1e3050 !important;
+    font-size: 0.8em !important;
+    backdrop-filter: blur(8px) !important;
+}
+
 @media (max-width: 700px) {
     .img-popup .leaflet-popup-content { margin: 8px !important; }
     .img-popup .leaflet-popup-close-button {
         font-size: 24px !important;
         padding: 4px 8px !important;
+    }
+    .leaflet-control-velocity {
+        font-size: 0.72em !important;
+        padding: 3px 8px !important;
     }
 }
 </style>
