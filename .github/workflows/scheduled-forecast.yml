@@ -53,6 +53,14 @@ jobs:
             --output-dir data/nc_converted \
             --wind-input-dir data/grib2_files
 
+      - name: Generate velocity JSON for map visualization
+        run: |
+          /opt/conda/bin/pip install -q scipy 2>/dev/null || true
+          /opt/conda/bin/python3 scripts/generate_velocity_json.py \
+            --input-dir data/nc_converted \
+            --output-dir scheduled_results \
+            --current-step 2 --wind-step 2 --precision 2
+
       - name: Run 5-point forecast simulations
         run: /opt/conda/bin/python3 scripts/run_scheduled_forecasts.py
 
