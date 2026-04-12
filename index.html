@@ -21,8 +21,8 @@
 
         /* Sidebar */
         .sidebar {
-            width: 380px;
-            min-width: 380px;
+            width: 340px;
+            min-width: 340px;
             background: #101d33;
             border-right: 1px solid #1e3050;
             overflow-y: auto;
@@ -139,11 +139,68 @@
         }
         .map-overlay .coord-display { color: #4a9eff; font-weight: 600; font-size: 1em; }
 
-        /* Responsive */
-        @media (max-width: 800px) {
+        /* Responsive - Tablet */
+        @media (max-width: 900px) {
+            .sidebar { width: 300px; min-width: 300px; padding: 16px; }
+        }
+
+        /* Responsive - Mobile */
+        @media (max-width: 700px) {
             .layout { flex-direction: column; }
-            .sidebar { width: 100%; min-width: 0; max-height: 55vh; }
-            .map-container { min-height: 45vh; }
+            .sidebar {
+                width: 100%; min-width: 0;
+                max-height: 40vh;
+                padding: 14px 16px;
+                border-right: none;
+                border-bottom: 1px solid #1e3050;
+            }
+            .map-container { min-height: 60vh; flex: 1; }
+            .sidebar h2 { font-size: 1.15em; }
+            .subtitle { margin-bottom: 10px; font-size: 0.82em; }
+
+            /* Sim cards - larger touch targets */
+            .sim-type-cards { gap: 8px; margin-bottom: 12px; }
+            .sim-card {
+                padding: 12px 8px;
+                border-radius: 10px;
+            }
+            .sim-card .sim-icon { font-size: 1.6em; margin-bottom: 2px; }
+            .sim-card .sim-label { font-size: 0.82em; }
+
+            /* Form - larger inputs for touch */
+            input, select {
+                padding: 10px 12px;
+                font-size: 16px;
+                margin-bottom: 8px;
+                border-radius: 8px;
+            }
+            label { font-size: 0.85em; margin-bottom: 4px; }
+            .form-section { margin-bottom: 10px; }
+            .param-group { padding: 12px; border-radius: 8px; }
+            .row { gap: 8px; }
+
+            /* Submit button - larger touch target */
+            .submit-btn {
+                padding: 14px;
+                font-size: 16px;
+                border-radius: 8px;
+            }
+
+            /* Map overlay - compact */
+            .map-overlay {
+                top: 8px; right: 8px;
+                padding: 6px 10px;
+                font-size: 0.78em;
+                border-radius: 6px;
+            }
+        }
+
+        /* Small phones */
+        @media (max-width: 380px) {
+            .sidebar { padding: 10px 12px; max-height: 38vh; }
+            .sim-card .sim-icon { font-size: 1.4em; }
+            .sim-card .sim-label { font-size: 0.75em; }
+            .sidebar h2 { font-size: 1.05em; }
         }
     </style>
 </head>
