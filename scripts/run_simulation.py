@@ -89,14 +89,39 @@ def seed_model(o, model_type: str, params: dict, lon: float, lat: float,
         )
 
 
+def _get_trajectory_arrays(o):
+    """Get lon/lat/status arrays from OpenDrift, supporting both old and new API.
+
+    Old API (< ~1.11): o.history is a numpy masked array.
+    New API (>= ~1.11): o.result is an xarray Dataset with dims (trajectory, time).
+    """
+    import numpy as np
+
+    if hasattr(o, "result") and o.result is not None:
+        # New OpenDrift API: xarray Dataset
+        result = o.result
+        lons = result["lon"].values
+        lats = result["lat"].values
+        status = result["status"].values if "status" in result else np.zeros(lons.shape, dtype=int)
+    elif hasattr(o, "history") and o.history is not None:
+        # Old OpenDrift API: numpy masked array
+        history = o.history
+        lons = history["lon"].data
+        lats = history["lat"].data
+        status = history["status"].data
+    else:
+        raise AttributeError(
+            "OpenDrift model has neither 'result' nor 'history' attribute. "
+            "Check your OpenDrift version."
+        )
+    return lons, lats, status
+
+
 def export_trajectory_geojson(o, model_type: str) -> dict:
     """Extract particle trajectories from OpenDrift and return GeoJSON."""
     import numpy as np
 
-    history = o.history
-    lons = history["lon"].data
-    lats = history["lat"].data
-    status = history["status"].data
+    lons, lats, status = _get_trajectory_arrays(o)
     num_elements, num_steps = lons.shape
     times = [str(t) for t in o.get_time_array()[0]]
 
