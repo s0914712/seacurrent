@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-11T04:33:18.462096Z",
+  "generated_at": "2026-04-13T05:27:44.251308Z",
   "data_start_time": "2026-04-05 00:00:00",
   "duration_hours": 24,
   "model": "Leeway (Person Overboard)",
@@ -10,8 +10,9 @@
       "name_zh": "基隆外海",
       "lon": 121.75,
       "lat": 25.2,
-      "image": null,
-      "status": "error: 'Leeway' object has no attribute 'history'"
+      "image": "keelung.png",
+      "geojson": "keelung.geojson",
+      "status": "ok"
     },
     {
       "id": "kaohsiung",
@@ -19,8 +20,9 @@
       "name_zh": "高雄外海",
       "lon": 120.25,
       "lat": 22.5,
-      "image": null,
-      "status": "error: 'Leeway' object has no attribute 'history'"
+      "image": "kaohsiung.png",
+      "geojson": "kaohsiung.geojson",
+      "status": "ok"
     },
     {
       "id": "hualien",
@@ -28,8 +30,9 @@
       "name_zh": "花蓮外海",
       "lon": 121.7,
       "lat": 24.0,
-      "image": null,
-      "status": "error: 'Leeway' object has no attribute 'history'"
+      "image": "hualien.png",
+      "geojson": "hualien.geojson",
+      "status": "ok"
     },
     {
       "id": "penghu",
@@ -37,8 +40,9 @@
       "name_zh": "澎湖水道",
       "lon": 119.6,
       "lat": 23.5,
-      "image": null,
-      "status": "error: 'Leeway' object has no attribute 'history'"
+      "image": "penghu.png",
+      "geojson": "penghu.geojson",
+      "status": "ok"
     },
     {
       "id": "taitung",
@@ -46,8 +50,9 @@
       "name_zh": "台東綠島",
       "lon": 121.5,
       "lat": 22.65,
-      "image": null,
-      "status": "error: 'Leeway' object has no attribute 'history'"
+      "image": "taitung.png",
+      "geojson": "taitung.geojson",
+      "status": "ok"
     }
   ]
 }
