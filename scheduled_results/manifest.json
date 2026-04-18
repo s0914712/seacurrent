@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-17T05:15:53.671259Z",
+  "generated_at": "2026-04-18T14:30:48.243354Z",
   "data_start_time": "2026-04-05 00:00:00",
   "duration_hours": 24,
   "model": "Leeway (Person Overboard)",
@@ -52,6 +52,16 @@
       "lat": 22.65,
       "image": "taitung.png",
       "geojson": "taitung.geojson",
+      "status": "ok"
+    },
+    {
+      "id": "hengchun",
+      "name": "Hengchun / Bashi",
+      "name_zh": "恆春巴士海峽",
+      "lon": 120.7723,
+      "lat": 21.6881,
+      "image": "hengchun.png",
+      "geojson": "hengchun.geojson",
       "status": "ok"
     }
   ]
