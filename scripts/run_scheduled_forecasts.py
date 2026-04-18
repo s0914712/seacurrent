@@ -18,6 +18,7 @@ MONITORING_POINTS = [
     {"id": "hualien",    "name": "Hualien",             "name_zh": "花蓮外海",   "lon": 121.70, "lat": 24.00},
     {"id": "penghu",     "name": "Penghu Channel",      "name_zh": "澎湖水道",   "lon": 119.60, "lat": 23.50},
     {"id": "taitung",    "name": "Taitung / Green Isl.", "name_zh": "台東綠島",   "lon": 121.50, "lat": 22.65},
+    {"id": "hengchun",   "name": "Hengchun / Bashi",    "name_zh": "恆春巴士海峽", "lon": 120.7723, "lat": 21.6881},
 ]
 
 DURATION_HOURS = 24
