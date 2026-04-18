@@ -197,6 +197,43 @@
             width: 0.6em; height: 0.6em; border-radius: 50%; flex-shrink: 0;
         }
 
+        /* Timeline scrubber */
+        .timeline {
+            position: absolute;
+            left: 50%;
+            bottom: 14px;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 16px;
+            background: rgba(16, 29, 51, 0.95);
+            border: 1px solid #1e3050;
+            border-radius: 10px;
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            width: min(calc(100% - 320px), 680px);
+        }
+        .tl-btn {
+            background: #1a3558;
+            color: #e0e6ed;
+            border: 1px solid #2c4f7a;
+            border-radius: 50%;
+            width: 2rem; height: 2rem;
+            cursor: pointer;
+            font-size: 0.85em;
+            line-height: 1;
+            flex-shrink: 0;
+            font-family: inherit;
+        }
+        .tl-btn:hover { background: #2c4f7a; }
+        .tl-btn.playing { background: #2563eb; border-color: #2563eb; }
+        .tl-info { display: flex; flex-direction: column; line-height: 1.15; flex-shrink: 0; min-width: 6rem; }
+        .tl-label { color: #4a9eff; font-weight: 700; font-size: 0.95em; }
+        .tl-time { color: #7a8fa6; font-size: 0.8em; }
+        .tl-range { flex: 1; accent-color: #4a9eff; cursor: pointer; min-width: 0; }
+        .tl-loading { color: #f59e0b; font-size: 1em; flex-shrink: 0; width: 1em; text-align: center; }
+
         /* Velocity color bar */
         .velocity-bar {
             position: absolute;
@@ -308,12 +345,26 @@
 
             /* Velocity bar - compact on mobile */
             .velocity-bar {
-                bottom: 10px;
+                bottom: 60px;
                 right: 10px;
                 padding: 8px 10px;
                 font-size: 0.78em;
             }
             .velocity-gradient { width: 8rem; height: 0.6rem; }
+
+            /* Timeline - full width on mobile */
+            .timeline {
+                width: calc(100% - 20px);
+                left: 10px;
+                right: 10px;
+                transform: none;
+                bottom: 10px;
+                padding: 8px 12px;
+                gap: 8px;
+            }
+            .tl-info { min-width: 4.5rem; }
+            .tl-label { font-size: 0.85em; }
+            .tl-time { font-size: 0.7em; }
         }
 
         /* Small phones */
@@ -451,6 +502,16 @@
                     <span id="idxVelocityMid">0.75</span>
                     <span id="idxVelocityMax">1.5</span>
                 </div>
+            </div>
+
+            <div class="timeline" id="idxTimeline" style="display:none;">
+                <button type="button" class="tl-btn" id="idxTlPlay" aria-label="Play">&#9654;</button>
+                <div class="tl-info">
+                    <span class="tl-label" id="idxTlLabel">T+0h</span>
+                    <span class="tl-time" id="idxTlTime"></span>
+                </div>
+                <input type="range" id="idxTlSlider" min="0" max="72" value="0" step="1" class="tl-range">
+                <span class="tl-loading" id="idxTlLoading" style="display:none;">…</span>
             </div>
         </div>
     </div>
@@ -635,16 +696,169 @@ function toggleIdxLayer(type) {
     if (type === 'wind' && idxWindLayer) map.addLayer(idxWindLayer);
 
     updateIdxVelocityBar(type);
+
+    if (idxFramesIndex && type !== 'off') setIdxForecastHour(currentIdxFrameHour);
 }
 
-Promise.all([
-    loadIdxVelocity(CURRENT_VELOCITY_URL, 'current'),
-    loadIdxVelocity(WIND_VELOCITY_URL, 'wind'),
-]).then(function() {
-    if (idxCurrentLayer) {
-        map.addLayer(idxCurrentLayer);
-        updateIdxVelocityBar('current');
+// ── Lazy-loaded hourly frames (Windy-style timeline) ──
+
+var IDX_FRAMES_INDEX_URL = 'scheduled_results/frames/index.json';
+var idxFramesIndex = null;
+var idxFrameCache = { current: {}, wind: {} };
+var currentIdxFrameHour = 0;
+var idxPlayTimer = null;
+
+function idxFrameUrl(type, hour) {
+    return 'scheduled_results/frames/' + type + '/h' + String(hour).padStart(3, '0') + '.json';
+}
+
+function idxNearestFrameHour(type, hour) {
+    var hours = idxFramesIndex && idxFramesIndex[type] && idxFramesIndex[type].hours;
+    if (!hours || !hours.length) return null;
+    var best = hours[0], diff = Math.abs(hour - best);
+    for (var i = 1; i < hours.length; i++) {
+        var d = Math.abs(hour - hours[i]);
+        if (d < diff) { best = hours[i]; diff = d; }
     }
+    return best;
+}
+
+function idxFetchFrame(type, hour) {
+    if (idxFrameCache[type][hour]) return Promise.resolve(idxFrameCache[type][hour]);
+    var loading = document.getElementById('idxTlLoading');
+    if (loading) loading.style.display = 'inline-block';
+    return fetch(idxFrameUrl(type, hour))
+        .then(function(r) { if (!r.ok) throw new Error('frame ' + hour + ' missing'); return r.json(); })
+        .then(function(data) { idxFrameCache[type][hour] = data; return data; })
+        .finally(function() { if (loading) loading.style.display = 'none'; });
+}
+
+function idxApplyFrameToLayer(type, data) {
+    var layer = (type === 'current') ? idxCurrentLayer : idxWindLayer;
+    if (!layer) return;
+    if (typeof layer.setData === 'function') layer.setData(data);
+    else if (layer.options) {
+        layer.options.data = data;
+        if (map.hasLayer(layer)) { map.removeLayer(layer); map.addLayer(layer); }
+    }
+}
+
+function setIdxForecastHour(hour, opts) {
+    opts = opts || {};
+    currentIdxFrameHour = hour;
+    var slider = document.getElementById('idxTlSlider');
+    if (slider && !opts.fromSlider) slider.value = hour;
+
+    document.getElementById('idxTlLabel').textContent = 'T+' + hour + 'h';
+    var t = document.getElementById('idxTlTime');
+    var activeType = (idxActiveLayer === 'wind') ? 'wind' : 'current';
+    var base = idxFramesIndex && idxFramesIndex[activeType] ? idxFramesIndex[activeType].base_time : null;
+    if (t && base) {
+        var d = new Date(new Date(base).getTime() + hour * 3600 * 1000);
+        t.textContent = d.toLocaleString('zh-TW', {
+            timeZone: 'Asia/Taipei', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
+        });
+    } else if (t) { t.textContent = ''; }
+
+    if (idxActiveLayer === 'off') return;
+    var snapped = idxNearestFrameHour(activeType, hour);
+    if (snapped == null) return;
+    idxFetchFrame(activeType, snapped).then(function(data) {
+        if (currentIdxFrameHour !== hour) return;
+        idxApplyFrameToLayer(activeType, data);
+    }).catch(function(err) { console.warn(err); });
+}
+
+function buildIdxVelocityLayerWithData(type, data) {
+    var isCurrent = type === 'current';
+    var layer = L.velocityLayer({
+        displayValues: true,
+        displayOptions: {
+            velocityType: isCurrent ? 'Ocean Current' : 'Wind',
+            displayPosition: 'bottomleft',
+            displayEmptyString: '',
+            speedUnit: 'm/s',
+        },
+        data: data,
+        maxVelocity: isCurrent ? 1.5 : 15,
+        velocityScale: isCurrent ? 0.01 : 0.005,
+        particleAge: 60,
+        lineWidth: isCurrent ? 2 : 1.5,
+        particleMultiplier: 1 / 250,
+        colorScale: isCurrent
+            ? ["#1a237e","#1565c0","#42a5f5","#29b6f6","#26c6da","#00e5ff","#76ff03","#ffeb3b","#ff9800","#f44336"]
+            : ["#364fc7","#4c6ef5","#748ffc","#91a7ff","#bac8ff","#dbe4ff","#f8f9fa","#ffe8cc","#ffc078","#ff922b"],
+        frameRate: 30,
+        opacity: 0.85,
+    });
+    if (isCurrent) idxCurrentLayer = layer; else idxWindLayer = layer;
+    return layer;
+}
+
+function initIdxFrames() {
+    return fetch(IDX_FRAMES_INDEX_URL).then(function(r) {
+        if (!r.ok) throw new Error('no frames');
+        return r.json();
+    }).then(function(idx) {
+        idxFramesIndex = idx;
+        var maxH = idx.max_hours || 72;
+        var slider = document.getElementById('idxTlSlider');
+        if (slider) slider.max = maxH;
+
+        return Promise.all([
+            idxFetchFrame('current', idxNearestFrameHour('current', 0)),
+            idxFetchFrame('wind', idxNearestFrameHour('wind', 0)),
+        ]).then(function(frames) {
+            buildIdxVelocityLayerWithData('current', frames[0]);
+            buildIdxVelocityLayerWithData('wind', frames[1]);
+            map.addLayer(idxCurrentLayer);
+            updateIdxVelocityBar('current');
+
+            var tl = document.getElementById('idxTimeline');
+            if (tl) tl.style.display = 'flex';
+            wireIdxTimeline();
+            setIdxForecastHour(0);
+            return true;
+        });
+    }).catch(function() { return null; });
+}
+
+function wireIdxTimeline() {
+    var slider = document.getElementById('idxTlSlider');
+    var play = document.getElementById('idxTlPlay');
+    if (!slider || !play) return;
+    var debounce;
+    slider.addEventListener('input', function() {
+        var h = parseInt(slider.value, 10);
+        clearTimeout(debounce);
+        debounce = setTimeout(function() { setIdxForecastHour(h, { fromSlider: true }); }, 80);
+    });
+    play.addEventListener('click', function() {
+        if (idxPlayTimer) {
+            clearInterval(idxPlayTimer); idxPlayTimer = null;
+            play.classList.remove('playing'); play.innerHTML = '&#9654;'; return;
+        }
+        play.classList.add('playing'); play.innerHTML = '&#10074;&#10074;';
+        idxPlayTimer = setInterval(function() {
+            var max = parseInt(slider.max, 10);
+            var next = (currentIdxFrameHour + 1) > max ? 0 : currentIdxFrameHour + 1;
+            setIdxForecastHour(next);
+        }, 600);
+    });
+}
+
+// Try frames first; fall back to single-snapshot velocity files
+initIdxFrames().then(function(ok) {
+    if (ok) return;
+    Promise.all([
+        loadIdxVelocity(CURRENT_VELOCITY_URL, 'current'),
+        loadIdxVelocity(WIND_VELOCITY_URL, 'wind'),
+    ]).then(function() {
+        if (idxCurrentLayer) {
+            map.addLayer(idxCurrentLayer);
+            updateIdxVelocityBar('current');
+        }
+    });
 });
 
 // Mobile sidebar collapse toggle
