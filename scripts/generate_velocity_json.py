@@ -33,6 +33,10 @@ def parse_args() -> argparse.Namespace:
                    help="Subsampling step for wind grid (reduces file size)")
     p.add_argument("--precision", type=int, default=3,
                    help="Decimal places for velocity values")
+    p.add_argument("--frames", action="store_true",
+                   help="Emit one JSON per time step into <output-dir>/frames/{current,wind}/h###.json")
+    p.add_argument("--max-hours", type=int, default=72,
+                   help="When --frames is set, only emit up to this lead-time (hours)")
     return p.parse_args()
 
 
@@ -227,11 +231,74 @@ class CompactEncoder(json.JSONEncoder):
         return super().encode(o)
 
 
+def _read_time_axes(input_dir: Path) -> dict:
+    """Inspect both NC files and return {current: {hours: [...]}, wind: {hours: [...]}} (lead times in hours)."""
+    import netCDF4
+    from datetime import datetime, timedelta, timezone
+    info: dict = {}
+
+    cpath = input_dir / "current_fixed.nc"
+    if cpath.exists():
+        ds = netCDF4.Dataset(cpath)
+        try:
+            t = ds["time"]
+            units = getattr(t, "units", "")
+            vals = [float(x) for x in t[:]]
+            base = None
+            if "since" in units:
+                base_str = units.split("since", 1)[1].strip().rstrip("Z")
+                base_str = base_str.replace("T", " ").split("+")[0].split(".")[0].strip()
+                try:
+                    base = datetime.fromisoformat(base_str).replace(tzinfo=timezone.utc)
+                except ValueError:
+                    base = None
+            # convert vals to hours since first
+            hours = [int(round(v - vals[0])) for v in vals]
+            info["current"] = {
+                "hours": hours,
+                "base_time": base.isoformat() if base else None,
+                "units": units,
+            }
+        finally:
+            ds.close()
+
+    wpath = input_dir / "wind_fixed.nc"
+    if wpath.exists():
+        ds = netCDF4.Dataset(wpath)
+        try:
+            base_time = None
+            hours: list[int] = []
+            if "valid_time" in ds.variables:
+                vt = ds["valid_time"][:]
+                vt_units = getattr(ds["valid_time"], "units", "seconds since 1970-01-01")
+                from datetime import datetime as _dt
+                if "seconds since 1970-01-01" in vt_units:
+                    base_time = _dt.fromtimestamp(float(vt[0]), tz=timezone.utc).isoformat()
+                    hours = [int(round((float(v) - float(vt[0])) / 3600.0)) for v in vt]
+            elif "step" in ds.variables:
+                st = ds["step"][:]
+                hours = [int(round(float(v))) for v in st]
+            else:
+                t = ds["time"]
+                hours = list(range(len(t)))
+            info["wind"] = {
+                "hours": hours,
+                "base_time": base_time,
+            }
+        finally:
+            ds.close()
+
+    return info
+
+
 def main() -> int:
     args = parse_args()
     input_dir = Path(args.input_dir)
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    if args.frames:
+        return _emit_frames(args, input_dir, output_dir)
 
     # Convert current
     current_json = convert_current(
@@ -258,6 +325,78 @@ def main() -> int:
     except Exception as exc:
         print(f"⚠️  Wind conversion failed (non-fatal): {exc}")
 
+    return 0
+
+
+def _emit_frames(args, input_dir: Path, output_dir: Path) -> int:
+    """Emit per-hour JSON frames into output_dir/frames/{current,wind}/h###.json.
+
+    Also writes output_dir/frames/index.json with metadata so the frontend can
+    build the timeline and lazy-fetch each hour on demand.
+    """
+    import json as _json
+
+    frames_dir = output_dir / "frames"
+    (frames_dir / "current").mkdir(parents=True, exist_ok=True)
+    (frames_dir / "wind").mkdir(parents=True, exist_ok=True)
+
+    axes = _read_time_axes(input_dir)
+    max_h = args.max_hours
+
+    index = {
+        "max_hours": max_h,
+        "current": {"base_time": None, "hours": [], "step": "h{:03d}.json"},
+        "wind": {"base_time": None, "hours": [], "step": "h{:03d}.json"},
+    }
+
+    # ---- Current (typically hourly) ----
+    if "current" in axes:
+        c_axis = axes["current"]
+        index["current"]["base_time"] = c_axis.get("base_time")
+        for ti, hour in enumerate(c_axis["hours"]):
+            if hour > max_h:
+                break
+            try:
+                j = convert_current(
+                    input_dir / "current_fixed.nc", ti, args.current_step, args.precision,
+                )
+            except Exception as exc:
+                print(f"⚠️  current t{ti} failed: {exc}")
+                continue
+            if not j:
+                continue
+            dst = frames_dir / "current" / f"h{hour:03d}.json"
+            with open(dst, "w") as f:
+                _json.dump(j, f, separators=(",", ":"))
+            index["current"]["hours"].append(hour)
+            print(f"📄 current h{hour:03d}: {dst.stat().st_size/1024:.0f} KB")
+
+    # ---- Wind (typically 6-hourly) ----
+    if "wind" in axes:
+        w_axis = axes["wind"]
+        index["wind"]["base_time"] = w_axis.get("base_time")
+        for ti, hour in enumerate(w_axis["hours"]):
+            if hour > max_h:
+                break
+            try:
+                j = convert_wind(
+                    input_dir / "wind_fixed.nc", ti, args.wind_step, args.precision,
+                )
+            except Exception as exc:
+                print(f"⚠️  wind t{ti} failed: {exc}")
+                continue
+            if not j:
+                continue
+            dst = frames_dir / "wind" / f"h{hour:03d}.json"
+            with open(dst, "w") as f:
+                _json.dump(j, f, separators=(",", ":"))
+            index["wind"]["hours"].append(hour)
+            print(f"📄 wind h{hour:03d}: {dst.stat().st_size/1024:.0f} KB")
+
+    idx_path = frames_dir / "index.json"
+    with open(idx_path, "w") as f:
+        _json.dump(index, f, indent=2)
+    print(f"📄 frames index → {idx_path}")
     return 0
 
 

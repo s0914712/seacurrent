@@ -236,6 +236,43 @@
             z-index: 1000;
         }
 
+        /* Timeline scrubber */
+        .timeline {
+            position: absolute;
+            left: 50%;
+            bottom: 16px;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 16px;
+            background: rgba(16, 29, 51, 0.95);
+            border: 1px solid #1e3050;
+            border-radius: 10px;
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            width: min(calc(100% - 380px), 720px);
+        }
+        .tl-btn {
+            background: #1a3558;
+            color: #e0e6ed;
+            border: 1px solid #2c4f7a;
+            border-radius: 50%;
+            width: 2rem; height: 2rem;
+            cursor: pointer;
+            font-size: 0.85em;
+            line-height: 1;
+            flex-shrink: 0;
+            font-family: inherit;
+        }
+        .tl-btn:hover { background: #2c4f7a; }
+        .tl-btn.playing { background: #2563eb; border-color: #2563eb; }
+        .tl-info { display: flex; flex-direction: column; line-height: 1.15; flex-shrink: 0; min-width: 6rem; }
+        .tl-label { color: #4a9eff; font-weight: 700; font-size: 0.95em; }
+        .tl-time { color: #7a8fa6; font-size: 0.8em; }
+        .tl-range { flex: 1; accent-color: #4a9eff; cursor: pointer; min-width: 0; }
+        .tl-loading { color: #f59e0b; font-size: 1em; flex-shrink: 0; width: 1em; text-align: center; }
+
         /* Windy-style forecast strip */
         .forecast-strip {
             position: absolute;
@@ -365,6 +402,20 @@
 
             /* Hide strip on mobile (sidebar list serves same purpose) */
             .forecast-strip { display: none; }
+
+            /* Timeline - full width on mobile */
+            .timeline {
+                width: calc(100% - 20px);
+                left: 10px;
+                right: 10px;
+                transform: none;
+                bottom: 10px;
+                padding: 8px 12px;
+                gap: 8px;
+            }
+            .tl-info { min-width: 4.5rem; }
+            .tl-label { font-size: 0.85em; }
+            .tl-time { font-size: 0.7em; }
         }
 
         @media (max-width: 380px) {
@@ -426,6 +477,17 @@
 
             <!-- Forecast point strip (Windy-style picker) -->
             <div class="forecast-strip" id="forecastStrip"></div>
+
+            <!-- Timeline scrubber -->
+            <div class="timeline" id="timeline" style="display:none;">
+                <button type="button" class="tl-btn" id="tlPlay" aria-label="Play">&#9654;</button>
+                <div class="tl-info">
+                    <span class="tl-label" id="tlLabel">T+0h</span>
+                    <span class="tl-time" id="tlTime"></span>
+                </div>
+                <input type="range" id="tlSlider" min="0" max="72" value="0" step="1" class="tl-range">
+                <span class="tl-loading" id="tlLoading" style="display:none;">…</span>
+            </div>
 
             <div class="info-panel" id="infoPanel">
                 <h4 id="infoPanelTitle"></h4>
@@ -533,6 +595,9 @@ function toggleLayer(type) {
         map.addLayer(windVelocityLayer);
         updateVelocityBar('Wind (m/s)', 15, 'wind');
     }
+
+    // Refresh timeline to use this layer's frames + base time
+    if (framesIndex) setForecastHour(currentFrameHour);
 }
 
 function updateVelocityBar(title, maxVal, type) {
@@ -548,16 +613,165 @@ function updateVelocityBar(title, maxVal, type) {
     document.getElementById('velocityGradient').style.background = gradient;
 }
 
-// Load both velocity datasets
-Promise.all([
-    loadVelocityLayer(CURRENT_VELOCITY_URL, 'current'),
-    loadVelocityLayer(WIND_VELOCITY_URL, 'wind'),
-]).then(function() {
-    // Show current by default
-    if (currentVelocityLayer) {
-        map.addLayer(currentVelocityLayer);
-        updateVelocityBar('Ocean Current (m/s)', 1.5, 'current');
+// ── Lazy-loaded hourly frames (Windy-style timeline) ──
+
+var FRAMES_INDEX_URL = 'scheduled_results/frames/index.json';
+var framesIndex = null;
+var frameCache = { current: {}, wind: {} };  // hour → fetched data
+var currentFrameHour = 0;
+var playTimer = null;
+
+function frameUrl(type, hour) {
+    return 'scheduled_results/frames/' + type + '/h' + String(hour).padStart(3, '0') + '.json';
+}
+
+function nearestFrameHour(type, hour) {
+    var hours = framesIndex && framesIndex[type] && framesIndex[type].hours;
+    if (!hours || !hours.length) return null;
+    var best = hours[0], diff = Math.abs(hour - best);
+    for (var i = 1; i < hours.length; i++) {
+        var d = Math.abs(hour - hours[i]);
+        if (d < diff) { best = hours[i]; diff = d; }
     }
+    return best;
+}
+
+function fetchFrame(type, hour) {
+    if (frameCache[type][hour]) return Promise.resolve(frameCache[type][hour]);
+    var loading = document.getElementById('tlLoading');
+    if (loading) loading.style.display = 'inline-block';
+    return fetch(frameUrl(type, hour))
+        .then(function(r) { if (!r.ok) throw new Error('frame ' + hour + ' missing'); return r.json(); })
+        .then(function(data) {
+            frameCache[type][hour] = data;
+            return data;
+        })
+        .finally(function() { if (loading) loading.style.display = 'none'; });
+}
+
+function applyFrameToLayer(type, data) {
+    var layer = (type === 'current') ? currentVelocityLayer : windVelocityLayer;
+    if (!layer) return;
+    if (typeof layer.setData === 'function') layer.setData(data);
+    else if (layer.options) {
+        layer.options.data = data;
+        if (map.hasLayer(layer)) { map.removeLayer(layer); map.addLayer(layer); }
+    }
+}
+
+function setForecastHour(hour, opts) {
+    opts = opts || {};
+    currentFrameHour = hour;
+    var slider = document.getElementById('tlSlider');
+    if (slider && !opts.fromSlider) slider.value = hour;
+
+    document.getElementById('tlLabel').textContent = 'T+' + hour + 'h';
+    var t = document.getElementById('tlTime');
+    var base = framesIndex && framesIndex[activeVelocityLayer]
+        ? framesIndex[activeVelocityLayer].base_time : null;
+    if (t && base) {
+        var d = new Date(new Date(base).getTime() + hour * 3600 * 1000);
+        t.textContent = d.toLocaleString('zh-TW', {
+            timeZone: 'Asia/Taipei', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
+        });
+    } else if (t) { t.textContent = ''; }
+
+    var snapped = nearestFrameHour(activeVelocityLayer, hour);
+    if (snapped == null) return;
+    fetchFrame(activeVelocityLayer, snapped).then(function(data) {
+        if (currentFrameHour !== hour) return;  // user moved on
+        applyFrameToLayer(activeVelocityLayer, data);
+    }).catch(function(err) { console.warn(err); });
+}
+
+function buildVelocityLayerWithData(type, data) {
+    var isCurrent = type === 'current';
+    return L.velocityLayer({
+        displayValues: true,
+        displayOptions: {
+            velocityType: isCurrent ? 'Ocean Current' : 'Wind',
+            displayPosition: 'bottomleft',
+            displayEmptyString: 'No data',
+            speedUnit: 'm/s',
+            angleConvention: 'bearingCW',
+        },
+        data: data,
+        maxVelocity: isCurrent ? 1.5 : 15,
+        velocityScale: isCurrent ? 0.01 : 0.005,
+        particleAge: 60,
+        lineWidth: isCurrent ? 2 : 1.5,
+        particleMultiplier: 1 / 200,
+        colorScale: isCurrent
+            ? ["#1a237e","#1565c0","#42a5f5","#29b6f6","#26c6da","#00e5ff","#76ff03","#ffeb3b","#ff9800","#f44336"]
+            : ["#364fc7","#4c6ef5","#748ffc","#91a7ff","#bac8ff","#dbe4ff","#f8f9fa","#ffe8cc","#ffc078","#ff922b"],
+        frameRate: 30,
+        opacity: 0.92,
+    });
+}
+
+function initFromFrames() {
+    return fetch(FRAMES_INDEX_URL).then(function(r) {
+        if (!r.ok) throw new Error('no frames');
+        return r.json();
+    }).then(function(idx) {
+        framesIndex = idx;
+        var maxH = idx.max_hours || 72;
+        var slider = document.getElementById('tlSlider');
+        slider.max = maxH;
+
+        // Build initial layers from h0 frame for both types
+        return Promise.all([
+            fetchFrame('current', nearestFrameHour('current', 0)),
+            fetchFrame('wind', nearestFrameHour('wind', 0)),
+        ]).then(function(frames) {
+            currentVelocityLayer = buildVelocityLayerWithData('current', frames[0]);
+            windVelocityLayer = buildVelocityLayerWithData('wind', frames[1]);
+            map.addLayer(currentVelocityLayer);
+            updateVelocityBar('Ocean Current (m/s)', 1.5, 'current');
+
+            document.getElementById('timeline').style.display = 'flex';
+            wireTimeline();
+            setForecastHour(0);
+        });
+    }).catch(function() { return null; });
+}
+
+function wireTimeline() {
+    var slider = document.getElementById('tlSlider');
+    var play = document.getElementById('tlPlay');
+    var debounce;
+    slider.addEventListener('input', function() {
+        var h = parseInt(slider.value, 10);
+        clearTimeout(debounce);
+        debounce = setTimeout(function() { setForecastHour(h, { fromSlider: true }); }, 80);
+    });
+    play.addEventListener('click', function() {
+        if (playTimer) {
+            clearInterval(playTimer); playTimer = null;
+            play.classList.remove('playing'); play.innerHTML = '&#9654;'; return;
+        }
+        play.classList.add('playing'); play.innerHTML = '&#10074;&#10074;';
+        playTimer = setInterval(function() {
+            var max = parseInt(slider.max, 10);
+            var next = (currentFrameHour + 1) > max ? 0 : currentFrameHour + 1;
+            setForecastHour(next);
+        }, 600);
+    });
+}
+
+// Try frames first; fall back to single-snapshot files if frames not present
+initFromFrames().then(function(ok) {
+    if (ok !== null) return;
+    // Fallback path
+    Promise.all([
+        loadVelocityLayer(CURRENT_VELOCITY_URL, 'current'),
+        loadVelocityLayer(WIND_VELOCITY_URL, 'wind'),
+    ]).then(function() {
+        if (currentVelocityLayer) {
+            map.addLayer(currentVelocityLayer);
+            updateVelocityBar('Ocean Current (m/s)', 1.5, 'current');
+        }
+    });
 });
 
 // ── Trajectory drawing ──
