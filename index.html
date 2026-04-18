@@ -9,7 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/leaflet-velocity@2.1.4/dist/leaflet-velocity.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        html { font-size: clamp(14px, 0.78vw + 11px, 18px); }
+        html { font-size: clamp(14px, 0.45vw + 11px, 20px); }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
             background: #0a1628;
@@ -32,6 +32,29 @@
             display: flex;
             flex-direction: column;
         }
+        .sidebar-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.5rem;
+        }
+        .sidebar-header .titles { flex: 1; min-width: 0; }
+        .sidebar-toggle {
+            display: none;
+            background: rgba(26, 53, 88, 0.7);
+            border: 1px solid #1e3050;
+            color: #e0e6ed;
+            width: 2.25rem;
+            height: 2.25rem;
+            border-radius: 50%;
+            font-size: 1.1em;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-family: inherit;
+            line-height: 1;
+        }
         .sidebar h2 {
             font-size: 1.4em;
             margin-bottom: 4px;
@@ -40,16 +63,16 @@
         .subtitle {
             color: #7a8fa6;
             font-size: 0.92em;
-            margin-bottom: 16px;
+            margin-bottom: 1rem;
         }
         .subtitle a { color: #5ba3f5; text-decoration: none; }
         .subtitle a:hover { text-decoration: underline; }
 
         /* Sim type cards */
-        .sim-type-cards { display: flex; gap: 6px; margin-bottom: 16px; }
+        .sim-type-cards { display: flex; gap: 0.4rem; margin-bottom: 1rem; }
         .sim-card {
             flex: 1;
-            padding: 10px 6px;
+            padding: 0.7rem 0.4rem;
             border: 2px solid #1e3050;
             border-radius: 8px;
             background: #152238;
@@ -57,66 +80,69 @@
             text-align: center;
             transition: all 0.15s;
             color: #8a9bb5;
+            font-family: inherit;
         }
         .sim-card:hover { border-color: #3a6ea5; background: #182d4a; }
         .sim-card.active { border-color: #4a9eff; background: #1a3558; color: #fff; }
-        .sim-card .sim-icon { font-size: 1.4em; display: block; margin-bottom: 4px; }
-        .sim-card .sim-label { font-weight: 600; display: block; font-size: 0.8em; }
+        .sim-card .sim-icon { font-size: 1.55em; display: block; margin-bottom: 4px; }
+        .sim-card .sim-label { font-weight: 600; display: block; font-size: 0.92em; }
 
         /* Form */
-        .form-section { margin-bottom: 12px; }
-        label { font-weight: 600; font-size: 0.82em; color: #8a9bb5; display: block; margin-bottom: 3px; }
+        .form-section { margin-bottom: 0.75rem; }
+        label { font-weight: 600; font-size: 0.92em; color: #8a9bb5; display: block; margin-bottom: 4px; }
         input, select {
             width: 100%;
-            padding: 8px 10px;
-            font-size: 14px;
+            padding: 0.55rem 0.7rem;
+            font-size: 1em;
             border: 1px solid #1e3050;
             border-radius: 6px;
             background: #0d1a2e;
             color: #e0e6ed;
-            margin-bottom: 10px;
+            margin-bottom: 0.6rem;
+            font-family: inherit;
         }
         input:focus, select:focus { border-color: #4a9eff; outline: none; }
-        .row { display: flex; gap: 10px; }
+        .row { display: flex; gap: 0.6rem; }
         .row > div { flex: 1; }
         .param-group {
-            padding: 10px;
+            padding: 0.7rem;
             background: #152238;
             border-radius: 6px;
-            margin-bottom: 10px;
+            margin-bottom: 0.6rem;
             border: 1px solid #1e3050;
         }
         .model-params { display: none; }
         .model-params.visible { display: block; }
         .map-hint {
-            font-size: 0.78em;
+            font-size: 0.88em;
             color: #5a7a9a;
-            margin: -6px 0 10px 0;
+            margin: -0.3rem 0 0.7rem 0;
         }
 
         .submit-btn {
             width: 100%;
-            padding: 11px;
+            padding: 0.75rem;
             background: #2563eb;
             color: white;
             border: none;
             border-radius: 6px;
-            font-size: 14px;
+            font-size: 1em;
             font-weight: 600;
             cursor: pointer;
             transition: background 0.15s;
+            font-family: inherit;
         }
         .submit-btn:hover { background: #1d4ed8; }
         .submit-btn:disabled { background: #374151; cursor: not-allowed; color: #6b7280; }
 
         /* Status messages */
-        #success { color: #34d399; margin-top: 10px; font-size: 0.88em; }
-        #error { color: #f87171; margin-top: 10px; font-size: 0.88em; }
+        #success { color: #34d399; margin-top: 0.6rem; font-size: 0.95em; }
+        #error { color: #f87171; margin-top: 0.6rem; font-size: 0.95em; }
         #logs {
             font-family: monospace;
-            font-size: 0.78em;
+            font-size: 0.85em;
             color: #7a8fa6;
-            margin-top: 8px;
+            margin-top: 0.5rem;
             white-space: pre-wrap;
         }
 
@@ -128,12 +154,12 @@
         #map { width: 100%; height: 100%; }
         .map-overlay {
             position: absolute;
-            top: 12px;
-            right: 12px;
+            top: 14px;
+            right: 14px;
             background: rgba(16, 29, 51, 0.9);
-            padding: 10px 14px;
+            padding: 0.6rem 0.9rem;
             border-radius: 8px;
-            font-size: 0.82em;
+            font-size: 0.95em;
             color: #8a9bb5;
             z-index: 1000;
             backdrop-filter: blur(8px);
@@ -144,22 +170,22 @@
         /* Layer toggle */
         .map-layer-controls {
             position: absolute;
-            bottom: 12px;
-            left: 12px;
+            bottom: 14px;
+            left: 14px;
             z-index: 1000;
             display: flex;
-            gap: 4px;
+            gap: 6px;
         }
         .map-layer-btn {
             display: flex;
             align-items: center;
-            gap: 5px;
-            padding: 6px 10px;
+            gap: 6px;
+            padding: 0.5rem 0.85rem;
             background: rgba(16, 29, 51, 0.9);
             border: 1px solid #1e3050;
-            border-radius: 6px;
+            border-radius: 7px;
             color: #7a8fa6;
-            font-size: 0.75em;
+            font-size: 0.95em;
             cursor: pointer;
             backdrop-filter: blur(8px);
             transition: all 0.15s;
@@ -168,12 +194,41 @@
         .map-layer-btn:hover { background: rgba(26, 53, 88, 0.95); color: #e0e6ed; }
         .map-layer-btn.active { color: #fff; border-color: #4a9eff; background: rgba(26, 53, 88, 0.95); }
         .map-layer-btn .dot {
-            width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+            width: 0.6em; height: 0.6em; border-radius: 50%; flex-shrink: 0;
+        }
+
+        /* Velocity color bar */
+        .velocity-bar {
+            position: absolute;
+            bottom: 14px;
+            right: 14px;
+            background: rgba(16, 29, 51, 0.92);
+            padding: 0.7rem 0.9rem;
+            border-radius: 8px;
+            font-size: 0.9em;
+            z-index: 1000;
+            border: 1px solid #1e3050;
+            backdrop-filter: blur(8px);
+            display: none;
+        }
+        .velocity-bar.visible { display: block; }
+        .velocity-bar-title { color: #fff; font-weight: 600; margin-bottom: 6px; font-size: 1em; }
+        .velocity-gradient {
+            width: 11rem;
+            height: 0.8rem;
+            border-radius: 3px;
+            margin-bottom: 4px;
+        }
+        .velocity-labels {
+            display: flex;
+            justify-content: space-between;
+            color: #7a8fa6;
+            font-size: 0.92em;
         }
 
         /* Responsive - Tablet */
         @media (max-width: 900px) {
-            .sidebar { width: 300px; min-width: 300px; padding: 16px; }
+            .sidebar { width: 20rem; min-width: 20rem; padding: 1rem; }
         }
 
         /* Responsive - Mobile */
@@ -181,69 +236,108 @@
             .layout { flex-direction: column; }
             .sidebar {
                 width: 100%; min-width: 0;
-                max-height: 40vh;
-                padding: 14px 16px;
+                max-height: 45vh;
+                padding: 12px 14px;
                 border-right: none;
                 border-bottom: 1px solid #1e3050;
+                transition: max-height 0.25s ease;
             }
-            .map-container { min-height: 60vh; flex: 1; }
-            .sidebar h2 { font-size: 1.15em; }
-            .subtitle { margin-bottom: 10px; font-size: 0.82em; }
+            .sidebar.collapsed {
+                max-height: 3.5rem;
+                overflow: hidden;
+                padding-top: 10px;
+                padding-bottom: 10px;
+            }
+            .sidebar.collapsed .subtitle,
+            .sidebar.collapsed .sim-type-cards,
+            .sidebar.collapsed form,
+            .sidebar.collapsed #success,
+            .sidebar.collapsed #error,
+            .sidebar.collapsed #logs { display: none; }
+            .sidebar-toggle { display: inline-flex; }
+            .sidebar.collapsed .sidebar-toggle { transform: rotate(180deg); }
+            .map-container { min-height: 55vh; flex: 1; }
+            .sidebar h2 { font-size: 1.1em; }
+            .subtitle { margin-bottom: 10px; font-size: 0.88em; }
 
             /* Sim cards - larger touch targets */
             .sim-type-cards { gap: 8px; margin-bottom: 12px; }
             .sim-card {
-                padding: 12px 8px;
-                border-radius: 10px;
+                padding: 14px 8px;
+                border-radius: 12px;
             }
-            .sim-card .sim-icon { font-size: 1.6em; margin-bottom: 2px; }
-            .sim-card .sim-label { font-size: 0.82em; }
+            .sim-card .sim-icon { font-size: 1.8em; margin-bottom: 4px; }
+            .sim-card .sim-label { font-size: 0.88em; }
 
-            /* Form - larger inputs for touch */
+            /* Form - larger inputs for touch (16px prevents iOS zoom) */
             input, select {
-                padding: 10px 12px;
+                padding: 12px 14px;
                 font-size: 16px;
-                margin-bottom: 8px;
+                margin-bottom: 10px;
                 border-radius: 8px;
+                min-height: 44px;
             }
-            label { font-size: 0.85em; margin-bottom: 4px; }
-            .form-section { margin-bottom: 10px; }
+            label { font-size: 0.88em; margin-bottom: 5px; }
+            .form-section { margin-bottom: 12px; }
             .param-group { padding: 12px; border-radius: 8px; }
-            .row { gap: 8px; }
+            .row { gap: 10px; }
 
             /* Submit button - larger touch target */
             .submit-btn {
-                padding: 14px;
+                padding: 15px;
                 font-size: 16px;
                 border-radius: 8px;
+                min-height: 48px;
             }
 
             /* Map overlay - compact */
             .map-overlay {
                 top: 8px; right: 8px;
                 padding: 6px 10px;
-                font-size: 0.78em;
+                font-size: 0.82em;
                 border-radius: 6px;
             }
+
+            /* Layer buttons - compact pill row */
+            .map-layer-controls { bottom: 10px; left: 10px; gap: 4px; }
+            .map-layer-btn {
+                padding: 7px 12px;
+                font-size: 0.82em;
+                min-height: 36px;
+            }
+
+            /* Velocity bar - compact on mobile */
+            .velocity-bar {
+                bottom: 10px;
+                right: 10px;
+                padding: 8px 10px;
+                font-size: 0.78em;
+            }
+            .velocity-gradient { width: 8rem; height: 0.6rem; }
         }
 
         /* Small phones */
         @media (max-width: 380px) {
-            .sidebar { padding: 10px 12px; max-height: 38vh; }
-            .sim-card .sim-icon { font-size: 1.4em; }
-            .sim-card .sim-label { font-size: 0.75em; }
-            .sidebar h2 { font-size: 1.05em; }
+            .sidebar { padding: 10px 12px; max-height: 42vh; }
+            .sim-card .sim-icon { font-size: 1.6em; }
+            .sim-card .sim-label { font-size: 0.8em; }
+            .sidebar h2 { font-size: 1em; }
         }
     </style>
 </head>
 <body>
     <div class="layout">
-        <div class="sidebar">
-            <h2>SeaCurrent Drift Simulator</h2>
-            <p class="subtitle">
-                OpenDrift ocean drift simulation
-                &nbsp;|&nbsp; <a href="forecast.html">Forecast Map &rarr;</a>
-            </p>
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="titles">
+                    <h2>SeaCurrent Drift Simulator</h2>
+                    <p class="subtitle">
+                        OpenDrift ocean drift simulation
+                        &nbsp;|&nbsp; <a href="forecast.html">Forecast Map &rarr;</a>
+                    </p>
+                </div>
+                <button type="button" class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle panel">&#x25B2;</button>
+            </div>
 
             <div class="sim-type-cards">
                 <button type="button" class="sim-card active" data-type="leeway" onclick="setSimType('leeway')">
@@ -347,6 +441,16 @@
                 <button class="map-layer-btn" id="btnOffIdx" onclick="toggleIdxLayer('off')">
                     Off
                 </button>
+            </div>
+
+            <div class="velocity-bar" id="idxVelocityBar">
+                <div class="velocity-bar-title" id="idxVelocityBarTitle">Ocean Current (m/s)</div>
+                <div class="velocity-gradient" id="idxVelocityGradient"></div>
+                <div class="velocity-labels">
+                    <span>0</span>
+                    <span id="idxVelocityMid">0.75</span>
+                    <span id="idxVelocityMax">1.5</span>
+                </div>
             </div>
         </div>
     </div>
@@ -501,6 +605,23 @@ function loadIdxVelocity(url, type) {
         .catch(function() { return null; });
 }
 
+var IDX_GRADIENTS = {
+    current: 'linear-gradient(to right, #1a237e, #1565c0, #42a5f5, #26c6da, #00e5ff, #76ff03, #ffeb3b, #ff9800, #f44336)',
+    wind:    'linear-gradient(to right, #364fc7, #4c6ef5, #91a7ff, #dbe4ff, #f8f9fa, #ffe8cc, #ffc078, #ff922b)',
+};
+
+function updateIdxVelocityBar(type) {
+    var bar = document.getElementById('idxVelocityBar');
+    if (type === 'off') { bar.classList.remove('visible'); return; }
+    bar.classList.add('visible');
+    var isCurrent = type === 'current';
+    document.getElementById('idxVelocityBarTitle').textContent = isCurrent ? 'Ocean Current (m/s)' : 'Wind (m/s)';
+    document.getElementById('idxVelocityGradient').style.background = IDX_GRADIENTS[type];
+    var max = isCurrent ? 1.5 : 15;
+    document.getElementById('idxVelocityMax').textContent = max;
+    document.getElementById('idxVelocityMid').textContent = (max / 2);
+}
+
 function toggleIdxLayer(type) {
     idxActiveLayer = type;
     document.getElementById('btnCurrentIdx').classList.toggle('active', type === 'current');
@@ -512,14 +633,30 @@ function toggleIdxLayer(type) {
 
     if (type === 'current' && idxCurrentLayer) map.addLayer(idxCurrentLayer);
     if (type === 'wind' && idxWindLayer) map.addLayer(idxWindLayer);
+
+    updateIdxVelocityBar(type);
 }
 
 Promise.all([
     loadIdxVelocity(CURRENT_VELOCITY_URL, 'current'),
     loadIdxVelocity(WIND_VELOCITY_URL, 'wind'),
 ]).then(function() {
-    if (idxCurrentLayer) map.addLayer(idxCurrentLayer);
+    if (idxCurrentLayer) {
+        map.addLayer(idxCurrentLayer);
+        updateIdxVelocityBar('current');
+    }
 });
+
+// Mobile sidebar collapse toggle
+(function() {
+    var toggle = document.getElementById('sidebarToggle');
+    var sidebar = document.getElementById('sidebar');
+    if (!toggle || !sidebar) return;
+    toggle.addEventListener('click', function() {
+        sidebar.classList.toggle('collapsed');
+        toggle.setAttribute('aria-expanded', !sidebar.classList.contains('collapsed'));
+    });
+})();
 </script>
 
 <style>
