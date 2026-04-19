@@ -1,7 +1,13 @@
 # Raw data files (too large for GitHub, re-downloadable via scripts)
 data/nc_files/
 data/grib2_files/
+data/grib2_m_a0060/
 
 # Individual converted files (replaced by current_fixed.nc / wind_fixed.nc)
 data/nc_converted/M-B0071-000.nc
 data/nc_converted/M-A0064-*.nc
+data/nc_converted/M-A0060-*.nc
+
+# Python bytecode
+__pycache__/
+*.pyc
