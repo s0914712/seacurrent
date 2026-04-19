@@ -275,11 +275,11 @@
             cursor: zoom-in;
             aspect-ratio: 4 / 3;
             background: #0d1a2e;
-            transition: max-height 0.25s ease;
+            transition: max-height 0.25s ease, aspect-ratio 0.25s ease;
         }
         .info-panel .sim-image-wrap.shrunk {
             aspect-ratio: auto;
-            max-height: 80px;
+            max-height: 44px;
         }
         .info-panel .sim-image-wrap img {
             display: block;
@@ -287,6 +287,7 @@
             height: 100%;
             object-fit: cover;
         }
+        .info-panel .sim-image-wrap.shrunk img { object-position: center 30%; }
 
         /* Simulation image lightbox */
         .sim-lightbox {
@@ -1334,20 +1335,23 @@ function selectPoint(id) {
     var panel = document.getElementById('infoPanel');
     var toggleBtn = document.getElementById('infoPanelToggle');
 
-    // Three states cycle on toggle: full (default) → shrunk (thumb strip) →
-    // collapsed (just the title bar). Persist so the user's preference
-    // survives reloads.
-    var STATES = ['full', 'shrunk', 'collapsed'];
-    var state = localStorage.getItem('seacurrent.infoPanel') || 'full';
-    if (STATES.indexOf(state) < 0) state = 'full';
+    // Three states cycle on toggle. Default is "shrunk" (44px strip) so the
+    // image hints at content without dominating the bottom of the screen.
+    // Cycle: shrunk → collapsed (title only) → full → shrunk …
+    var STATES = ['shrunk', 'collapsed', 'full'];
+    var saved = localStorage.getItem('seacurrent.infoPanel');
+    var state = STATES.indexOf(saved) >= 0 ? saved : 'shrunk';
 
     function applyState() {
         panel.classList.toggle('collapsed', state === 'collapsed');
         wrap.classList.toggle('shrunk', state === 'shrunk');
-        toggleBtn.innerHTML = state === 'collapsed' ? '&#x25B2;' :
-            state === 'shrunk' ? '&#x25BC;' : '&#x2212;';
-        toggleBtn.title = state === 'collapsed' ? 'Expand'
-            : state === 'shrunk' ? 'Hide details' : 'Shrink image';
+        // Icon hints at the next state in the cycle.
+        toggleBtn.innerHTML = state === 'shrunk' ? '&#x2715;' :    // ✕ → next: hide
+            state === 'collapsed' ? '&#x25BC;' :                   // ▼ → next: expand
+            '&#x2013;';                                            // – → next: shrink
+        toggleBtn.title = state === 'shrunk' ? 'Hide image'
+            : state === 'collapsed' ? 'Expand'
+            : 'Shrink image';
     }
     function cycle() {
         state = STATES[(STATES.indexOf(state) + 1) % STATES.length];
