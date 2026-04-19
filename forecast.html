@@ -2,7 +2,8 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0a1628">
     <title>SeaCurrent - Drift Forecast</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -15,8 +16,10 @@
             background: #0a1628;
             color: #e0e6ed;
             height: 100vh;
+            height: 100dvh;
             display: flex;
             flex-direction: column;
+            overflow: hidden;
         }
 
         /* Top bar */
@@ -246,8 +249,15 @@
             overflow: hidden;
             border: 1px solid #1e3050;
             cursor: zoom-in;
+            aspect-ratio: 4 / 3;
+            background: #0d1a2e;
         }
-        .info-panel .sim-image-wrap img { display: block; width: 100%; height: auto; }
+        .info-panel .sim-image-wrap img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
 
         /* Simulation image lightbox */
         .sim-lightbox {
@@ -379,51 +389,78 @@
         /* Responsive - Mobile */
         @media (max-width: 700px) {
             .topbar {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 4px;
-                padding: 10px 14px;
+                flex-direction: row;
+                align-items: center;
+                gap: 8px;
+                padding: 8px 12px;
             }
-            .topbar h2 { font-size: 1.05em; }
-            .topbar a { font-size: 0.82em; }
-            .topbar .meta { font-size: 0.75em; line-height: 1.4; }
+            .topbar h2 { font-size: 0.98em; line-height: 1.2; }
+            .topbar a { font-size: 0.78em; flex-shrink: 0; }
+            .topbar .meta { font-size: 0.72em; line-height: 1.35; color: #8a9bb5; }
 
             .main { flex-direction: column; }
 
+            /* Point list: horizontal scroll, compact chips, no thumbs */
             .point-list {
                 width: 100%; min-width: 0;
                 max-height: none;
                 display: flex; gap: 6px;
                 overflow-x: auto; overflow-y: hidden;
-                padding: 8px 10px;
+                padding: 6px 10px;
                 border-right: none;
                 border-bottom: 1px solid #1e3050;
                 -webkit-overflow-scrolling: touch;
                 scrollbar-width: none;
+                scroll-snap-type: x mandatory;
+                flex-shrink: 0;
             }
             .point-list::-webkit-scrollbar { display: none; }
             .point-item {
-                min-width: 140px;
-                max-width: 180px;
+                min-width: auto;
+                max-width: none;
                 margin-bottom: 0;
-                padding: 10px;
+                padding: 7px 11px;
                 flex-shrink: 0;
                 scroll-snap-align: start;
+                border-width: 1px;
+                border-radius: 999px;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
             }
-            .point-list { scroll-snap-type: x mandatory; }
-            .point-item .name-zh { font-size: 0.92em; }
-            .point-item .name-en { font-size: 0.78em; }
-            .point-item .coords { font-size: 0.72em; }
-            .point-item .thumb { display: none; margin-top: 6px; aspect-ratio: 16 / 10; }
-            .point-item.active .thumb { display: block; }
+            .point-item .name-zh { font-size: 0.88em; font-weight: 600; line-height: 1.15; }
+            .point-item .name-en,
+            .point-item .coords,
+            .point-item .status-ok,
+            .point-item .status-err { display: none; }
+            /* Image belongs to the info-panel only on mobile; hide card thumb
+               in every state so the chip stays compact. */
+            .point-item .thumb,
+            .point-item.active .thumb { display: none; }
 
             .map-area { flex: 1; min-height: 0; }
 
-            /* Layer controls - horizontal on mobile */
+            /* Layer controls - compact pill row; dropdowns become inline */
             .layer-controls {
-                top: 8px; left: 8px;
+                top: 8px; left: 8px; right: 8px;
                 flex-direction: row;
-                gap: 4px;
+                flex-wrap: wrap;
+                gap: 6px;
+            }
+            .layer-group {
+                padding: 5px 8px;
+                min-width: 0;
+                flex: 1 1 calc(50% - 3px);
+                max-width: calc(50% - 3px);
+            }
+            .layer-group-title {
+                font-size: 0.6em;
+                margin-bottom: 2px;
+                letter-spacing: 0.06em;
+            }
+            .layer-select {
+                padding: 4px 6px;
+                font-size: 0.78em;
             }
             .layer-btn {
                 padding: 6px 10px;
@@ -431,57 +468,85 @@
                 border-radius: 6px;
             }
 
+            /* Info panel: compact bottom sheet above the timeline */
             .info-panel {
                 top: auto;
-                bottom: 60px;
-                right: 10px;
-                left: 10px;
+                bottom: 64px;
+                right: 8px;
+                left: 8px;
                 max-width: none;
-                font-size: 0.82em;
-                padding: 10px 14px;
+                font-size: 0.8em;
+                padding: 10px 12px;
+                max-height: 52vh;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
             }
-            .info-panel h4 { font-size: 0.95em; }
+            .info-panel h4 { font-size: 0.95em; margin-bottom: 4px; }
+            .info-panel .info-row { margin-bottom: 2px; font-size: 0.9em; }
+            .info-panel .sim-image-wrap {
+                margin-top: 8px;
+                aspect-ratio: 16 / 11;
+            }
 
             .legend {
                 bottom: 12px;
                 left: 10px;
-                padding: 8px 12px;
-                font-size: 0.75em;
+                padding: 6px 10px;
+                font-size: 0.7em;
             }
-            .legend-color { width: 12px; height: 12px; }
-            .legend-line { width: 16px; height: 3px; }
+            .legend-title { margin-bottom: 3px; }
+            .legend-item { margin-bottom: 2px; gap: 6px; }
+            .legend-color { width: 10px; height: 10px; }
+            .legend-line { width: 14px; height: 2px; }
 
             .velocity-bar {
                 bottom: 12px;
                 right: 10px;
-                padding: 8px 10px;
+                padding: 6px 10px;
+                font-size: 0.75em;
             }
-            .velocity-gradient { width: 120px; height: 10px; }
+            .velocity-bar-title { font-size: 0.9em; margin-bottom: 3px; }
+            .velocity-gradient { width: 100px; height: 8px; }
+
+            .scalar-bar {
+                bottom: 64px;
+                right: 8px;
+                left: 8px;
+                padding: 8px 12px;
+                min-width: 0;
+                font-size: 0.78em;
+            }
 
             /* Hide strip on mobile (sidebar list serves same purpose) */
             .forecast-strip { display: none; }
 
-            /* Timeline - full width on mobile */
+            /* Timeline - full width on mobile, hugging bottom safe area */
             .timeline {
-                width: calc(100% - 20px);
-                left: 10px;
-                right: 10px;
+                width: calc(100% - 16px);
+                left: 8px;
+                right: 8px;
                 transform: none;
-                bottom: 10px;
-                padding: 8px 12px;
+                bottom: max(8px, env(safe-area-inset-bottom, 8px));
+                padding: 7px 10px;
                 gap: 8px;
+                border-radius: 12px;
             }
-            .tl-info { min-width: 4.5rem; }
-            .tl-label { font-size: 0.85em; }
-            .tl-time { font-size: 0.7em; }
+            .tl-btn { width: 1.8rem; height: 1.8rem; font-size: 0.8em; }
+            .tl-info { min-width: 4.2rem; }
+            .tl-label { font-size: 0.82em; }
+            .tl-time { font-size: 0.68em; }
         }
 
         @media (max-width: 380px) {
-            .topbar { padding: 8px 10px; }
-            .topbar h2 { font-size: 0.95em; }
-            .point-list { padding: 6px 8px; }
-            .point-item { min-width: 115px; padding: 8px; }
+            .topbar { padding: 6px 10px; gap: 6px; }
+            .topbar h2 { font-size: 0.88em; }
+            .topbar a { font-size: 0.72em; }
+            .point-list { padding: 5px 8px; gap: 5px; }
+            .point-item { padding: 6px 9px; }
+            .point-item .name-zh { font-size: 0.82em; }
             .layer-btn { padding: 5px 8px; font-size: 0.7em; }
+            .layer-select { font-size: 0.72em; }
+            .info-panel { font-size: 0.75em; padding: 8px 10px; }
         }
     </style>
 </head>
