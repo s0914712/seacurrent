@@ -240,9 +240,33 @@
             backdrop-filter: blur(8px);
             display: none;
         }
-        .info-panel h4 { color: #fff; margin-bottom: 8px; font-size: 1.05em; }
+        .info-panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .info-panel h4 { color: #fff; font-size: 1.05em; }
+        .info-panel-toggle {
+            background: rgba(26, 53, 88, 0.6);
+            border: 1px solid #2c4f7a;
+            color: #c8d4e3;
+            width: 28px; height: 28px;
+            border-radius: 6px;
+            font-size: 1em;
+            line-height: 1;
+            cursor: pointer;
+            flex-shrink: 0;
+            font-family: inherit;
+            padding: 0;
+        }
+        .info-panel-toggle:hover { background: rgba(26, 53, 88, 0.95); }
         .info-panel .info-row { color: #7a8fa6; margin-bottom: 4px; }
         .info-panel .info-row span { color: #e0e6ed; font-weight: 600; }
+        .info-panel.collapsed .info-row,
+        .info-panel.collapsed .sim-image-wrap { display: none; }
+        .info-panel.collapsed .info-panel-header { margin-bottom: 0; }
         .info-panel .sim-image-wrap {
             margin-top: 10px;
             border-radius: 6px;
@@ -251,6 +275,11 @@
             cursor: zoom-in;
             aspect-ratio: 4 / 3;
             background: #0d1a2e;
+            transition: max-height 0.25s ease;
+        }
+        .info-panel .sim-image-wrap.shrunk {
+            aspect-ratio: auto;
+            max-height: 80px;
         }
         .info-panel .sim-image-wrap img {
             display: block;
@@ -641,7 +670,11 @@
             </div>
 
             <div class="info-panel" id="infoPanel">
-                <h4 id="infoPanelTitle"></h4>
+                <div class="info-panel-header">
+                    <h4 id="infoPanelTitle"></h4>
+                    <button type="button" class="info-panel-toggle" id="infoPanelToggle"
+                        aria-label="Collapse panel" title="Collapse / expand">&#x2212;</button>
+                </div>
                 <div class="info-row">Location: <span id="infoPanelCoords"></span></div>
                 <div class="info-row">Particles: <span id="infoPanelParticles"></span></div>
                 <div class="info-row">Duration: <span id="infoPanelDuration"></span></div>
@@ -785,7 +818,14 @@ function selectScalarOverlay(name) {
         return;
     }
     bar.style.display = 'block';
-    updateScalarBar(activeScalarLayer);
+    // Seed the color bar with the unit + placeholder range; renderScalarOverlay
+    // will replace it with per-frame p5/p95 once the first frame arrives.
+    var info = SCALAR_UNITS[scalarKind(activeScalarLayer)];
+    document.getElementById('scalarBarTitle').textContent = scalarLabel(activeScalarLayer) + ' (loading…)';
+    document.getElementById('scalarGradient').style.background = SCALAR_GRADIENTS[scalarKind(activeScalarLayer)];
+    document.getElementById('scalarMin').textContent = '';
+    document.getElementById('scalarMid').textContent = '';
+    document.getElementById('scalarMax').textContent = info.unit;
     if (framesIndex) setForecastHour(currentFrameHour);
 }
 
@@ -804,10 +844,12 @@ function updateVelocityBar(title, maxVal, type) {
 
 // ── Scalar overlay (temperature / humidity) ──
 
-// Temperature colormap range (display in °C) and RH in %.
-var SCALAR_RANGE = {
-    temp: { min: -10, max: 40, unit: '°C', offsetK: -273.15 },  // K → °C
-    rh:   { min: 0,   max: 100, unit: '%',  offsetK: 0 },
+// Display units only — the actual min/max is computed per-frame so color
+// contrast adapts to the region instead of wasting most of the gradient
+// on temperatures that never occur in Taiwan.
+var SCALAR_UNITS = {
+    temp: { unit: '°C', offsetK: -273.15 },
+    rh:   { unit: '%',  offsetK: 0 },
 };
 var SCALAR_GRADIENTS = {
     temp: 'linear-gradient(to right, #3b4cca, #4a9eff, #26c6da, #76ff03, #ffeb3b, #ff9800, #f44336)',
@@ -818,13 +860,18 @@ function scalarKind(name) {
     return name.indexOf('temp_') === 0 ? 'temp' : 'rh';
 }
 
-function updateScalarBar(name) {
+// Current scalar render range (updated per-frame by renderScalarOverlay).
+var scalarActiveRange = { min: 0, max: 1, unit: '' };
+
+function updateScalarBar(name, rangeOverride) {
     var kind = scalarKind(name);
-    var r = SCALAR_RANGE[kind];
+    var info = SCALAR_UNITS[kind];
+    var r = rangeOverride || scalarActiveRange;
+    var digits = (Math.abs(r.max - r.min) >= 20) ? 0 : 1;
     document.getElementById('scalarBarTitle').textContent = scalarLabel(name);
-    document.getElementById('scalarMin').textContent = r.min + ' ' + r.unit;
-    document.getElementById('scalarMid').textContent = ((r.min + r.max) / 2) + ' ' + r.unit;
-    document.getElementById('scalarMax').textContent = r.max + ' ' + r.unit;
+    document.getElementById('scalarMin').textContent = r.min.toFixed(digits) + ' ' + info.unit;
+    document.getElementById('scalarMid').textContent = ((r.min + r.max) / 2).toFixed(digits) + ' ' + info.unit;
+    document.getElementById('scalarMax').textContent = r.max.toFixed(digits) + ' ' + info.unit;
     document.getElementById('scalarGradient').style.background = SCALAR_GRADIENTS[kind];
 }
 
@@ -860,6 +907,22 @@ var SCALAR_STOPS = {
     rh:   ['#fff3bf', '#d0ebff', '#74c0fc', '#339af0', '#1864ab'],
 };
 
+// Percentile of a numeric array (0..1). Uses a copy-sort; the grids here are
+// small (36×26 ≈ 936 samples) so this is cheap per frame.
+function percentile(arr, p) {
+    var sorted = arr.slice().sort(function(a, b) { return a - b; });
+    var idx = Math.max(0, Math.min(sorted.length - 1, Math.round(p * (sorted.length - 1))));
+    return sorted[idx];
+}
+
+// Round a number to a "nice" scale boundary so the color bar shows 10, 15,
+// 20 rather than 13.7, 17.2, 20.6.
+function niceRound(v, direction) {
+    if (!isFinite(v)) return v;
+    var step = Math.abs(v) >= 50 ? 5 : (Math.abs(v) >= 10 ? 1 : 0.5);
+    return direction === 'down' ? Math.floor(v / step) * step : Math.ceil(v / step) * step;
+}
+
 // Render a scalar JSON component as a colorized Leaflet image overlay.
 function renderScalarOverlay(data, layerName) {
     if (!data || !data[0] || !data[0].header) return;
@@ -868,8 +931,19 @@ function renderScalarOverlay(data, layerName) {
     var nx = h.nx, ny = h.ny;
     var values = comp.data;
     var kind = scalarKind(layerName);
-    var range = SCALAR_RANGE[kind];
+    var info = SCALAR_UNITS[kind];
     var stops = SCALAR_STOPS[kind];
+
+    // Auto-scale the color range from this frame's data distribution. p5/p95
+    // keeps outliers from stretching the scale while still covering almost
+    // all pixels with meaningful color gradient.
+    var displayVals = new Array(values.length);
+    for (var k = 0; k < values.length; k++) displayVals[k] = values[k] + info.offsetK;
+    var lo = niceRound(percentile(displayVals, 0.05), 'down');
+    var hi = niceRound(percentile(displayVals, 0.95), 'up');
+    if (hi - lo < 1) { hi = lo + 1; }  // guard against flat fields
+    scalarActiveRange = { min: lo, max: hi, unit: info.unit };
+    updateScalarBar(layerName, scalarActiveRange);
 
     // Build a canvas colorized pixel-per-grid-cell, then wrap as imageOverlay.
     var canvas = document.createElement('canvas');
@@ -879,17 +953,14 @@ function renderScalarOverlay(data, layerName) {
     var img = ctx.createImageData(nx, ny);
 
     for (var i = 0; i < values.length; i++) {
-        var v = values[i];
-        // leaflet-velocity / our scalar JSON replaces NaN with 0; treat strict 0 (K) / 0 RH edge cases
-        // as valid — if you need masking, handle here.
-        var valDisplay = v + range.offsetK;
-        var t = (valDisplay - range.min) / (range.max - range.min);
+        var valDisplay = displayVals[i];
+        var t = (valDisplay - lo) / (hi - lo);
         var rgb = interpColor(stops, Math.max(0, Math.min(1, t)));
         var off = i * 4;
         img.data[off]     = rgb[0];
         img.data[off + 1] = rgb[1];
         img.data[off + 2] = rgb[2];
-        img.data[off + 3] = 160;  // ~63% opacity per-pixel
+        img.data[off + 3] = 170;  // ~67% opacity per-pixel
     }
     ctx.putImageData(img, 0, 0);
 
@@ -911,6 +982,7 @@ function renderScalarOverlay(data, layerName) {
     scalarOverlayImage = L.imageOverlay(canvas.toDataURL('image/png'), bounds, {
         opacity: 0.85,
         interactive: false,
+        className: 'scalar-overlay-img',
     });
     scalarOverlayImage.addTo(map);
     // Push scalar below vector flow lines.
@@ -1252,13 +1324,41 @@ function selectPoint(id) {
     }
 }
 
-// Lightbox for simulation image
+// Lightbox + collapse/shrink controls for simulation image
 (function() {
     var lb = document.getElementById('simLightbox');
     var lbImg = document.getElementById('simLightboxImg');
     var lbClose = document.getElementById('simLightboxClose');
     var wrap = document.getElementById('infoPanelImageWrap');
     var thumb = document.getElementById('infoPanelImage');
+    var panel = document.getElementById('infoPanel');
+    var toggleBtn = document.getElementById('infoPanelToggle');
+
+    // Three states cycle on toggle: full (default) → shrunk (thumb strip) →
+    // collapsed (just the title bar). Persist so the user's preference
+    // survives reloads.
+    var STATES = ['full', 'shrunk', 'collapsed'];
+    var state = localStorage.getItem('seacurrent.infoPanel') || 'full';
+    if (STATES.indexOf(state) < 0) state = 'full';
+
+    function applyState() {
+        panel.classList.toggle('collapsed', state === 'collapsed');
+        wrap.classList.toggle('shrunk', state === 'shrunk');
+        toggleBtn.innerHTML = state === 'collapsed' ? '&#x25B2;' :
+            state === 'shrunk' ? '&#x25BC;' : '&#x2212;';
+        toggleBtn.title = state === 'collapsed' ? 'Expand'
+            : state === 'shrunk' ? 'Hide details' : 'Shrink image';
+    }
+    function cycle() {
+        state = STATES[(STATES.indexOf(state) + 1) % STATES.length];
+        localStorage.setItem('seacurrent.infoPanel', state);
+        applyState();
+    }
+    toggleBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        cycle();
+    });
+    applyState();
 
     function open() {
         if (!thumb.src) return;
@@ -1383,6 +1483,14 @@ loadForecast();
     box-shadow: none !important;
 }
 .point-tooltip::before { border-right-color: #1e3050 !important; }
+
+/* Smooth interpolation for the coarse-grid scalar overlay so the 36×26
+   canvas doesn't render as visible pixel blocks on high-DPI displays. */
+.scalar-overlay-img {
+    image-rendering: auto !important;
+    image-rendering: smooth !important;
+    -ms-interpolation-mode: bicubic !important;
+}
 
 /* Override leaflet-velocity display panel */
 .leaflet-control-velocity {
