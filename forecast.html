@@ -903,7 +903,7 @@ function fetchFrame(type, hour) {
     }
     var loading = document.getElementById('tlLoading');
     if (loading) loading.style.display = 'inline-block';
-    return fetch(frameUrl(type, hour))
+    return fetch(frameUrl(type, hour) + '?t=' + Date.now())
         .then(function(r) { if (!r.ok) throw new Error('frame ' + hour + ' missing'); return r.json(); })
         .then(function(data) {
             if (isLegacy) frameCache[type][hour] = data;
@@ -999,7 +999,7 @@ function buildVelocityLayerWithData(type, data) {
 }
 
 function initFromFrames() {
-    return fetch(FRAMES_INDEX_URL).then(function(r) {
+    return fetch(FRAMES_INDEX_URL + '?t=' + Date.now()).then(function(r) {
         if (!r.ok) throw new Error('no frames');
         return r.json();
     }).then(function(idx) {
