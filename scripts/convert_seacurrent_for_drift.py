@@ -21,6 +21,9 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--wind-input-dir", default=None, help="Directory containing wind GRIB2 files")
     p.add_argument("--gfs-input-dir", default=None,
                    help="Directory containing GFS M-A0060 GRIB2 files (multi-level wind/T/RH)")
+    p.add_argument("--gfs-region", default="105,10,140,35",
+                   help="lon_min,lat_min,lon_max,lat_max bbox cropped from the global GFS grid "
+                        "(default Taiwan/W-Pacific). Use 'global' to keep full grid.")
     return p.parse_args()
 
 
@@ -169,7 +172,36 @@ def _pick_var(ds, candidates: tuple[str, ...]) -> str | None:
     return None
 
 
-def convert_gfs_grib2(grb_files: list, output_dir: Path, xr) -> int:
+def _crop_region(ds, region: tuple[float, float, float, float] | None):
+    """Crop an xarray Dataset to a (lon_min, lat_min, lon_max, lat_max) bbox.
+
+    GFS uses 0..360 longitude convention, so wrap the requested lon range
+    accordingly. Returns the dataset unchanged if region is None.
+    """
+    if region is None:
+        return ds
+    lon_min, lat_min, lon_max, lat_max = region
+    lon_name = "longitude" if "longitude" in ds.coords else "lon"
+    lat_name = "latitude" if "latitude" in ds.coords else "lat"
+    # Normalise requested lon to match dataset convention
+    ds_lon = ds[lon_name]
+    if float(ds_lon.max()) > 180 and lon_min < 0:
+        lon_min += 360
+    if float(ds_lon.max()) > 180 and lon_max < 0:
+        lon_max += 360
+
+    # Build slices respecting the axis direction (GFS lat is N→S, so slice high→low).
+    ds_lat = ds[lat_name]
+    if float(ds_lat[0]) > float(ds_lat[-1]):
+        lat_slice = slice(lat_max, lat_min)
+    else:
+        lat_slice = slice(lat_min, lat_max)
+    lon_slice = slice(lon_min, lon_max)
+    return ds.sel({lon_name: lon_slice, lat_name: lat_slice})
+
+
+def convert_gfs_grib2(grb_files: list, output_dir: Path, xr,
+                      region: tuple[float, float, float, float] | None = None) -> int:
     """Convert GFS M-A0060 GRIB2 files into three compressed NC files.
 
     Writes:
@@ -177,6 +209,10 @@ def convert_gfs_grib2(grb_files: list, output_dir: Path, xr) -> int:
       - temp_gfs_fixed.nc  (temp_2m + temp_pl on pressure levels)
       - rh_gfs_fixed.nc    (rh_2m + rh_pl on pressure levels)
     All stacked along a `time` dimension, pressure-level fields stacked along `level`.
+
+    `region` = (lon_min, lat_min, lon_max, lat_max) crops to a bbox so the
+    per-variable NetCDF stays well under GitHub's 100 MB file cap. Pass None
+    to keep the full 0.25° global grid.
     """
     import pandas as pd  # local import to keep top of module light
 
@@ -191,13 +227,17 @@ def convert_gfs_grib2(grb_files: list, output_dir: Path, xr) -> int:
 
         ds_h10 = _open_grib_level(grb, "heightAboveGround", 10, xr)
         ds_h2 = _open_grib_level(grb, "heightAboveGround", 2, xr)
+        if ds_h10 is not None:
+            ds_h10 = _crop_region(ds_h10, region)
+        if ds_h2 is not None:
+            ds_h2 = _crop_region(ds_h2, region)
 
         pl_datasets = []
         for lvl in PRESSURE_LEVELS:
             dsp = _open_grib_level(grb, "isobaricInhPa", lvl, xr)
             if dsp is None:
                 break
-            pl_datasets.append((lvl, dsp))
+            pl_datasets.append((lvl, _crop_region(dsp, region)))
 
         if len(pl_datasets) != len(PRESSURE_LEVELS) or ds_h10 is None or ds_h2 is None:
             print(f"⏭️ 跳過（缺少層次）：{grb.name}")
@@ -358,8 +398,17 @@ def main() -> int:
         if not grb_files:
             print(f"⚠️ 找不到 GFS GRIB2 檔案：{gfs_dir}/*.grb2")
         else:
+            region: tuple[float, float, float, float] | None = None
+            if args.gfs_region and args.gfs_region.lower() != "global":
+                try:
+                    parts = [float(x) for x in args.gfs_region.split(",")]
+                    if len(parts) != 4:
+                        raise ValueError("expected 4 comma-separated floats")
+                    region = (parts[0], parts[1], parts[2], parts[3])
+                except Exception as exc:  # noqa: BLE001
+                    print(f"⚠️ 無法解析 --gfs-region '{args.gfs_region}': {exc} — 使用全球範圍")
             try:
-                convert_gfs_grib2(grb_files, output_dir, xr)
+                convert_gfs_grib2(grb_files, output_dir, xr, region=region)
             except Exception as exc:  # noqa: BLE001
                 print(f"❌ GFS 轉換失敗：{exc}")
                 return 4

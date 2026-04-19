@@ -53,7 +53,8 @@ jobs:
             --input-dir data/nc_files \
             --output-dir data/nc_converted \
             --wind-input-dir data/grib2_files \
-            --gfs-input-dir data/grib2_m_a0060
+            --gfs-input-dir data/grib2_m_a0060 \
+            --gfs-region 105,10,140,35
 
       - name: Generate velocity JSON for map visualization
         run: |

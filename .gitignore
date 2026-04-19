@@ -8,6 +8,13 @@ data/nc_converted/M-B0071-000.nc
 data/nc_converted/M-A0064-*.nc
 data/nc_converted/M-A0060-*.nc
 
+# GFS (M-A0060) merged NetCDFs: intermediate only, distributed via
+# Actions cache/artifacts; only the per-hour JSON frames under
+# scheduled_results/frames/ are committed.
+data/nc_converted/wind_gfs_fixed.nc
+data/nc_converted/temp_gfs_fixed.nc
+data/nc_converted/rh_gfs_fixed.nc
+
 # Python bytecode
 __pycache__/
 *.pyc
