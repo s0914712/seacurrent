@@ -20,13 +20,30 @@ jobs:
       - name: Check data availability
         id: data-check
         run: |
-          if ls data/nc_converted/*.nc 1>/dev/null 2>&1; then
+          # We require BOTH the legacy NCs (committed) AND the GFS NCs
+          # (gitignored, produced by the download/convert step). Missing any
+          # one should trigger the cache-restore / fallback-download path.
+          required=(
+            data/nc_converted/current_fixed.nc
+            data/nc_converted/wind_fixed.nc
+            data/nc_converted/wind_gfs_fixed.nc
+            data/nc_converted/temp_gfs_fixed.nc
+            data/nc_converted/rh_gfs_fixed.nc
+          )
+          missing=0
+          for f in "${required[@]}"; do
+            if [ ! -f "$f" ]; then
+              echo "⚠️ Missing $f"
+              missing=1
+            fi
+          done
+          if [ "$missing" -eq 0 ]; then
             echo "found=true" >> "$GITHUB_OUTPUT"
-            echo "✅ NC files found in repo checkout"
+            echo "✅ All required NC files present"
             ls -lh data/nc_converted/*.nc
           else
             echo "found=false" >> "$GITHUB_OUTPUT"
-            echo "⚠️ No NC files found, will try cache then download"
+            echo "↻ Will restore cache or fall back to fresh download"
           fi
 
       - name: Restore cached CWA data
