@@ -114,6 +114,63 @@
             border-radius: 50%;
             flex-shrink: 0;
         }
+        .layer-group {
+            background: rgba(16, 29, 51, 0.92);
+            border: 1px solid #1e3050;
+            border-radius: 8px;
+            padding: 8px 10px;
+            backdrop-filter: blur(8px);
+            min-width: 180px;
+        }
+        .layer-group-title {
+            font-size: 0.72em;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #7a8fa6;
+            margin-bottom: 4px;
+        }
+        .layer-select {
+            width: 100%;
+            background: rgba(10, 18, 32, 0.9);
+            color: #e0e6ed;
+            border: 1px solid #1e3050;
+            border-radius: 6px;
+            padding: 6px 8px;
+            font-family: inherit;
+            font-size: 0.9em;
+            cursor: pointer;
+        }
+        .layer-select:focus { outline: none; border-color: #4a9eff; }
+
+        /* Scalar overlay color bar (temperature / humidity) */
+        .scalar-bar {
+            position: absolute;
+            bottom: 70px;
+            right: 20px;
+            background: rgba(16, 29, 51, 0.92);
+            padding: 10px 14px;
+            border-radius: 8px;
+            z-index: 1000;
+            border: 1px solid #1e3050;
+            backdrop-filter: blur(8px);
+            min-width: 220px;
+            font-size: 0.85em;
+            color: #e0e6ed;
+            display: none;
+        }
+        .scalar-bar-title { font-weight: 600; margin-bottom: 6px; color: #fff; }
+        .scalar-gradient {
+            height: 10px;
+            width: 100%;
+            border-radius: 3px;
+            margin-bottom: 4px;
+        }
+        .scalar-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.82em;
+            color: #8a9bb5;
+        }
 
         /* Legend overlay */
         .legend {
@@ -445,16 +502,44 @@
             <div id="map"></div>
             <div class="loading-msg" id="loadingMsg">Loading forecast data...</div>
 
-            <!-- Layer toggle buttons -->
+            <!-- Layer toggle controls -->
             <div class="layer-controls">
-                <button class="layer-btn active" id="btnCurrent" onclick="toggleLayer('current')">
-                    <span class="dot" style="background:#4af;"></span>
-                    Ocean Current
-                </button>
-                <button class="layer-btn" id="btnWind" onclick="toggleLayer('wind')">
-                    <span class="dot" style="background:#f5f5f5;"></span>
-                    Wind
-                </button>
+                <div class="layer-group">
+                    <div class="layer-group-title">Vector flow</div>
+                    <select id="vectorLayerSel" class="layer-select" onchange="selectVectorLayer(this.value)">
+                        <option value="current">Ocean current</option>
+                        <option value="wind">Wind (surface)</option>
+                        <option value="wind_10m">Wind 10 m (GFS)</option>
+                        <option value="wind_850hPa">Wind 850 hPa</option>
+                        <option value="wind_925hPa">Wind 925 hPa</option>
+                        <option value="wind_1000hPa">Wind 1000 hPa</option>
+                    </select>
+                </div>
+                <div class="layer-group">
+                    <div class="layer-group-title">Overlay</div>
+                    <select id="scalarLayerSel" class="layer-select" onchange="selectScalarOverlay(this.value)">
+                        <option value="">None</option>
+                        <option value="temp_2m">Temperature 2 m</option>
+                        <option value="temp_850hPa">Temperature 850 hPa</option>
+                        <option value="temp_925hPa">Temperature 925 hPa</option>
+                        <option value="temp_1000hPa">Temperature 1000 hPa</option>
+                        <option value="rh_2m">Humidity 2 m</option>
+                        <option value="rh_850hPa">Humidity 850 hPa</option>
+                        <option value="rh_925hPa">Humidity 925 hPa</option>
+                        <option value="rh_1000hPa">Humidity 1000 hPa</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Scalar overlay color bar -->
+            <div class="scalar-bar" id="scalarBar">
+                <div class="scalar-bar-title" id="scalarBarTitle"></div>
+                <div class="scalar-gradient" id="scalarGradient"></div>
+                <div class="scalar-labels">
+                    <span id="scalarMin"></span>
+                    <span id="scalarMid"></span>
+                    <span id="scalarMax"></span>
+                </div>
             </div>
 
             <div class="legend" id="legend" style="display:none;">
@@ -530,6 +615,14 @@ var currentVelocityLayer = null;
 var windVelocityLayer = null;
 var activeVelocityLayer = 'current';
 
+// GFS multi-level vector layers (per layer id → L.velocityLayer instance)
+var gfsVectorLayers = {};
+// Active scalar overlay state
+var activeScalarLayer = '';       // layer id from index.layers, '' = none
+var scalarOverlayImage = null;    // current L.imageOverlay on the map
+var scalarFrameCache = {};        // name+hour → raw JSON
+var gfsLayerMeta = {};            // layer id → {type, base_time, hours, step, units, level}
+
 var COLORS = ['#4a9eff', '#34d399', '#f59e0b', '#a78bfa', '#f87171'];
 
 // ── Velocity layer loading ──
@@ -577,27 +670,57 @@ function loadVelocityLayer(url, type) {
         });
 }
 
-function toggleLayer(type) {
-    activeVelocityLayer = type;
+function isGfsVector(type) { return type && type.indexOf('wind_') === 0; }
 
-    // Update button styles
-    document.getElementById('btnCurrent').classList.toggle('active', type === 'current');
-    document.getElementById('btnWind').classList.toggle('active', type === 'wind');
-
-    // Remove both layers
+function removeAllVectorLayers() {
     if (currentVelocityLayer && map.hasLayer(currentVelocityLayer)) map.removeLayer(currentVelocityLayer);
     if (windVelocityLayer && map.hasLayer(windVelocityLayer)) map.removeLayer(windVelocityLayer);
+    Object.keys(gfsVectorLayers).forEach(function(k) {
+        var l = gfsVectorLayers[k];
+        if (l && map.hasLayer(l)) map.removeLayer(l);
+    });
+}
 
-    // Add selected layer
-    if (type === 'current' && currentVelocityLayer) {
-        map.addLayer(currentVelocityLayer);
+function selectVectorLayer(type) {
+    activeVelocityLayer = type;
+    removeAllVectorLayers();
+
+    if (type === 'current') {
+        if (currentVelocityLayer) map.addLayer(currentVelocityLayer);
         updateVelocityBar('Ocean Current (m/s)', 1.5, 'current');
-    } else if (type === 'wind' && windVelocityLayer) {
-        map.addLayer(windVelocityLayer);
+    } else if (type === 'wind') {
+        if (windVelocityLayer) map.addLayer(windVelocityLayer);
         updateVelocityBar('Wind (m/s)', 15, 'wind');
+    } else if (isGfsVector(type)) {
+        updateVelocityBar(vectorLabel(type) + ' (m/s)', 30, 'wind');
+        // Lazy-build on demand; the timeline refresh below will fetch the frame.
     }
 
-    // Refresh timeline to use this layer's frames + base time
+    if (framesIndex) setForecastHour(currentFrameHour);
+}
+
+function vectorLabel(type) {
+    if (type === 'wind_10m') return 'Wind 10 m (GFS)';
+    if (type === 'wind_850hPa') return 'Wind 850 hPa';
+    if (type === 'wind_925hPa') return 'Wind 925 hPa';
+    if (type === 'wind_1000hPa') return 'Wind 1000 hPa';
+    return type;
+}
+
+function selectScalarOverlay(name) {
+    activeScalarLayer = name || '';
+    if (scalarOverlayImage && map.hasLayer(scalarOverlayImage)) {
+        map.removeLayer(scalarOverlayImage);
+    }
+    scalarOverlayImage = null;
+
+    var bar = document.getElementById('scalarBar');
+    if (!activeScalarLayer) {
+        bar.style.display = 'none';
+        return;
+    }
+    bar.style.display = 'block';
+    updateScalarBar(activeScalarLayer);
     if (framesIndex) setForecastHour(currentFrameHour);
 }
 
@@ -614,11 +737,126 @@ function updateVelocityBar(title, maxVal, type) {
     document.getElementById('velocityGradient').style.background = gradient;
 }
 
+// ── Scalar overlay (temperature / humidity) ──
+
+// Temperature colormap range (display in °C) and RH in %.
+var SCALAR_RANGE = {
+    temp: { min: -10, max: 40, unit: '°C', offsetK: -273.15 },  // K → °C
+    rh:   { min: 0,   max: 100, unit: '%',  offsetK: 0 },
+};
+var SCALAR_GRADIENTS = {
+    temp: 'linear-gradient(to right, #3b4cca, #4a9eff, #26c6da, #76ff03, #ffeb3b, #ff9800, #f44336)',
+    rh:   'linear-gradient(to right, #fff3bf, #d0ebff, #74c0fc, #339af0, #1864ab)',
+};
+
+function scalarKind(name) {
+    return name.indexOf('temp_') === 0 ? 'temp' : 'rh';
+}
+
+function updateScalarBar(name) {
+    var kind = scalarKind(name);
+    var r = SCALAR_RANGE[kind];
+    document.getElementById('scalarBarTitle').textContent = scalarLabel(name);
+    document.getElementById('scalarMin').textContent = r.min + ' ' + r.unit;
+    document.getElementById('scalarMid').textContent = ((r.min + r.max) / 2) + ' ' + r.unit;
+    document.getElementById('scalarMax').textContent = r.max + ' ' + r.unit;
+    document.getElementById('scalarGradient').style.background = SCALAR_GRADIENTS[kind];
+}
+
+function scalarLabel(name) {
+    if (name === 'temp_2m') return 'Temperature 2 m';
+    if (name === 'rh_2m') return 'Humidity 2 m';
+    var m = name.match(/^(temp|rh)_(\d+)hPa$/);
+    if (m) return (m[1] === 'temp' ? 'Temperature ' : 'Humidity ') + m[2] + ' hPa';
+    return name;
+}
+
+// Linear interpolation between color stops (hex strings).
+function interpColor(stops, t) {
+    if (t <= 0) return stops[0];
+    if (t >= 1) return stops[stops.length - 1];
+    var seg = t * (stops.length - 1);
+    var i = Math.floor(seg);
+    var frac = seg - i;
+    var c1 = hexToRgb(stops[i]);
+    var c2 = hexToRgb(stops[i + 1]);
+    return [
+        Math.round(c1[0] + (c2[0] - c1[0]) * frac),
+        Math.round(c1[1] + (c2[1] - c1[1]) * frac),
+        Math.round(c1[2] + (c2[2] - c1[2]) * frac),
+    ];
+}
+function hexToRgb(h) {
+    h = h.replace('#', '');
+    return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)];
+}
+var SCALAR_STOPS = {
+    temp: ['#3b4cca', '#4a9eff', '#26c6da', '#76ff03', '#ffeb3b', '#ff9800', '#f44336'],
+    rh:   ['#fff3bf', '#d0ebff', '#74c0fc', '#339af0', '#1864ab'],
+};
+
+// Render a scalar JSON component as a colorized Leaflet image overlay.
+function renderScalarOverlay(data, layerName) {
+    if (!data || !data[0] || !data[0].header) return;
+    var comp = data[0];
+    var h = comp.header;
+    var nx = h.nx, ny = h.ny;
+    var values = comp.data;
+    var kind = scalarKind(layerName);
+    var range = SCALAR_RANGE[kind];
+    var stops = SCALAR_STOPS[kind];
+
+    // Build a canvas colorized pixel-per-grid-cell, then wrap as imageOverlay.
+    var canvas = document.createElement('canvas');
+    canvas.width = nx;
+    canvas.height = ny;
+    var ctx = canvas.getContext('2d');
+    var img = ctx.createImageData(nx, ny);
+
+    for (var i = 0; i < values.length; i++) {
+        var v = values[i];
+        // leaflet-velocity / our scalar JSON replaces NaN with 0; treat strict 0 (K) / 0 RH edge cases
+        // as valid — if you need masking, handle here.
+        var valDisplay = v + range.offsetK;
+        var t = (valDisplay - range.min) / (range.max - range.min);
+        var rgb = interpColor(stops, Math.max(0, Math.min(1, t)));
+        var off = i * 4;
+        img.data[off]     = rgb[0];
+        img.data[off + 1] = rgb[1];
+        img.data[off + 2] = rgb[2];
+        img.data[off + 3] = 160;  // ~63% opacity per-pixel
+    }
+    ctx.putImageData(img, 0, 0);
+
+    // Grid metadata: la1 = northernmost, la2 = southernmost.
+    var northLat = Math.max(h.la1, h.la2);
+    var southLat = Math.min(h.la1, h.la2);
+    var westLon = Math.min(h.lo1, h.lo2);
+    var eastLon = Math.max(h.lo1, h.lo2);
+    // Wrap 0..360 into -180..180 if needed (GFS native is 0..359.75).
+    if (eastLon > 180) {
+        westLon -= 360;
+        eastLon -= 360;
+    }
+    var bounds = [[southLat, westLon], [northLat, eastLon]];
+
+    if (scalarOverlayImage && map.hasLayer(scalarOverlayImage)) {
+        map.removeLayer(scalarOverlayImage);
+    }
+    scalarOverlayImage = L.imageOverlay(canvas.toDataURL('image/png'), bounds, {
+        opacity: 0.85,
+        interactive: false,
+    });
+    scalarOverlayImage.addTo(map);
+    // Push scalar below vector flow lines.
+    scalarOverlayImage.bringToBack();
+}
+
 // ── Lazy-loaded hourly frames (Windy-style timeline) ──
 
 var FRAMES_INDEX_URL = 'scheduled_results/frames/index.json';
 var framesIndex = null;
-var frameCache = { current: {}, wind: {} };  // hour → fetched data
+var frameCache = { current: {}, wind: {} };  // hour → fetched data; GFS layers use scalarFrameCache keyed by "name|hour"
 var currentFrameHour = 0;
 var playTimer = null;
 
@@ -626,8 +864,26 @@ function frameUrl(type, hour) {
     return 'scheduled_results/frames/' + type + '/h' + String(hour).padStart(3, '0') + '.json';
 }
 
+function layerHours(type) {
+    if (!framesIndex) return null;
+    if (type === 'current' || type === 'wind') {
+        return framesIndex[type] && framesIndex[type].hours;
+    }
+    var meta = framesIndex.layers && framesIndex.layers[type];
+    return meta && meta.hours;
+}
+
+function layerBaseTime(type) {
+    if (!framesIndex) return null;
+    if (type === 'current' || type === 'wind') {
+        return framesIndex[type] && framesIndex[type].base_time;
+    }
+    var meta = framesIndex.layers && framesIndex.layers[type];
+    return meta && meta.base_time;
+}
+
 function nearestFrameHour(type, hour) {
-    var hours = framesIndex && framesIndex[type] && framesIndex[type].hours;
+    var hours = layerHours(type);
     if (!hours || !hours.length) return null;
     var best = hours[0], diff = Math.abs(hour - best);
     for (var i = 1; i < hours.length; i++) {
@@ -638,20 +894,37 @@ function nearestFrameHour(type, hour) {
 }
 
 function fetchFrame(type, hour) {
-    if (frameCache[type][hour]) return Promise.resolve(frameCache[type][hour]);
+    var isLegacy = (type === 'current' || type === 'wind');
+    if (isLegacy) {
+        if (frameCache[type][hour]) return Promise.resolve(frameCache[type][hour]);
+    } else {
+        var key = type + '|' + hour;
+        if (scalarFrameCache[key]) return Promise.resolve(scalarFrameCache[key]);
+    }
     var loading = document.getElementById('tlLoading');
     if (loading) loading.style.display = 'inline-block';
     return fetch(frameUrl(type, hour))
         .then(function(r) { if (!r.ok) throw new Error('frame ' + hour + ' missing'); return r.json(); })
         .then(function(data) {
-            frameCache[type][hour] = data;
+            if (isLegacy) frameCache[type][hour] = data;
+            else scalarFrameCache[type + '|' + hour] = data;
             return data;
         })
         .finally(function() { if (loading) loading.style.display = 'none'; });
 }
 
 function applyFrameToLayer(type, data) {
-    var layer = (type === 'current') ? currentVelocityLayer : windVelocityLayer;
+    var layer;
+    if (type === 'current') layer = currentVelocityLayer;
+    else if (type === 'wind') layer = windVelocityLayer;
+    else if (isGfsVector(type)) {
+        // Lazy-build the GFS wind layer on first frame arrival.
+        if (!gfsVectorLayers[type]) {
+            gfsVectorLayers[type] = buildVelocityLayerWithData(type, data);
+        }
+        layer = gfsVectorLayers[type];
+        if (!map.hasLayer(layer)) map.addLayer(layer);
+    }
     if (!layer) return;
     if (typeof layer.setData === 'function') layer.setData(data);
     else if (layer.options) {
@@ -668,8 +941,7 @@ function setForecastHour(hour, opts) {
 
     document.getElementById('tlLabel').textContent = 'T+' + hour + 'h';
     var t = document.getElementById('tlTime');
-    var base = framesIndex && framesIndex[activeVelocityLayer]
-        ? framesIndex[activeVelocityLayer].base_time : null;
+    var base = layerBaseTime(activeVelocityLayer);
     if (t && base) {
         var d = new Date(new Date(base).getTime() + hour * 3600 * 1000);
         t.textContent = d.toLocaleString('zh-TW', {
@@ -677,27 +949,43 @@ function setForecastHour(hour, opts) {
         });
     } else if (t) { t.textContent = ''; }
 
+    // Update active vector layer
     var snapped = nearestFrameHour(activeVelocityLayer, hour);
-    if (snapped == null) return;
-    fetchFrame(activeVelocityLayer, snapped).then(function(data) {
-        if (currentFrameHour !== hour) return;  // user moved on
-        applyFrameToLayer(activeVelocityLayer, data);
-    }).catch(function(err) { console.warn(err); });
+    if (snapped != null) {
+        fetchFrame(activeVelocityLayer, snapped).then(function(data) {
+            if (currentFrameHour !== hour) return;
+            applyFrameToLayer(activeVelocityLayer, data);
+        }).catch(function(err) { console.warn(err); });
+    }
+
+    // Update active scalar overlay (if any)
+    if (activeScalarLayer) {
+        var sSnap = nearestFrameHour(activeScalarLayer, hour);
+        if (sSnap != null) {
+            fetchFrame(activeScalarLayer, sSnap).then(function(data) {
+                if (currentFrameHour !== hour || !activeScalarLayer) return;
+                renderScalarOverlay(data, activeScalarLayer);
+            }).catch(function(err) { console.warn(err); });
+        }
+    }
 }
 
 function buildVelocityLayerWithData(type, data) {
     var isCurrent = type === 'current';
+    var isGfsWind = isGfsVector(type);
+    // Pressure-level winds are typically stronger than surface wind.
+    var maxV = isCurrent ? 1.5 : (isGfsWind && type !== 'wind_10m' ? 30 : 15);
     return L.velocityLayer({
         displayValues: true,
         displayOptions: {
-            velocityType: isCurrent ? 'Ocean Current' : 'Wind',
+            velocityType: isCurrent ? 'Ocean Current' : (isGfsWind ? vectorLabel(type) : 'Wind'),
             displayPosition: 'bottomleft',
             displayEmptyString: 'No data',
             speedUnit: 'm/s',
             angleConvention: 'bearingCW',
         },
         data: data,
-        maxVelocity: isCurrent ? 1.5 : 15,
+        maxVelocity: maxV,
         velocityScale: isCurrent ? 0.01 : 0.005,
         particleAge: 60,
         lineWidth: isCurrent ? 2 : 1.5,
@@ -716,6 +1004,8 @@ function initFromFrames() {
         return r.json();
     }).then(function(idx) {
         framesIndex = idx;
+        gfsLayerMeta = idx.layers || {};
+        pruneLayerSelects();
         var maxH = idx.max_hours || 72;
         var slider = document.getElementById('tlSlider');
         slider.max = maxH;
@@ -735,6 +1025,26 @@ function initFromFrames() {
             setForecastHour(0);
         });
     }).catch(function() { return null; });
+}
+
+// Hide select options for GFS layers that don't have any frames yet (e.g. first deploy).
+function pruneLayerSelects() {
+    var vsel = document.getElementById('vectorLayerSel');
+    var ssel = document.getElementById('scalarLayerSel');
+    function prune(sel, gfsOnly) {
+        for (var i = sel.options.length - 1; i >= 0; i--) {
+            var val = sel.options[i].value;
+            if (!val) continue;  // keep the "None" option
+            if (val === 'current' || val === 'wind') continue;  // non-GFS
+            if (gfsOnly && !val) continue;
+            var meta = gfsLayerMeta[val];
+            if (!meta || !meta.hours || !meta.hours.length) {
+                sel.remove(i);
+            }
+        }
+    }
+    prune(vsel, false);
+    prune(ssel, true);
 }
 
 function wireTimeline() {

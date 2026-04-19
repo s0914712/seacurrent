@@ -35,8 +35,8 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: data/nc_converted
-          key: cwa-nc-
-          restore-keys: cwa-nc-
+          key: cwa-nc-v2-
+          restore-keys: cwa-nc-v2-
 
       - name: Ensure cfgrib available
         if: steps.data-check.outputs.found != 'true' && steps.cache.outputs.cache-hit != 'true'
@@ -47,11 +47,13 @@ jobs:
         run: |
           /opt/conda/bin/python3 scripts/download_seacurrent_nc.py \
             --output data/nc_files \
-            --wind --wind-output data/grib2_files
+            --wind --wind-output data/grib2_files \
+            --gfs --gfs-output data/grib2_m_a0060
           /opt/conda/bin/python3 scripts/convert_seacurrent_for_drift.py \
             --input-dir data/nc_files \
             --output-dir data/nc_converted \
-            --wind-input-dir data/grib2_files
+            --wind-input-dir data/grib2_files \
+            --gfs-input-dir data/grib2_m_a0060
 
       - name: Generate velocity JSON for map visualization
         run: |
@@ -60,6 +62,14 @@ jobs:
             --input-dir data/nc_converted \
             --output-dir scheduled_results \
             --current-step 2 --wind-step 2 --precision 2
+
+      - name: Generate per-hour frames (current + wind + GFS multi-level)
+        run: |
+          /opt/conda/bin/python3 scripts/generate_velocity_json.py \
+            --input-dir data/nc_converted \
+            --output-dir scheduled_results \
+            --frames --max-hours 72 \
+            --current-step 2 --wind-step 2 --gfs-step 4 --precision 2
 
       - name: Run 5-point forecast simulations
         run: /opt/conda/bin/python3 scripts/run_scheduled_forecasts.py

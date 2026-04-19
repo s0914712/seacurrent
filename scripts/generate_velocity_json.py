@@ -19,6 +19,46 @@ from pathlib import Path
 import numpy as np
 
 
+# ---- GFS M-A0060 multi-level layer specifications --------------------------
+# Each entry produces a per-hour JSON frame at
+#   scheduled_results/frames/<name>/h{HHH}.json
+# Vector layers use the leaflet-velocity u/v pair; scalar layers use a
+# single-component header compatible with leaflet.canvaslayer.field.
+GFS_LAYER_SPECS: list[dict] = [
+    # Winds
+    {"name": "wind_10m",     "kind": "vector", "nc": "wind_gfs_fixed.nc",
+     "u": "x_wind_10m", "v": "y_wind_10m",
+     "u_name": "eastward_wind", "v_name": "northward_wind"},
+    {"name": "wind_850hPa",  "kind": "vector", "nc": "wind_gfs_fixed.nc",
+     "u": "x_wind_pl", "v": "y_wind_pl", "level": 850,
+     "u_name": "eastward_wind", "v_name": "northward_wind"},
+    {"name": "wind_925hPa",  "kind": "vector", "nc": "wind_gfs_fixed.nc",
+     "u": "x_wind_pl", "v": "y_wind_pl", "level": 925,
+     "u_name": "eastward_wind", "v_name": "northward_wind"},
+    {"name": "wind_1000hPa", "kind": "vector", "nc": "wind_gfs_fixed.nc",
+     "u": "x_wind_pl", "v": "y_wind_pl", "level": 1000,
+     "u_name": "eastward_wind", "v_name": "northward_wind"},
+    # Temperature (K)
+    {"name": "temp_2m",      "kind": "scalar", "nc": "temp_gfs_fixed.nc",
+     "var": "temp_2m",  "units": "K", "param_name": "air_temperature"},
+    {"name": "temp_850hPa",  "kind": "scalar", "nc": "temp_gfs_fixed.nc",
+     "var": "temp_pl",  "level": 850, "units": "K", "param_name": "air_temperature"},
+    {"name": "temp_925hPa",  "kind": "scalar", "nc": "temp_gfs_fixed.nc",
+     "var": "temp_pl",  "level": 925, "units": "K", "param_name": "air_temperature"},
+    {"name": "temp_1000hPa", "kind": "scalar", "nc": "temp_gfs_fixed.nc",
+     "var": "temp_pl",  "level": 1000, "units": "K", "param_name": "air_temperature"},
+    # Relative humidity (%)
+    {"name": "rh_2m",        "kind": "scalar", "nc": "rh_gfs_fixed.nc",
+     "var": "rh_2m",   "units": "%", "param_name": "relative_humidity"},
+    {"name": "rh_850hPa",    "kind": "scalar", "nc": "rh_gfs_fixed.nc",
+     "var": "rh_pl",   "level": 850, "units": "%", "param_name": "relative_humidity"},
+    {"name": "rh_925hPa",    "kind": "scalar", "nc": "rh_gfs_fixed.nc",
+     "var": "rh_pl",   "level": 925, "units": "%", "param_name": "relative_humidity"},
+    {"name": "rh_1000hPa",   "kind": "scalar", "nc": "rh_gfs_fixed.nc",
+     "var": "rh_pl",   "level": 1000, "units": "%", "param_name": "relative_humidity"},
+]
+
+
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Convert NC data to leaflet-velocity JSON.")
     p.add_argument("--input-dir", default="data/nc_converted",
@@ -31,10 +71,12 @@ def parse_args() -> argparse.Namespace:
                    help="Subsampling step for current grid (1=full res)")
     p.add_argument("--wind-step", type=int, default=4,
                    help="Subsampling step for wind grid (reduces file size)")
+    p.add_argument("--gfs-step", type=int, default=4,
+                   help="Subsampling step for GFS (M-A0060) 0.25° global grid")
     p.add_argument("--precision", type=int, default=3,
                    help="Decimal places for velocity values")
     p.add_argument("--frames", action="store_true",
-                   help="Emit one JSON per time step into <output-dir>/frames/{current,wind}/h###.json")
+                   help="Emit one JSON per time step into <output-dir>/frames/{current,wind,...}/h###.json")
     p.add_argument("--max-hours", type=int, default=72,
                    help="When --frames is set, only emit up to this lead-time (hours)")
     return p.parse_args()
@@ -96,6 +138,128 @@ def build_velocity_json(
             "data": v_flat,
         },
     ]
+
+
+def build_scalar_json(
+    values: np.ndarray,
+    lons: np.ndarray,
+    lats: np.ndarray,
+    param_name: str,
+    units: str,
+) -> list[dict]:
+    """Build a single-component scalar JSON (leaflet.canvaslayer.field compatible).
+
+    Data must be on a regular grid (1D lon, 1D lat), lat[0] = northernmost.
+    """
+    ny, nx = values.shape
+    lo1, lo2 = float(lons[0]), float(lons[-1])
+    la1, la2 = float(lats[0]), float(lats[-1])
+    dx = float(lons[1] - lons[0]) if nx > 1 else 1.0
+    dy = float(lats[0] - lats[1]) if ny > 1 else 1.0
+
+    data = np.where(np.isnan(values), 0.0, values).flatten().tolist()
+
+    return [{
+        "header": {
+            "parameterUnit": units,
+            "parameterCategory": 0,
+            "parameterNumber": 0,
+            "parameterNumberName": param_name,
+            "nx": nx,
+            "ny": ny,
+            "lo1": round(lo1, 4),
+            "la1": round(la1, 4),
+            "lo2": round(lo2, 4),
+            "la2": round(la2, 4),
+            "dx": round(abs(dx), 6),
+            "dy": round(abs(dy), 6),
+        },
+        "data": data,
+    }]
+
+
+def _extract_gfs_field(
+    nc_path: Path, spec: dict, time_idx: int, step: int, precision: int,
+) -> list[dict] | None:
+    """Read one GFS layer spec at a single time step and return the JSON components."""
+    import netCDF4
+
+    if not nc_path.exists():
+        print(f"⚠️  GFS file not found: {nc_path}")
+        return None
+
+    ds = netCDF4.Dataset(nc_path)
+    try:
+        lat_name = "latitude" if "latitude" in ds.variables else "lat"
+        lon_name = "longitude" if "longitude" in ds.variables else "lon"
+        raw_lat = ds[lat_name][:]
+        raw_lon = ds[lon_name][:]
+
+        level = spec.get("level")
+
+        def _read(var_name: str) -> np.ndarray:
+            var = ds[var_name]
+            dims = var.dimensions
+            if level is not None and "level" in dims:
+                level_var = ds["level"][:]
+                level_idx = int(np.argmin(np.abs(np.asarray(level_var) - level)))
+                # Build a tuple of slices indexing the correct dims.
+                idx: list = []
+                for d in dims:
+                    if d == "time":
+                        idx.append(time_idx)
+                    elif d == "level":
+                        idx.append(level_idx)
+                    else:
+                        idx.append(slice(None, None, step))
+                return np.asarray(var[tuple(idx)])
+            else:
+                idx = []
+                for d in dims:
+                    if d == "time":
+                        idx.append(time_idx)
+                    else:
+                        idx.append(slice(None, None, step))
+                return np.asarray(var[tuple(idx)])
+
+        lon = np.asarray(raw_lon)[::step]
+        lat = np.asarray(raw_lat)[::step]
+
+        if spec["kind"] == "vector":
+            u = _read(spec["u"])
+            v = _read(spec["v"])
+        else:
+            scalar = _read(spec["var"])
+    finally:
+        ds.close()
+
+    # GFS scans N→S already (la1 > la2) → no flip needed
+    if lat[0] < lat[-1]:
+        lat = lat[::-1]
+        if spec["kind"] == "vector":
+            u = np.flipud(u)
+            v = np.flipud(v)
+        else:
+            scalar = np.flipud(scalar)
+
+    if spec["kind"] == "vector":
+        u = np.round(u, precision)
+        v = np.round(v, precision)
+        print(f"✅ GFS {spec['name']}: {len(lon)}x{len(lat)} grid, "
+              f"lon=[{lon[0]:.1f},{lon[-1]:.1f}], lat=[{lat[0]:.1f},{lat[-1]:.1f}]")
+        return build_velocity_json(
+            u, v, lon, lat,
+            u_name=spec.get("u_name", "u"),
+            v_name=spec.get("v_name", "v"),
+        )
+    else:
+        scalar = np.round(scalar, precision)
+        print(f"✅ GFS {spec['name']}: {len(lon)}x{len(lat)} grid (scalar)")
+        return build_scalar_json(
+            scalar, lon, lat,
+            param_name=spec.get("param_name", spec["var"]),
+            units=spec["units"],
+        )
 
 
 def convert_current(nc_path: Path, time_idx: int, step: int, precision: int) -> list[dict] | None:
@@ -288,6 +452,32 @@ def _read_time_axes(input_dir: Path) -> dict:
         finally:
             ds.close()
 
+    # GFS multi-level files — all three share the same time axis, so read once.
+    for gfs_name in ("wind_gfs_fixed.nc", "temp_gfs_fixed.nc", "rh_gfs_fixed.nc"):
+        gpath = input_dir / gfs_name
+        if not gpath.exists():
+            continue
+        ds = netCDF4.Dataset(gpath)
+        try:
+            base_time = None
+            hours = []
+            if "valid_time" in ds.variables:
+                vt = ds["valid_time"][:]
+                vt_units = getattr(ds["valid_time"], "units", "seconds since 1970-01-01")
+                from datetime import datetime as _dt
+                if "seconds since 1970-01-01" in vt_units:
+                    base_time = _dt.fromtimestamp(float(vt[0]), tz=timezone.utc).isoformat()
+                    hours = [int(round((float(v) - float(vt[0])) / 3600.0)) for v in vt]
+            elif "step" in ds.variables:
+                st = ds["step"][:]
+                hours = [int(round(float(v))) for v in st]
+            elif "time" in ds.variables:
+                hours = list(range(len(ds["time"])))
+            info["gfs"] = {"hours": hours, "base_time": base_time}
+            break
+        finally:
+            ds.close()
+
     return info
 
 
@@ -347,6 +537,7 @@ def _emit_frames(args, input_dir: Path, output_dir: Path) -> int:
         "max_hours": max_h,
         "current": {"base_time": None, "hours": [], "step": "h{:03d}.json"},
         "wind": {"base_time": None, "hours": [], "step": "h{:03d}.json"},
+        "layers": {},
     }
 
     # ---- Current (typically hourly) ----
@@ -392,6 +583,44 @@ def _emit_frames(args, input_dir: Path, output_dir: Path) -> int:
                 _json.dump(j, f, separators=(",", ":"))
             index["wind"]["hours"].append(hour)
             print(f"📄 wind h{hour:03d}: {dst.stat().st_size/1024:.0f} KB")
+
+    # ---- GFS multi-level wind / temperature / humidity ----
+    if "gfs" in axes:
+        gfs_axis = axes["gfs"]
+        gfs_hours = gfs_axis["hours"]
+        gfs_base = gfs_axis.get("base_time")
+
+        for spec in GFS_LAYER_SPECS:
+            nc_path = input_dir / spec["nc"]
+            if not nc_path.exists():
+                continue
+            layer_dir = frames_dir / spec["name"]
+            layer_dir.mkdir(parents=True, exist_ok=True)
+            layer_hours: list[int] = []
+            for ti, hour in enumerate(gfs_hours):
+                if hour > max_h:
+                    break
+                try:
+                    j = _extract_gfs_field(nc_path, spec, ti, args.gfs_step, args.precision)
+                except Exception as exc:
+                    print(f"⚠️  GFS {spec['name']} t{ti} failed: {exc}")
+                    continue
+                if not j:
+                    continue
+                dst = layer_dir / f"h{hour:03d}.json"
+                with open(dst, "w") as f:
+                    _json.dump(j, f, separators=(",", ":"))
+                layer_hours.append(hour)
+                print(f"📄 {spec['name']} h{hour:03d}: {dst.stat().st_size/1024:.0f} KB")
+
+            index["layers"][spec["name"]] = {
+                "type": spec["kind"],
+                "base_time": gfs_base,
+                "hours": layer_hours,
+                "step": "h{:03d}.json",
+                "units": spec.get("units", "m/s"),
+                "level": spec.get("level"),
+            }
 
     idx_path = frames_dir / "index.json"
     with open(idx_path, "w") as f:

@@ -18,24 +18,26 @@ jobs:
       - name: Install dependencies
         run: pip install xarray netCDF4 numpy cfgrib eccodes
 
-      - name: Download NC and wind GRIB2 files from CWA
+      - name: Download NC, wind GRIB2, and GFS (M-A0060) GRIB2 files from CWA
         run: |
           python scripts/download_seacurrent_nc.py \
             --output data/nc_files \
-            --wind --wind-output data/grib2_files
+            --wind --wind-output data/grib2_files \
+            --gfs --gfs-output data/grib2_m_a0060
 
-      - name: Convert for OpenDrift
+      - name: Convert for OpenDrift + GFS multi-level fields
         run: |
           python scripts/convert_seacurrent_for_drift.py \
             --input-dir data/nc_files \
             --output-dir data/nc_converted \
-            --wind-input-dir data/grib2_files
+            --wind-input-dir data/grib2_files \
+            --gfs-input-dir data/grib2_m_a0060
 
       - name: Cache converted data
         uses: actions/cache/save@v4
         with:
           path: data/nc_converted
-          key: cwa-nc-${{ github.run_id }}
+          key: cwa-nc-v2-${{ github.run_id }}
 
       - name: Upload as artifact
         uses: actions/upload-artifact@v4
