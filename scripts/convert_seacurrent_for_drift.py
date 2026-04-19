@@ -214,8 +214,6 @@ def convert_gfs_grib2(grb_files: list, output_dir: Path, xr,
     per-variable NetCDF stays well under GitHub's 100 MB file cap. Pass None
     to keep the full 0.25° global grid.
     """
-    import pandas as pd  # local import to keep top of module light
-
     PRESSURE_LEVELS = [850, 925, 1000]
 
     wind_hours: list = []
@@ -282,15 +280,16 @@ def convert_gfs_grib2(grb_files: list, output_dir: Path, xr,
             if r_n:
                 r_pl.append(dsp[[r_n]].rename({r_n: "rh_pl"}))
 
-        levels_idx = pd.Index(PRESSURE_LEVELS, name="level")
-
         # Build per-hour merged datasets. Wind: merge surface + pressure levels.
+        # Use xr.concat + assign_coords to avoid a pandas dependency.
+        def _stack_levels(pieces):
+            return xr.concat(pieces, dim="level").assign_coords(level=PRESSURE_LEVELS)
+
         pieces_wind = []
         if surf_wind is not None:
             pieces_wind.append(surf_wind)
         if len(u_pl) == len(PRESSURE_LEVELS):
-            wind_levels = xr.concat(u_pl, dim=levels_idx)
-            pieces_wind.append(wind_levels)
+            pieces_wind.append(_stack_levels(u_pl))
         if pieces_wind:
             merged_wind = xr.merge(pieces_wind, compat="override")
             if "time" in merged_wind.coords and "time" not in merged_wind.dims:
@@ -301,7 +300,7 @@ def convert_gfs_grib2(grb_files: list, output_dir: Path, xr,
         if surf_temp is not None:
             pieces_temp.append(surf_temp)
         if len(t_pl) == len(PRESSURE_LEVELS):
-            pieces_temp.append(xr.concat(t_pl, dim=levels_idx))
+            pieces_temp.append(_stack_levels(t_pl))
         if pieces_temp:
             merged_temp = xr.merge(pieces_temp, compat="override")
             if "time" in merged_temp.coords and "time" not in merged_temp.dims:
@@ -312,7 +311,7 @@ def convert_gfs_grib2(grb_files: list, output_dir: Path, xr,
         if surf_rh is not None:
             pieces_rh.append(surf_rh)
         if len(r_pl) == len(PRESSURE_LEVELS):
-            pieces_rh.append(xr.concat(r_pl, dim=levels_idx))
+            pieces_rh.append(_stack_levels(r_pl))
         if pieces_rh:
             merged_rh = xr.merge(pieces_rh, compat="override")
             if "time" in merged_rh.coords and "time" not in merged_rh.dims:
@@ -410,7 +409,9 @@ def main() -> int:
             try:
                 convert_gfs_grib2(grb_files, output_dir, xr, region=region)
             except Exception as exc:  # noqa: BLE001
+                import traceback
                 print(f"❌ GFS 轉換失敗：{exc}")
+                traceback.print_exc()
                 return 4
 
     return 0

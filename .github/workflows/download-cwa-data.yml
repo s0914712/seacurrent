@@ -16,7 +16,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install xarray netCDF4 numpy cfgrib eccodes
+        run: pip install xarray netCDF4 numpy pandas cfgrib eccodes
 
       - name: Download NC, wind GRIB2, and GFS (M-A0060) GRIB2 files from CWA
         run: |
