@@ -1005,7 +1005,7 @@ function initFromFrames() {
     }).then(function(idx) {
         framesIndex = idx;
         gfsLayerMeta = idx.layers || {};
-        pruneLayerSelects();
+        annotateLayerSelects();
         var maxH = idx.max_hours || 72;
         var slider = document.getElementById('tlSlider');
         slider.max = maxH;
@@ -1027,24 +1027,32 @@ function initFromFrames() {
     }).catch(function() { return null; });
 }
 
-// Hide select options for GFS layers that don't have any frames yet (e.g. first deploy).
-function pruneLayerSelects() {
+// Keep every GFS option visible but mark the ones without frames so the user
+// can see what's pending. Never remove options — pruning them made the UI
+// look like the whole feature was missing when the data pipeline hadn't
+// run yet.
+function annotateLayerSelects() {
     var vsel = document.getElementById('vectorLayerSel');
     var ssel = document.getElementById('scalarLayerSel');
-    function prune(sel, gfsOnly) {
-        for (var i = sel.options.length - 1; i >= 0; i--) {
-            var val = sel.options[i].value;
-            if (!val) continue;  // keep the "None" option
-            if (val === 'current' || val === 'wind') continue;  // non-GFS
-            if (gfsOnly && !val) continue;
+    function annotate(sel) {
+        for (var i = 0; i < sel.options.length; i++) {
+            var opt = sel.options[i];
+            var val = opt.value;
+            if (!val || val === 'current' || val === 'wind') continue;
             var meta = gfsLayerMeta[val];
-            if (!meta || !meta.hours || !meta.hours.length) {
-                sel.remove(i);
+            var hasData = meta && meta.hours && meta.hours.length;
+            // Reset any earlier annotation so reloads don't stack suffixes.
+            opt.textContent = opt.textContent.replace(/\s*\((無資料|no data)\)\s*$/, '');
+            if (!hasData) {
+                opt.textContent = opt.textContent + ' (無資料)';
+                opt.disabled = true;
+            } else {
+                opt.disabled = false;
             }
         }
     }
-    prune(vsel, false);
-    prune(ssel, true);
+    annotate(vsel);
+    annotate(ssel);
 }
 
 function wireTimeline() {
@@ -1073,7 +1081,9 @@ function wireTimeline() {
 // Try frames first; fall back to single-snapshot files if frames not present
 initFromFrames().then(function(ok) {
     if (ok !== null) return;
-    // Fallback path
+    // Fallback path — no frames index at all. Mark every GFS option as
+    // "(無資料)" so the user knows why those layers can't be activated.
+    annotateLayerSelects();
     Promise.all([
         loadVelocityLayer(CURRENT_VELOCITY_URL, 'current'),
         loadVelocityLayer(WIND_VELOCITY_URL, 'wind'),
