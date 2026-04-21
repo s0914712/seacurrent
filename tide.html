@@ -496,15 +496,25 @@ function fetchTide() {
 function renderTide(payload) {
     var listEl = document.getElementById('tideList');
 
-    // CWA response shape: records.Locations[0].Location[0].TimePeriods.Daily
-    var locations = payload && payload.records && payload.records.Locations;
-    if (!locations || !locations.length) {
-        listEl.innerHTML = '<div class="tide-placeholder">No tide data returned for this location.</div>';
-        updatePagination(0);
-        return;
+    // Flatten Location objects across both historical and current CWA shapes:
+    //   current:  records.TideForecasts[i].Location          (single object)
+    //   legacy:   records.Locations[0].Location[i]           (array)
+    var records = payload && payload.records;
+    var locationList = [];
+    if (records) {
+        if (Array.isArray(records.TideForecasts)) {
+            records.TideForecasts.forEach(function(entry) {
+                if (entry && entry.Location) locationList.push(entry.Location);
+            });
+        } else if (Array.isArray(records.Locations)) {
+            records.Locations.forEach(function(group) {
+                var arr = group && group.Location;
+                if (Array.isArray(arr)) arr.forEach(function(loc) { locationList.push(loc); });
+                else if (arr) locationList.push(arr);
+            });
+        }
     }
 
-    var locationList = locations[0].Location || [];
     if (!locationList.length) {
         listEl.innerHTML = '<div class="tide-placeholder">No tide data returned for this location.</div>';
         updatePagination(0);
@@ -548,9 +558,11 @@ function renderDay(day) {
         if (height == null && t.TideHeights && t.TideHeights.AboveChartDatum != null) {
             height = t.TideHeights.AboveChartDatum;
         }
+        // CWA tide labels are one of: 滿潮 / 乾潮 / 漲潮 / 退潮 (and older
+        // 高潮 / 低潮 on some datasets). Match every variant we've seen.
         var tideClass = '';
-        if (tide.indexOf('高') !== -1) tideClass = 'tide-high';
-        else if (tide.indexOf('低') !== -1) tideClass = 'tide-low';
+        if (tide.indexOf('滿') !== -1 || tide.indexOf('高') !== -1) tideClass = 'tide-high';
+        else if (tide.indexOf('乾') !== -1 || tide.indexOf('低') !== -1) tideClass = 'tide-low';
         else if (tide.indexOf('漲') !== -1) tideClass = 'tide-flood';
         else if (tide.indexOf('退') !== -1) tideClass = 'tide-ebb';
         return '<tr>' +

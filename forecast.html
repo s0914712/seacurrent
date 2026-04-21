@@ -306,6 +306,7 @@
         .sim-lightbox img {
             max-width: 95vw;
             max-height: 90vh;
+            max-height: 90dvh;
             border-radius: 8px;
             box-shadow: 0 12px 40px rgba(0,0,0,0.6);
         }
@@ -489,9 +490,10 @@
                 margin-bottom: 2px;
                 letter-spacing: 0.06em;
             }
+            /* 16px prevents iOS focus-zoom */
             .layer-select {
-                padding: 4px 6px;
-                font-size: 0.78em;
+                padding: 6px 8px;
+                font-size: 16px;
             }
             .layer-btn {
                 padding: 6px 10px;
@@ -502,13 +504,13 @@
             /* Info panel: compact bottom sheet above the timeline */
             .info-panel {
                 top: auto;
-                bottom: 64px;
+                bottom: calc(64px + env(safe-area-inset-bottom));
                 right: 8px;
                 left: 8px;
                 max-width: none;
                 font-size: 0.8em;
                 padding: 10px 12px;
-                max-height: 52vh;
+                max-height: 52dvh;
                 overflow-y: auto;
                 -webkit-overflow-scrolling: touch;
             }
@@ -519,19 +521,13 @@
                 aspect-ratio: 16 / 11;
             }
 
-            .legend {
-                bottom: 12px;
-                left: 10px;
-                padding: 6px 10px;
-                font-size: 0.7em;
-            }
-            .legend-title { margin-bottom: 3px; }
-            .legend-item { margin-bottom: 2px; gap: 6px; }
-            .legend-color { width: 10px; height: 10px; }
-            .legend-line { width: 14px; height: 2px; }
+            /* Legend is small and optional on mobile; hide it so it doesn't
+               fight the timeline / velocity bar at the bottom of the map */
+            .legend { display: none; }
 
+            /* Velocity bar sits just above the timeline, safe-area aware */
             .velocity-bar {
-                bottom: 12px;
+                bottom: calc(60px + env(safe-area-inset-bottom));
                 right: 10px;
                 padding: 6px 10px;
                 font-size: 0.75em;
@@ -540,7 +536,7 @@
             .velocity-gradient { width: 100px; height: 8px; }
 
             .scalar-bar {
-                bottom: 64px;
+                bottom: calc(64px + env(safe-area-inset-bottom));
                 right: 8px;
                 left: 8px;
                 padding: 8px 12px;
@@ -566,6 +562,9 @@
             .tl-info { min-width: 4.2rem; }
             .tl-label { font-size: 0.82em; }
             .tl-time { font-size: 0.68em; }
+
+            /* Attribution collides with full-width timeline on phones */
+            .leaflet-control-attribution { display: none; }
         }
 
         @media (max-width: 380px) {
@@ -576,7 +575,8 @@
             .point-item { padding: 6px 9px; }
             .point-item .name-zh { font-size: 0.82em; }
             .layer-btn { padding: 5px 8px; font-size: 0.7em; }
-            .layer-select { font-size: 0.72em; }
+            /* Keep 16px so iOS doesn't zoom in when the select is focused */
+            .layer-select { font-size: 16px; padding: 5px 6px; }
             .info-panel { font-size: 0.75em; padding: 8px 10px; }
         }
     </style>
@@ -702,7 +702,12 @@ var CURRENT_VELOCITY_URL = 'scheduled_results/current_velocity.json';
 var WIND_VELOCITY_URL = 'scheduled_results/wind_velocity.json';
 
 var map = L.map('map', { zoomControl: false }).setView([23.5, 121], 7);
-L.control.zoom({ position: 'bottomright' }).addTo(map);
+// Zoom control: bottom-right on desktop, hidden on narrow phones where it
+// would collide with the velocity bar + timeline. Pinch-to-zoom still works.
+var IS_PHONE = window.matchMedia('(max-width: 700px)').matches;
+if (!IS_PHONE) {
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+}
 
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
     attribution: '&copy; OSM &copy; CARTO',
