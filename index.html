@@ -426,6 +426,47 @@
 </style>
 </head>
 <body>
+    <div class="layout">
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="titles">
+                    <h2>SeaCurrent Drift Simulator</h2>
+                    <p class="subtitle">
+                        OpenDrift ocean drift simulation
+                        &nbsp;|&nbsp; <a href="forecast.html">Forecast Map &rarr;</a>
+                        &nbsp;|&nbsp; <a href="tide.html">Tide &rarr;</a>
+                    </p>
+                </div>
+                <button type="button" class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle panel">&#x25B2;</button>
+            </div>
+
+            <div class="sim-type-cards">
+                <button type="button" class="sim-card active" data-type="leeway" onclick="setSimType('leeway')">
+                    <span class="sim-icon">&#x1F6DF;</span>
+                    <span class="sim-label">Person</span>
+                </button>
+                <button type="button" class="sim-card" data-type="oceandrift" onclick="setSimType('oceandrift')">
+                    <span class="sim-icon">&#x1F30A;</span>
+                    <span class="sim-label">Debris</span>
+                </button>
+                <button type="button" class="sim-card" data-type="openoil" onclick="setSimType('openoil')">
+                    <span class="sim-icon">&#x1F6E2;</span>
+                    <span class="sim-label">Oil Spill</span>
+                </button>
+            </div>
+
+            <form id="simulationForm">
+                <div class="row">
+                    <div>
+                        <label for="lon">Longitude</label>
+                        <input type="number" step="any" id="lon" value="121.5" required>
+                    </div>
+                    <div>
+                        <label for="lat">Latitude</label>
+                        <input type="number" step="any" id="lat" value="24.0" required>
+                    </div>
+                </div>
+                <p class="map-hint">Click the map to set coordinates</p>
 
 <!-- ============ NAV ============ -->
 <nav class="nav">
