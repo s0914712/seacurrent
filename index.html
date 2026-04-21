@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>SeaCurrent Drift Simulator</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -15,10 +15,12 @@
             background: #0a1628;
             color: #e0e6ed;
             min-height: 100vh;
+            min-height: 100dvh;
         }
         .layout {
             display: flex;
             height: 100vh;
+            height: 100dvh;
         }
 
         /* Sidebar */
@@ -300,18 +302,19 @@
             .layout { flex-direction: column; }
             .sidebar {
                 width: 100%; min-width: 0;
-                max-height: 45vh;
+                max-height: 45dvh;
                 padding: 12px 14px;
                 border-right: none;
                 border-bottom: 1px solid #1e3050;
                 transition: max-height 0.25s ease;
             }
             .sidebar.collapsed {
-                max-height: 3.5rem;
+                max-height: 3rem;
                 overflow: hidden;
-                padding-top: 10px;
-                padding-bottom: 10px;
+                padding: 8px 14px;
             }
+            .sidebar.collapsed .sidebar-header { align-items: center; }
+            .sidebar.collapsed h2 { font-size: 0.95em; margin-bottom: 0; }
             .sidebar.collapsed .subtitle,
             .sidebar.collapsed .sim-type-cards,
             .sidebar.collapsed form,
@@ -320,7 +323,7 @@
             .sidebar.collapsed #logs { display: none; }
             .sidebar-toggle { display: inline-flex; }
             .sidebar.collapsed .sidebar-toggle { transform: rotate(180deg); }
-            .map-container { min-height: 55vh; flex: 1; }
+            .map-container { min-height: 55dvh; flex: 1; }
             .sidebar h2 { font-size: 1.1em; }
             .subtitle { margin-bottom: 10px; font-size: 0.88em; }
 
@@ -354,47 +357,47 @@
                 min-height: 48px;
             }
 
-            /* Map overlay - compact */
-            .map-overlay {
-                top: 8px; right: 8px;
-                padding: 6px 10px;
-                font-size: 0.82em;
-                border-radius: 6px;
-            }
+            /* Hide live cursor readout on phones — collides with the layer
+               dropdown pinned at top-left */
+            .map-overlay { display: none; }
 
-            /* Layer controls - compact on mobile */
-            .map-layer-controls { top: 10px; left: 10px; bottom: auto; gap: 4px; }
-            .layer-group { min-width: 140px; padding: 6px 8px; }
+            /* Layer controls - let them shrink to fit, give the dropdown 16px
+               font so iOS doesn't zoom-in on focus */
+            .map-layer-controls { top: 10px; left: 10px; right: 10px; bottom: auto; gap: 4px; }
+            .layer-group { min-width: 0; padding: 6px 8px; max-width: 100%; }
             .layer-group-title { font-size: 0.62em; margin-bottom: 3px; }
-            .layer-select { padding: 5px 6px; font-size: 0.8em; }
+            .layer-select { padding: 8px 8px; font-size: 16px; }
 
-            /* Velocity bar - compact on mobile */
+            /* Velocity bar sits above the timeline; both respect the iPhone
+               home-indicator safe area */
             .velocity-bar {
-                bottom: 60px;
+                bottom: calc(72px + env(safe-area-inset-bottom));
                 right: 10px;
                 padding: 8px 10px;
                 font-size: 0.78em;
             }
             .velocity-gradient { width: 8rem; height: 0.6rem; }
 
-            /* Timeline - full width on mobile */
             .timeline {
                 width: calc(100% - 20px);
                 left: 10px;
                 right: 10px;
                 transform: none;
-                bottom: 10px;
+                bottom: calc(10px + env(safe-area-inset-bottom));
                 padding: 8px 12px;
                 gap: 8px;
             }
             .tl-info { min-width: 4.5rem; }
             .tl-label { font-size: 0.85em; }
             .tl-time { font-size: 0.7em; }
+
+            /* Attribution would collide with the full-width timeline */
+            .leaflet-control-attribution { display: none; }
         }
 
         /* Small phones */
         @media (max-width: 380px) {
-            .sidebar { padding: 10px 12px; max-height: 42vh; }
+            .sidebar { padding: 10px 12px; max-height: 42dvh; }
             .sim-card .sim-icon { font-size: 1.6em; }
             .sim-card .sim-label { font-size: 0.8em; }
             .sidebar h2 { font-size: 1em; }
@@ -854,7 +857,12 @@
 <script>
 // --- Map ---
 var map = L.map('map', { zoomControl: false }).setView([23.5, 121], 7);
-L.control.zoom({ position: 'bottomright' }).addTo(map);
+// Zoom control: bottom-right on desktop, hidden on narrow phones where it
+// would collide with the velocity bar + timeline. Pinch-to-zoom still works.
+var IS_PHONE = window.matchMedia('(max-width: 700px)').matches;
+if (!IS_PHONE) {
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+}
 
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
     attribution: '&copy; OpenStreetMap &copy; CARTO',
