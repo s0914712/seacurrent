@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SeaCurrent Drift Simulator</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet-velocity@2.1.4/dist/leaflet-velocity.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html { font-size: clamp(14px, 0.45vw + 11px, 20px); }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            background: #0a1628;
+            color: #e0e6ed;
+            min-height: 100vh;
+        }
+        .layout {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 22rem;
+            min-width: 22rem;
+            background: #101d33;
+            border-right: 1px solid #1e3050;
+            overflow-y: auto;
+            padding: 1.25rem;
+            display: flex;
+            flex-direction: column;
+        }
+        .sidebar-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.5rem;
+        }
+        .sidebar-header .titles { flex: 1; min-width: 0; }
+        .sidebar-toggle {
+            display: none;
+            background: rgba(26, 53, 88, 0.7);
+            border: 1px solid #1e3050;
+            color: #e0e6ed;
+            width: 2.25rem;
+            height: 2.25rem;
+            border-radius: 50%;
+            font-size: 1.1em;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-family: inherit;
+            line-height: 1;
+        }
+        .sidebar h2 {
+            font-size: 1.4em;
+            margin-bottom: 4px;
+            color: #fff;
+        }
+        .subtitle {
+            color: #7a8fa6;
+            font-size: 0.92em;
+            margin-bottom: 1rem;
+        }
+        .subtitle a { color: #5ba3f5; text-decoration: none; }
+        .subtitle a:hover { text-decoration: underline; }
+
+        /* Sim type cards */
+        .sim-type-cards { display: flex; gap: 0.4rem; margin-bottom: 1rem; }
+        .sim-card {
+            flex: 1;
+            padding: 0.7rem 0.4rem;
+            border: 2px solid #1e3050;
+            border-radius: 8px;
+            background: #152238;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.15s;
+            color: #8a9bb5;
+            font-family: inherit;
+        }
+        .sim-card:hover { border-color: #3a6ea5; background: #182d4a; }
+        .sim-card.active { border-color: #4a9eff; background: #1a3558; color: #fff; }
+        .sim-card .sim-icon { font-size: 1.55em; display: block; margin-bottom: 4px; }
+        .sim-card .sim-label { font-weight: 600; display: block; font-size: 0.92em; }
+
+        /* Form */
+        .form-section { margin-bottom: 0.75rem; }
+        label { font-weight: 600; font-size: 0.92em; color: #8a9bb5; display: block; margin-bottom: 4px; }
+        input, select {
+            width: 100%;
+            padding: 0.55rem 0.7rem;
+            font-size: 1em;
+            border: 1px solid #1e3050;
+            border-radius: 6px;
+            background: #0d1a2e;
+            color: #e0e6ed;
+            margin-bottom: 0.6rem;
+            font-family: inherit;
+        }
+        input:focus, select:focus { border-color: #4a9eff; outline: none; }
+        .row { display: flex; gap: 0.6rem; }
+        .row > div { flex: 1; }
+        .param-group {
+            padding: 0.7rem;
+            background: #152238;
+            border-radius: 6px;
+            margin-bottom: 0.6rem;
+            border: 1px solid #1e3050;
+        }
+        .model-params { display: none; }
+        .model-params.visible { display: block; }
+        .map-hint {
+            font-size: 0.88em;
+            color: #5a7a9a;
+            margin: -0.3rem 0 0.7rem 0;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 0.75rem;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s;
+            font-family: inherit;
+        }
+        .submit-btn:hover { background: #1d4ed8; }
+        .submit-btn:disabled { background: #374151; cursor: not-allowed; color: #6b7280; }
+
+        /* Status messages */
+        #success { color: #34d399; margin-top: 0.6rem; font-size: 0.95em; }
+        #error { color: #f87171; margin-top: 0.6rem; font-size: 0.95em; }
+        #logs {
+            font-family: monospace;
+            font-size: 0.85em;
+            color: #7a8fa6;
+            margin-top: 0.5rem;
+            white-space: pre-wrap;
+        }
+
+        /* Map */
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+        #map { width: 100%; height: 100%; }
+        .map-overlay {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            background: rgba(16, 29, 51, 0.9);
+            padding: 0.6rem 0.9rem;
+            border-radius: 8px;
+            font-size: 0.95em;
+            color: #8a9bb5;
+            z-index: 1000;
+            backdrop-filter: blur(8px);
+            border: 1px solid #1e3050;
+        }
+        .map-overlay .coord-display { color: #4a9eff; font-weight: 600; font-size: 1em; }
+
+        /* Layer dropdown controls */
+        .map-layer-controls {
+            position: absolute;
+            top: 14px;
+            left: 14px;
+            z-index: 1000;
+            display: flex;
+            gap: 6px;
+        }
+        .map-layer-controls .layer-group {
+            background: rgba(16, 29, 51, 0.92);
+            border: 1px solid #1e3050;
+            border-radius: 8px;
+            padding: 7px 10px;
+            backdrop-filter: blur(8px);
+            min-width: 175px;
+        }
+        .map-layer-controls .layer-group-title {
+            font-size: 0.7em;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #7a8fa6;
+            margin-bottom: 4px;
+        }
+        .map-layer-controls .layer-select {
+            width: 100%;
+            background: rgba(10, 18, 32, 0.9);
+            color: #e0e6ed;
+            border: 1px solid #1e3050;
+            border-radius: 6px;
+            padding: 5px 7px;
+            font-family: inherit;
+            font-size: 0.88em;
+            cursor: pointer;
+        }
+        .map-layer-controls .layer-select:focus { outline: none; border-color: #4a9eff; }
+
+        /* Scalar overlay color bar */
+        .scalar-bar {
+            position: absolute;
+            bottom: 76px;
+            right: 14px;
+            background: rgba(16, 29, 51, 0.92);
+            padding: 9px 13px;
+            border-radius: 8px;
+            z-index: 1000;
+            border: 1px solid #1e3050;
+            backdrop-filter: blur(8px);
+            min-width: 200px;
+            font-size: 0.82em;
+            color: #e0e6ed;
+            display: none;
+        }
+        .scalar-bar-title { font-weight: 600; margin-bottom: 5px; color: #fff; }
+        .scalar-gradient { height: 9px; border-radius: 3px; margin-bottom: 4px; }
+        .scalar-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.82em;
+            color: #8a9bb5;
+        }
+        .scalar-overlay-img {
+            image-rendering: auto !important;
+            image-rendering: smooth !important;
+            -ms-interpolation-mode: bicubic !important;
+        }
+
+        /* Timeline scrubber */
+        .timeline {
+            position: absolute;
+            left: 50%;
+            bottom: 14px;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 16px;
+            background: rgba(16, 29, 51, 0.95);
+            border: 1px solid #1e3050;
+            border-radius: 10px;
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            width: min(calc(100% - 320px), 680px);
+        }
+        .tl-btn {
+            background: #1a3558;
+            color: #e0e6ed;
+            border: 1px solid #2c4f7a;
+            border-radius: 50%;
+            width: 2rem; height: 2rem;
+            cursor: pointer;
+            font-size: 0.85em;
+            line-height: 1;
+            flex-shrink: 0;
+            font-family: inherit;
+        }
+        .tl-btn:hover { background: #2c4f7a; }
+        .tl-btn.playing { background: #2563eb; border-color: #2563eb; }
+        .tl-info { display: flex; flex-direction: column; line-height: 1.15; flex-shrink: 0; min-width: 6rem; }
+        .tl-label { color: #4a9eff; font-weight: 700; font-size: 0.95em; }
+        .tl-time { color: #7a8fa6; font-size: 0.8em; }
+        .tl-range { flex: 1; accent-color: #4a9eff; cursor: pointer; min-width: 0; }
+        .tl-loading { color: #f59e0b; font-size: 1em; flex-shrink: 0; width: 1em; text-align: center; }
+
+        /* Velocity color bar */
+        .velocity-bar {
+            position: absolute;
+            bottom: 14px;
+            right: 14px;
+            background: rgba(16, 29, 51, 0.92);
+            padding: 0.7rem 0.9rem;
+            border-radius: 8px;
+            font-size: 0.9em;
+            z-index: 1000;
+            border: 1px solid #1e3050;
+            backdrop-filter: blur(8px);
+            display: none;
+        }
+        .velocity-bar.visible { display: block; }
+        .velocity-bar-title { color: #fff; font-weight: 600; margin-bottom: 6px; font-size: 1em; }
+        .velocity-gradient {
+            width: 11rem;
+            height: 0.8rem;
+            border-radius: 3px;
+            margin-bottom: 4px;
+        }
+        .velocity-labels {
+            display: flex;
+            justify-content: space-between;
+            color: #7a8fa6;
+            font-size: 0.92em;
+        }
+
+        /* Responsive - Tablet */
+        @media (max-width: 900px) {
+            .sidebar { width: 20rem; min-width: 20rem; padding: 1rem; }
+        }
+
+        /* Responsive - Mobile */
+        @media (max-width: 700px) {
+            .layout { flex-direction: column; }
+            .sidebar {
+                width: 100%; min-width: 0;
+                max-height: 45vh;
+                padding: 12px 14px;
+                border-right: none;
+                border-bottom: 1px solid #1e3050;
+                transition: max-height 0.25s ease;
+            }
+            .sidebar.collapsed {
+                max-height: 3.5rem;
+                overflow: hidden;
+                padding-top: 10px;
+                padding-bottom: 10px;
+            }
+            .sidebar.collapsed .subtitle,
+            .sidebar.collapsed .sim-type-cards,
+            .sidebar.collapsed form,
+            .sidebar.collapsed #success,
+            .sidebar.collapsed #error,
+            .sidebar.collapsed #logs { display: none; }
+            .sidebar-toggle { display: inline-flex; }
+            .sidebar.collapsed .sidebar-toggle { transform: rotate(180deg); }
+            .map-container { min-height: 55vh; flex: 1; }
+            .sidebar h2 { font-size: 1.1em; }
+            .subtitle { margin-bottom: 10px; font-size: 0.88em; }
+
+            /* Sim cards - larger touch targets */
+            .sim-type-cards { gap: 8px; margin-bottom: 12px; }
+            .sim-card {
+                padding: 14px 8px;
+                border-radius: 12px;
+            }
+            .sim-card .sim-icon { font-size: 1.8em; margin-bottom: 4px; }
+            .sim-card .sim-label { font-size: 0.88em; }
+
+            /* Form - larger inputs for touch (16px prevents iOS zoom) */
+            input, select {
+                padding: 12px 14px;
+                font-size: 16px;
+                margin-bottom: 10px;
+                border-radius: 8px;
+                min-height: 44px;
+            }
+            label { font-size: 0.88em; margin-bottom: 5px; }
+            .form-section { margin-bottom: 12px; }
+            .param-group { padding: 12px; border-radius: 8px; }
+            .row { gap: 10px; }
+
+            /* Submit button - larger touch target */
+            .submit-btn {
+                padding: 15px;
+                font-size: 16px;
+                border-radius: 8px;
+                min-height: 48px;
+            }
+
+            /* Map overlay - compact */
+            .map-overlay {
+                top: 8px; right: 8px;
+                padding: 6px 10px;
+                font-size: 0.82em;
+                border-radius: 6px;
+            }
+
+            /* Layer dropdowns - two columns on mobile */
+            .map-layer-controls {
+                top: 8px; left: 8px; right: 8px;
+                gap: 6px;
+                flex-wrap: wrap;
+            }
+            .map-layer-controls .layer-group {
+                padding: 5px 8px;
+                min-width: 0;
+                flex: 1 1 calc(50% - 3px);
+                max-width: calc(50% - 3px);
+            }
+            .map-layer-controls .layer-group-title {
+                font-size: 0.6em;
+                margin-bottom: 2px;
+            }
+            .map-layer-controls .layer-select {
+                padding: 4px 6px;
+                font-size: 0.78em;
+            }
+            .scalar-bar {
+                bottom: 64px;
+                right: 8px;
+                left: 8px;
+                padding: 8px 12px;
+                min-width: 0;
+                font-size: 0.78em;
+            }
+
+            /* Velocity bar - compact on mobile */
+            .velocity-bar {
+                bottom: 60px;
+                right: 10px;
+                padding: 8px 10px;
+                font-size: 0.78em;
+            }
+            .velocity-gradient { width: 8rem; height: 0.6rem; }
+
+            /* Timeline - full width on mobile */
+            .timeline {
+                width: calc(100% - 20px);
+                left: 10px;
+                right: 10px;
+                transform: none;
+                bottom: 10px;
+                padding: 8px 12px;
+                gap: 8px;
+            }
+            .tl-info { min-width: 4.5rem; }
+            .tl-label { font-size: 0.85em; }
+            .tl-time { font-size: 0.7em; }
+        }
+
+        /* Small phones */
+        @media (max-width: 380px) {
+            .sidebar { padding: 10px 12px; max-height: 42vh; }
+            .sim-card .sim-icon { font-size: 1.6em; }
+            .sim-card .sim-label { font-size: 0.8em; }
+            .sidebar h2 { font-size: 1em; }
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="titles">
+                    <h2>SeaCurrent Drift Simulator</h2>
+                    <p class="subtitle">
+                        OpenDrift ocean drift simulation
+                        &nbsp;|&nbsp; <a href="forecast.html">Forecast Map &rarr;</a>
+                    </p>
+                </div>
+                <button type="button" class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle panel">&#x25B2;</button>
+            </div>
+
+            <div class="sim-type-cards">
+                <button type="button" class="sim-card active" data-type="leeway" onclick="setSimType('leeway')">
+                    <span class="sim-icon">&#x1F6DF;</span>
+                    <span class="sim-label">Person</span>
+                </button>
+                <button type="button" class="sim-card" data-type="oceandrift" onclick="setSimType('oceandrift')">
+                    <span class="sim-icon">&#x1F30A;</span>
+                    <span class="sim-label">Debris</span>
+                </button>
+                <button type="button" class="sim-card" data-type="openoil" onclick="setSimType('openoil')">
+                    <span class="sim-icon">&#x1F6E2;</span>
+                    <span class="sim-label">Oil Spill</span>
+                </button>
+            </div>
+
+            <form id="simulationForm">
+                <div class="row">
+                    <div>
+                        <label for="lon">Longitude</label>
+                        <input type="number" step="any" id="lon" value="121.5" required>
+                    </div>
+                    <div>
+                        <label for="lat">Latitude</label>
+                        <input type="number" step="any" id="lat" value="24.0" required>
+                    </div>
+                </div>
+                <p class="map-hint">Click the map to set coordinates</p>
+
+                <div class="form-section">
+                    <label for="duration">Duration (hours)</label>
+                    <input type="number" id="duration" value="24" min="1" max="84">
+                </div>
+
+                <!-- Leeway params -->
+                <div id="leewayParams" class="model-params visible">
+                    <div class="param-group">
+                        <label for="objectType">Object Type</label>
+                        <select id="objectType">
+                            <option value="26" selected>Life raft, no ballast</option>
+                            <option value="1">Person in water (PIW)</option>
+                            <option value="4">Person in water, vertical</option>
+                            <option value="14">Life raft, ballast, canopy</option>
+                            <option value="27">Life raft, ballast, no canopy</option>
+                            <option value="40">Life raft, capsized</option>
+                            <option value="52">Fishing vessel</option>
+                            <option value="56">Sailboat, monohull</option>
+                            <option value="63">Skiff, flat bottom</option>
+                            <option value="72">Surfboard</option>
+                        </select>
+                    </div>
+                </div>
+                <!-- OceanDrift params -->
+                <div id="oceandriftParams" class="model-params">
+                    <div class="param-group">
+                        <label for="windDriftFactor">Wind Drift Factor</label>
+                        <input type="number" step="0.001" id="windDriftFactor" value="0.02" min="0" max="0.1">
+                    </div>
+                </div>
+                <!-- OpenOil params -->
+                <div id="openoilParams" class="model-params">
+                    <div class="param-group">
+                        <label for="oilType">Oil Type</label>
+                        <select id="oilType">
+                            <option value="GENERIC MEDIUM CRUDE" selected>Medium Crude</option>
+                            <option value="GENERIC HEAVY CRUDE">Heavy Crude</option>
+                            <option value="GENERIC LIGHT CRUDE">Light Crude</option>
+                            <option value="GENERIC DIESEL">Diesel</option>
+                            <option value="GENERIC BUNKER C">Bunker C</option>
+                        </select>
+                        <label for="oilAmount">Amount (m&sup3;)</label>
+                        <input type="number" step="1" id="oilAmount" value="100" min="1" max="10000">
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <label for="email">Email (results sent here)</label>
+                    <input type="email" id="email" placeholder="your@email.com" required>
+                </div>
+
+                <button type="submit" id="submitBtn" class="submit-btn">Submit Simulation</button>
+            </form>
+
+            <div id="success"></div>
+            <div id="error"></div>
+            <div id="logs"></div>
+        </div>
+
+        <div class="map-container">
+            <div id="map"></div>
+            <div class="map-overlay">
+                <div>Cursor: <span class="coord-display" id="cursorCoords">--</span></div>
+            </div>
+            <div class="map-layer-controls">
+                <div class="layer-group">
+                    <div class="layer-group-title">Vector flow</div>
+                    <select id="idxVectorSel" class="layer-select" onchange="selectIdxVectorLayer(this.value)">
+                        <option value="current">Ocean current</option>
+                        <option value="wind">Wind (surface)</option>
+                        <option value="wind_10m">Wind 10 m (GFS)</option>
+                        <option value="wind_850hPa">Wind 850 hPa</option>
+                        <option value="wind_925hPa">Wind 925 hPa</option>
+                        <option value="wind_1000hPa">Wind 1000 hPa</option>
+                        <option value="off">Off</option>
+                    </select>
+                </div>
+                <div class="layer-group">
+                    <div class="layer-group-title">Overlay</div>
+                    <select id="idxScalarSel" class="layer-select" onchange="selectIdxScalarOverlay(this.value)">
+                        <option value="">None</option>
+                        <option value="temp_2m">Temperature 2 m</option>
+                        <option value="temp_850hPa">Temperature 850 hPa</option>
+                        <option value="temp_925hPa">Temperature 925 hPa</option>
+                        <option value="temp_1000hPa">Temperature 1000 hPa</option>
+                        <option value="rh_2m">Humidity 2 m</option>
+                        <option value="rh_850hPa">Humidity 850 hPa</option>
+                        <option value="rh_925hPa">Humidity 925 hPa</option>
+                        <option value="rh_1000hPa">Humidity 1000 hPa</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="scalar-bar" id="idxScalarBar">
+                <div class="scalar-bar-title" id="idxScalarBarTitle"></div>
+                <div class="scalar-gradient" id="idxScalarGradient"></div>
+                <div class="scalar-labels">
+                    <span id="idxScalarMin"></span>
+                    <span id="idxScalarMid"></span>
+                    <span id="idxScalarMax"></span>
+                </div>
+            </div>
+
+            <div class="velocity-bar" id="idxVelocityBar">
+                <div class="velocity-bar-title" id="idxVelocityBarTitle">Ocean Current (m/s)</div>
+                <div class="velocity-gradient" id="idxVelocityGradient"></div>
+                <div class="velocity-labels">
+                    <span>0</span>
+                    <span id="idxVelocityMid">0.75</span>
+                    <span id="idxVelocityMax">1.5</span>
+                </div>
+            </div>
+
+            <div class="timeline" id="idxTimeline" style="display:none;">
+                <button type="button" class="tl-btn" id="idxTlPlay" aria-label="Play">&#9654;</button>
+                <div class="tl-info">
+                    <span class="tl-label" id="idxTlLabel">T+0h</span>
+                    <span class="tl-time" id="idxTlTime"></span>
+                </div>
+                <input type="range" id="idxTlSlider" min="0" max="72" value="0" step="1" class="tl-range">
+                <span class="tl-loading" id="idxTlLoading" style="display:none;">…</span>
+            </div>
+        </div>
+    </div>
+
+<script>
+// --- Map ---
+var map = L.map('map', { zoomControl: false }).setView([23.5, 121], 7);
+L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap &copy; CARTO',
+    maxZoom: 18,
+}).addTo(map);
+
+var seedMarker = null;
+var trajectoryLayer = L.layerGroup().addTo(map);
+
+// Click to set coordinates
+map.on('click', function(e) {
+    document.getElementById('lon').value = e.latlng.lng.toFixed(4);
+    document.getElementById('lat').value = e.latlng.lat.toFixed(4);
+    updateSeedMarker(e.latlng.lat, e.latlng.lng);
+});
+
+map.on('mousemove', function(e) {
+    document.getElementById('cursorCoords').textContent =
+        e.latlng.lat.toFixed(4) + ', ' + e.latlng.lng.toFixed(4);
+});
+
+function updateSeedMarker(lat, lng) {
+    if (seedMarker) map.removeLayer(seedMarker);
+    seedMarker = L.circleMarker([lat, lng], {
+        radius: 8, color: '#ff4444', fillColor: '#ff4444', fillOpacity: 0.8, weight: 2,
+    }).addTo(map).bindPopup('Seed: ' + lat.toFixed(4) + ', ' + lng.toFixed(4));
+}
+
+// Init marker
+updateSeedMarker(24.0, 121.5);
+
+// Update marker when inputs change
+['lon', 'lat'].forEach(function(id) {
+    document.getElementById(id).addEventListener('change', function() {
+        var lat = parseFloat(document.getElementById('lat').value);
+        var lng = parseFloat(document.getElementById('lon').value);
+        if (!isNaN(lat) && !isNaN(lng)) updateSeedMarker(lat, lng);
+    });
+});
+
+// --- Simulation type ---
+var currentSimType = 'leeway';
+var MODEL_CONFIG = {
+    leeway:     { paramsId: 'leewayParams' },
+    oceandrift: { paramsId: 'oceandriftParams' },
+    openoil:    { paramsId: 'openoilParams' },
+};
+
+function setSimType(type) {
+    currentSimType = type;
+    document.querySelectorAll('.sim-card').forEach(function(c) {
+        c.classList.toggle('active', c.dataset.type === type);
+    });
+    document.querySelectorAll('.model-params').forEach(function(el) { el.classList.remove('visible'); });
+    document.getElementById(MODEL_CONFIG[type].paramsId).classList.add('visible');
+}
+
+function getModelParams() {
+    if (currentSimType === 'leeway') return { object_type: document.getElementById('objectType').value };
+    if (currentSimType === 'oceandrift') return { wind_drift_factor: document.getElementById('windDriftFactor').value };
+    if (currentSimType === 'openoil') return { oil_type: document.getElementById('oilType').value, amount: document.getElementById('oilAmount').value };
+    return {};
+}
+
+// --- Submit ---
+var VERCEL_API_URL = 'https://seacurrent.vercel.app/api/simulate';
+
+document.getElementById('simulationForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    var btn = document.getElementById('submitBtn');
+    var successEl = document.getElementById('success');
+    var errorEl = document.getElementById('error');
+    successEl.textContent = '';
+    errorEl.textContent = '';
+
+    var payload = Object.assign({
+        lon: parseFloat(document.getElementById('lon').value),
+        lat: parseFloat(document.getElementById('lat').value),
+        duration: parseInt(document.getElementById('duration').value),
+        email: document.getElementById('email').value.trim(),
+        model_type: currentSimType,
+    }, getModelParams());
+
+    if (!payload.email) { errorEl.textContent = 'Please enter your email.'; return; }
+
+    btn.disabled = true;
+    btn.textContent = 'Submitting...';
+
+    try {
+        var resp = await fetch(VERCEL_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        var data = await resp.json();
+        if (data.status === 'queued') {
+            successEl.textContent = 'Simulation queued (ID: ' + data.request_id + '). Results will be emailed to ' + payload.email;
+        } else {
+            errorEl.textContent = 'Error: ' + (data.error || 'Unknown error');
+        }
+    } catch (err) {
+        errorEl.textContent = 'Request failed: ' + err.message;
+    }
+    btn.disabled = false;
+    btn.textContent = 'Submit Simulation';
+});
+
+// --- Velocity layers (Windy-style animated flow) + scalar overlays ---
+var CURRENT_VELOCITY_URL = 'scheduled_results/current_velocity.json';
+var WIND_VELOCITY_URL = 'scheduled_results/wind_velocity.json';
+var IDX_FRAMES_INDEX_URL = 'scheduled_results/frames/index.json';
+
+var idxVectorLayers = {};   // name → L.velocityLayer (built lazily)
+var idxActiveVector = 'current';
+var idxScalarLayer = '';
+var idxScalarOverlay = null;
+var idxFramesIndex = null;
+var idxLayerMeta = {};      // GFS layer metadata (from index.layers)
+var idxFrameCache = {};     // "type|hour" → component data
+var currentIdxFrameHour = 0;
+var idxPlayTimer = null;
+
+function isIdxGfsVector(name) { return name.indexOf('wind_') === 0; }
+function isIdxLegacyVector(name) { return name === 'current' || name === 'wind'; }
+
+function idxFrameUrl(type, hour) {
+    return 'scheduled_results/frames/' + type + '/h' + String(hour).padStart(3, '0') + '.json';
+}
+function idxLayerHours(type) {
+    if (!idxFramesIndex) return null;
+    if (isIdxLegacyVector(type)) return idxFramesIndex[type] && idxFramesIndex[type].hours;
+    var meta = idxLayerMeta[type];
+    return meta && meta.hours;
+}
+function idxLayerBaseTime(type) {
+    if (!idxFramesIndex) return null;
+    if (isIdxLegacyVector(type)) return idxFramesIndex[type] && idxFramesIndex[type].base_time;
+    var meta = idxLayerMeta[type];
+    return meta && meta.base_time;
+}
+function idxNearestFrameHour(type, hour) {
+    var hours = idxLayerHours(type);
+    if (!hours || !hours.length) return null;
+    var best = hours[0], diff = Math.abs(hour - best);
+    for (var i = 1; i < hours.length; i++) {
+        var d = Math.abs(hour - hours[i]);
+        if (d < diff) { best = hours[i]; diff = d; }
+    }
+    return best;
+}
+function idxFetchFrame(type, hour) {
+    var key = type + '|' + hour;
+    if (idxFrameCache[key]) return Promise.resolve(idxFrameCache[key]);
+    var loading = document.getElementById('idxTlLoading');
+    if (loading) loading.style.display = 'inline-block';
+    return fetch(idxFrameUrl(type, hour) + '?t=' + Date.now())
+        .then(function(r) { if (!r.ok) throw new Error('frame ' + hour + ' missing'); return r.json(); })
+        .then(function(data) { idxFrameCache[key] = data; return data; })
+        .finally(function() { if (loading) loading.style.display = 'none'; });
+}
+
+// ── Vector layer building ──
+function buildIdxVelocityLayer(type, data) {
+    var isCurrent = type === 'current';
+    var isGfs = isIdxGfsVector(type);
+    var maxV = isCurrent ? 1.5 : (isGfs && type !== 'wind_10m' ? 30 : 15);
+    var layer = L.velocityLayer({
+        displayValues: true,
+        displayOptions: {
+            velocityType: isCurrent ? 'Ocean Current' : (isGfs ? idxVectorLabel(type) : 'Wind'),
+            displayPosition: 'bottomleft',
+            displayEmptyString: '',
+            speedUnit: 'm/s',
+        },
+        data: data,
+        maxVelocity: maxV,
+        velocityScale: isCurrent ? 0.01 : 0.005,
+        particleAge: 60,
+        lineWidth: isCurrent ? 2 : 1.5,
+        particleMultiplier: 1 / 250,
+        colorScale: isCurrent
+            ? ["#1a237e","#1565c0","#42a5f5","#29b6f6","#26c6da","#00e5ff","#76ff03","#ffeb3b","#ff9800","#f44336"]
+            : ["#364fc7","#4c6ef5","#748ffc","#91a7ff","#bac8ff","#dbe4ff","#f8f9fa","#ffe8cc","#ffc078","#ff922b"],
+        frameRate: 30,
+        opacity: 0.85,
+    });
+    idxVectorLayers[type] = layer;
+    return layer;
+}
+function idxVectorLabel(name) {
+    if (name === 'current') return 'Ocean current';
+    if (name === 'wind') return 'Wind (surface)';
+    if (name === 'wind_10m') return 'Wind 10 m';
+    var m = name.match(/^wind_(\d+)hPa$/);
+    return m ? 'Wind ' + m[1] + ' hPa' : name;
+}
+function idxApplyFrameToVector(type, data) {
+    if (!idxVectorLayers[type]) {
+        var layer = buildIdxVelocityLayer(type, data);
+        if (idxActiveVector === type) map.addLayer(layer);
+        return;
+    }
+    var layer = idxVectorLayers[type];
+    if (typeof layer.setData === 'function') layer.setData(data);
+    else if (layer.options) {
+        layer.options.data = data;
+        if (map.hasLayer(layer)) { map.removeLayer(layer); map.addLayer(layer); }
+    }
+}
+
+// ── Velocity color bar (vectors) ──
+var IDX_GRADIENTS = {
+    current: 'linear-gradient(to right, #1a237e, #1565c0, #42a5f5, #26c6da, #00e5ff, #76ff03, #ffeb3b, #ff9800, #f44336)',
+    wind:    'linear-gradient(to right, #364fc7, #4c6ef5, #91a7ff, #dbe4ff, #f8f9fa, #ffe8cc, #ffc078, #ff922b)',
+};
+function updateIdxVelocityBar(type) {
+    var bar = document.getElementById('idxVelocityBar');
+    if (type === 'off') { bar.classList.remove('visible'); return; }
+    bar.classList.add('visible');
+    var isCurrent = type === 'current';
+    var max = isCurrent ? 1.5 : (isIdxGfsVector(type) && type !== 'wind_10m' ? 30 : 15);
+    document.getElementById('idxVelocityBarTitle').textContent = idxVectorLabel(type) + ' (m/s)';
+    document.getElementById('idxVelocityGradient').style.background = isCurrent ? IDX_GRADIENTS.current : IDX_GRADIENTS.wind;
+    document.getElementById('idxVelocityMax').textContent = max;
+    document.getElementById('idxVelocityMid').textContent = (max / 2);
+}
+
+function selectIdxVectorLayer(type) {
+    idxActiveVector = type;
+    Object.keys(idxVectorLayers).forEach(function(k) {
+        if (idxVectorLayers[k] && map.hasLayer(idxVectorLayers[k])) map.removeLayer(idxVectorLayers[k]);
+    });
+    if (type === 'off') {
+        updateIdxVelocityBar('off');
+        return;
+    }
+    if (idxVectorLayers[type]) map.addLayer(idxVectorLayers[type]);
+    updateIdxVelocityBar(type);
+    if (idxFramesIndex) setIdxForecastHour(currentIdxFrameHour);
+}
+
+// ── Scalar overlay (temperature / humidity) ──
+var IDX_SCALAR_UNITS = {
+    temp: { unit: '°C', offsetK: -273.15 },
+    rh:   { unit: '%',  offsetK: 0 },
+};
+var IDX_SCALAR_GRADIENTS = {
+    temp: 'linear-gradient(to right, #3b4cca, #4a9eff, #26c6da, #76ff03, #ffeb3b, #ff9800, #f44336)',
+    rh:   'linear-gradient(to right, #fff3bf, #d0ebff, #74c0fc, #339af0, #1864ab)',
+};
+var IDX_SCALAR_STOPS = {
+    temp: ['#3b4cca', '#4a9eff', '#26c6da', '#76ff03', '#ffeb3b', '#ff9800', '#f44336'],
+    rh:   ['#fff3bf', '#d0ebff', '#74c0fc', '#339af0', '#1864ab'],
+};
+function idxScalarKind(name) { return name.indexOf('temp_') === 0 ? 'temp' : 'rh'; }
+function idxScalarLabel(name) {
+    if (name === 'temp_2m') return 'Temperature 2 m';
+    if (name === 'rh_2m') return 'Humidity 2 m';
+    var m = name.match(/^(temp|rh)_(\d+)hPa$/);
+    return m ? (m[1] === 'temp' ? 'Temperature ' : 'Humidity ') + m[2] + ' hPa' : name;
+}
+function idxHexToRgb(h) {
+    h = h.replace('#', '');
+    return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)];
+}
+function idxInterpColor(stops, t) {
+    if (t <= 0) return idxHexToRgb(stops[0]);
+    if (t >= 1) return idxHexToRgb(stops[stops.length - 1]);
+    var seg = t * (stops.length - 1);
+    var i = Math.floor(seg);
+    var frac = seg - i;
+    var c1 = idxHexToRgb(stops[i]);
+    var c2 = idxHexToRgb(stops[i + 1]);
+    return [
+        Math.round(c1[0] + (c2[0] - c1[0]) * frac),
+        Math.round(c1[1] + (c2[1] - c1[1]) * frac),
+        Math.round(c1[2] + (c2[2] - c1[2]) * frac),
+    ];
+}
+function idxPercentile(arr, p) {
+    var sorted = arr.slice().sort(function(a, b) { return a - b; });
+    var idx = Math.max(0, Math.min(sorted.length - 1, Math.round(p * (sorted.length - 1))));
+    return sorted[idx];
+}
+function idxNiceRound(v, dir) {
+    if (!isFinite(v)) return v;
+    var step = Math.abs(v) >= 50 ? 5 : (Math.abs(v) >= 10 ? 1 : 0.5);
+    return dir === 'down' ? Math.floor(v / step) * step : Math.ceil(v / step) * step;
+}
+function updateIdxScalarBar(name, range) {
+    var info = IDX_SCALAR_UNITS[idxScalarKind(name)];
+    var digits = (Math.abs(range.max - range.min) >= 20) ? 0 : 1;
+    document.getElementById('idxScalarBarTitle').textContent = idxScalarLabel(name);
+    document.getElementById('idxScalarMin').textContent = range.min.toFixed(digits) + ' ' + info.unit;
+    document.getElementById('idxScalarMid').textContent = ((range.min + range.max) / 2).toFixed(digits) + ' ' + info.unit;
+    document.getElementById('idxScalarMax').textContent = range.max.toFixed(digits) + ' ' + info.unit;
+    document.getElementById('idxScalarGradient').style.background = IDX_SCALAR_GRADIENTS[idxScalarKind(name)];
+}
+function renderIdxScalarOverlay(data, layerName) {
+    if (!data || !data[0] || !data[0].header) return;
+    var comp = data[0];
+    var h = comp.header;
+    var nx = h.nx, ny = h.ny;
+    var values = comp.data;
+    var kind = idxScalarKind(layerName);
+    var info = IDX_SCALAR_UNITS[kind];
+    var stops = IDX_SCALAR_STOPS[kind];
+
+    var displayVals = new Array(values.length);
+    for (var k = 0; k < values.length; k++) displayVals[k] = values[k] + info.offsetK;
+    var lo = idxNiceRound(idxPercentile(displayVals, 0.05), 'down');
+    var hi = idxNiceRound(idxPercentile(displayVals, 0.95), 'up');
+    if (hi - lo < 1) hi = lo + 1;
+    updateIdxScalarBar(layerName, { min: lo, max: hi });
+
+    var canvas = document.createElement('canvas');
+    canvas.width = nx; canvas.height = ny;
+    var ctx = canvas.getContext('2d');
+    var img = ctx.createImageData(nx, ny);
+    for (var i = 0; i < values.length; i++) {
+        var t = (displayVals[i] - lo) / (hi - lo);
+        var rgb = idxInterpColor(stops, Math.max(0, Math.min(1, t)));
+        var off = i * 4;
+        img.data[off]     = rgb[0];
+        img.data[off + 1] = rgb[1];
+        img.data[off + 2] = rgb[2];
+        img.data[off + 3] = 170;
+    }
+    ctx.putImageData(img, 0, 0);
+
+    var northLat = Math.max(h.la1, h.la2);
+    var southLat = Math.min(h.la1, h.la2);
+    var westLon = Math.min(h.lo1, h.lo2);
+    var eastLon = Math.max(h.lo1, h.lo2);
+    if (eastLon > 180) { westLon -= 360; eastLon -= 360; }
+    var bounds = [[southLat, westLon], [northLat, eastLon]];
+
+    if (idxScalarOverlay && map.hasLayer(idxScalarOverlay)) map.removeLayer(idxScalarOverlay);
+    idxScalarOverlay = L.imageOverlay(canvas.toDataURL('image/png'), bounds, {
+        opacity: 0.85, interactive: false, className: 'scalar-overlay-img',
+    });
+    idxScalarOverlay.addTo(map);
+    idxScalarOverlay.bringToBack();
+}
+
+function selectIdxScalarOverlay(name) {
+    idxScalarLayer = name || '';
+    if (idxScalarOverlay && map.hasLayer(idxScalarOverlay)) map.removeLayer(idxScalarOverlay);
+    idxScalarOverlay = null;
+
+    var bar = document.getElementById('idxScalarBar');
+    if (!idxScalarLayer) { bar.style.display = 'none'; return; }
+    bar.style.display = 'block';
+    var info = IDX_SCALAR_UNITS[idxScalarKind(idxScalarLayer)];
+    document.getElementById('idxScalarBarTitle').textContent = idxScalarLabel(idxScalarLayer) + ' (loading…)';
+    document.getElementById('idxScalarGradient').style.background = IDX_SCALAR_GRADIENTS[idxScalarKind(idxScalarLayer)];
+    document.getElementById('idxScalarMin').textContent = '';
+    document.getElementById('idxScalarMid').textContent = '';
+    document.getElementById('idxScalarMax').textContent = info.unit;
+    if (idxFramesIndex) setIdxForecastHour(currentIdxFrameHour);
+}
+
+// Mark GFS dropdown options as "(無資料)" when the index is missing them.
+function annotateIdxLayerSelects() {
+    var vsel = document.getElementById('idxVectorSel');
+    var ssel = document.getElementById('idxScalarSel');
+    function annotate(sel) {
+        for (var i = 0; i < sel.options.length; i++) {
+            var opt = sel.options[i];
+            var val = opt.value;
+            if (!val || val === 'current' || val === 'wind' || val === 'off') continue;
+            var meta = idxLayerMeta[val];
+            var hasData = meta && meta.hours && meta.hours.length;
+            opt.textContent = opt.textContent.replace(/\s*\((無資料|no data)\)\s*$/, '');
+            if (!hasData) {
+                opt.textContent = opt.textContent + ' (無資料)';
+                opt.disabled = true;
+            } else { opt.disabled = false; }
+        }
+    }
+    annotate(vsel); annotate(ssel);
+}
+
+function setIdxForecastHour(hour, opts) {
+    opts = opts || {};
+    currentIdxFrameHour = hour;
+    var slider = document.getElementById('idxTlSlider');
+    if (slider && !opts.fromSlider) slider.value = hour;
+
+    document.getElementById('idxTlLabel').textContent = 'T+' + hour + 'h';
+    var t = document.getElementById('idxTlTime');
+    var base = idxLayerBaseTime(idxActiveVector === 'off' ? 'current' : idxActiveVector);
+    if (t && base) {
+        var d = new Date(new Date(base).getTime() + hour * 3600 * 1000);
+        t.textContent = d.toLocaleString('zh-TW', {
+            timeZone: 'Asia/Taipei', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
+        });
+    } else if (t) { t.textContent = ''; }
+
+    if (idxActiveVector !== 'off') {
+        var snapped = idxNearestFrameHour(idxActiveVector, hour);
+        if (snapped != null) {
+            idxFetchFrame(idxActiveVector, snapped).then(function(data) {
+                if (currentIdxFrameHour !== hour) return;
+                idxApplyFrameToVector(idxActiveVector, data);
+            }).catch(function(err) { console.warn(err); });
+        }
+    }
+    if (idxScalarLayer) {
+        var sSnap = idxNearestFrameHour(idxScalarLayer, hour);
+        if (sSnap != null) {
+            idxFetchFrame(idxScalarLayer, sSnap).then(function(data) {
+                if (currentIdxFrameHour !== hour || !idxScalarLayer) return;
+                renderIdxScalarOverlay(data, idxScalarLayer);
+            }).catch(function(err) { console.warn(err); });
+        }
+    }
+}
+
+function wireIdxTimeline() {
+    var slider = document.getElementById('idxTlSlider');
+    var play = document.getElementById('idxTlPlay');
+    if (!slider || !play) return;
+    var debounce;
+    slider.addEventListener('input', function() {
+        var h = parseInt(slider.value, 10);
+        clearTimeout(debounce);
+        debounce = setTimeout(function() { setIdxForecastHour(h, { fromSlider: true }); }, 80);
+    });
+    play.addEventListener('click', function() {
+        if (idxPlayTimer) {
+            clearInterval(idxPlayTimer); idxPlayTimer = null;
+            play.classList.remove('playing'); play.innerHTML = '&#9654;'; return;
+        }
+        play.classList.add('playing'); play.innerHTML = '&#10074;&#10074;';
+        idxPlayTimer = setInterval(function() {
+            var max = parseInt(slider.max, 10);
+            var next = (currentIdxFrameHour + 1) > max ? 0 : currentIdxFrameHour + 1;
+            setIdxForecastHour(next);
+        }, 600);
+    });
+}
+
+function initIdxFrames() {
+    return fetch(IDX_FRAMES_INDEX_URL + '?t=' + Date.now()).then(function(r) {
+        if (!r.ok) throw new Error('no frames');
+        return r.json();
+    }).then(function(idx) {
+        idxFramesIndex = idx;
+        idxLayerMeta = idx.layers || {};
+        annotateIdxLayerSelects();
+        var maxH = idx.max_hours || 72;
+        var slider = document.getElementById('idxTlSlider');
+        if (slider) slider.max = maxH;
+
+        return Promise.all([
+            idxFetchFrame('current', idxNearestFrameHour('current', 0)),
+            idxFetchFrame('wind', idxNearestFrameHour('wind', 0)),
+        ]).then(function(frames) {
+            buildIdxVelocityLayer('current', frames[0]);
+            buildIdxVelocityLayer('wind', frames[1]);
+            map.addLayer(idxVectorLayers.current);
+            updateIdxVelocityBar('current');
+
+            var tl = document.getElementById('idxTimeline');
+            if (tl) tl.style.display = 'flex';
+            wireIdxTimeline();
+            setIdxForecastHour(0);
+            return true;
+        });
+    }).catch(function() { return null; });
+}
+
+// Fallback: load single-snapshot velocity files if the frames index is missing.
+function loadIdxVelocityFallback(url, type) {
+    return fetch(url + '?t=' + Date.now())
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(data) {
+            if (!data) return null;
+            return buildIdxVelocityLayer(type, data);
+        }).catch(function() { return null; });
+}
+
+initIdxFrames().then(function(ok) {
+    if (ok) return;
+    annotateIdxLayerSelects();
+    Promise.all([
+        loadIdxVelocityFallback(CURRENT_VELOCITY_URL, 'current'),
+        loadIdxVelocityFallback(WIND_VELOCITY_URL, 'wind'),
+    ]).then(function() {
+        if (idxVectorLayers.current) {
+            map.addLayer(idxVectorLayers.current);
+            updateIdxVelocityBar('current');
+        }
+    });
+});
+
+// Mobile sidebar collapse toggle
+(function() {
+    var toggle = document.getElementById('sidebarToggle');
+    var sidebar = document.getElementById('sidebar');
+    if (!toggle || !sidebar) return;
+    toggle.addEventListener('click', function() {
+        sidebar.classList.toggle('collapsed');
+        toggle.setAttribute('aria-expanded', !sidebar.classList.contains('collapsed'));
+    });
+})();
+</script>
+
+<style>
+.leaflet-control-velocity {
+    background: rgba(16,29,51,0.9) !important;
+    color: #e0e6ed !important;
+    padding: 4px 10px !important;
+    border-radius: 6px !important;
+    border: 1px solid #1e3050 !important;
+    font-size: 0.8em !important;
+    backdrop-filter: blur(8px) !important;
+}
+@media (max-width: 700px) {
+    .leaflet-control-velocity {
+        font-size: 0.72em !important;
+        padding: 3px 8px !important;
+    }
+}
+</style>
+</body>
+</html>
