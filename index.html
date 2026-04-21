@@ -402,105 +402,126 @@
     </style>
 </head>
 <body>
-    <div class="layout">
-        <div class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <div class="titles">
-                    <h2>SeaCurrent Drift Simulator</h2>
-                    <p class="subtitle">
-                        OpenDrift ocean drift simulation
-                        &nbsp;|&nbsp; <a href="forecast.html">Forecast Map &rarr;</a>
-                    </p>
-                </div>
-                <button type="button" class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle panel">&#x25B2;</button>
-            </div>
 
-            <div class="sim-type-cards">
-                <button type="button" class="sim-card active" data-type="leeway" onclick="setSimType('leeway')">
-                    <span class="sim-icon">&#x1F6DF;</span>
-                    <span class="sim-label">Person</span>
-                </button>
-                <button type="button" class="sim-card" data-type="oceandrift" onclick="setSimType('oceandrift')">
-                    <span class="sim-icon">&#x1F30A;</span>
-                    <span class="sim-label">Debris</span>
-                </button>
-                <button type="button" class="sim-card" data-type="openoil" onclick="setSimType('openoil')">
-                    <span class="sim-icon">&#x1F6E2;</span>
-                    <span class="sim-label">Oil Spill</span>
-                </button>
-            </div>
+<!-- ============ NAV ============ -->
+<nav class="nav">
+  <div class="wrap nav-inner">
+    <a href="#" class="brand">
+      <span class="brand-mark">
+        <!-- wave mark -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2 12c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 17c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 7c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/>
+        </svg>
+      </span>
+      SeaCurrent
+    </a>
+    <div class="nav-links">
+      <a href="#scenarios">Scenarios</a>
+      <a href="#layers">Forecast layers</a>
+      <a href="#how">How it works</a>
+      <a href="#data">Data</a>
+      <a href="tide.html">Tide</a>
+    </div>
+    <a href="app.html" class="nav-cta">
+      Launch app
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+    </a>
+  </div>
+</nav>
 
-            <form id="simulationForm">
-                <div class="row">
-                    <div>
-                        <label for="lon">Longitude</label>
-                        <input type="number" step="any" id="lon" value="121.5" required>
-                    </div>
-                    <div>
-                        <label for="lat">Latitude</label>
-                        <input type="number" step="any" id="lat" value="24.0" required>
-                    </div>
-                </div>
-                <p class="map-hint">Click the map to set coordinates</p>
+<!-- ============ HERO ============ -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="grid-lines"></div>
+  <div class="wrap hero-inner">
+    <div>
+      <span class="eyebrow">
+        <span class="dot"></span>
+        Live CWA ocean-current data · Updated every 2 days
+      </span>
+      <h1>Forecast ocean drift<br>across <span class="grad">Taiwan waters.</span></h1>
+      <p class="hero-sub">
+        SeaCurrent turns Central Weather Administration open data into actionable
+        drift trajectories — for search &amp; rescue, marine debris, and oil-spill response.
+        Drop a pin, pick a scenario, receive a forecast by email.
+      </p>
+      <div class="cta-row">
+        <a href="app.html" class="btn btn-primary">
+          Launch simulator
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+        </a>
+        <a href="forecast.html" class="btn btn-ghost">
+          Forecast map
+        </a>
+        <a href="tide.html" class="btn btn-ghost">
+          Tide table
+        </a>
+        <a href="https://github.com/s0914712/seacurrent" class="btn btn-ghost" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.2c-3.3.7-4-1.4-4-1.4-.5-1.3-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.6-.3-5.4-1.3-5.4-6 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.3 11.3 0 0 1 6 0C17 4.6 18 5 18 5c.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.7-2.8 5.7-5.5 6 .4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5z"/></svg>
+          GitHub
+        </a>
+      </div>
+      <div class="hero-meta">
+        <div class="stat"><span class="stat-v">3</span><span class="stat-l">Drift models</span></div>
+        <div class="stat"><span class="stat-v">8</span><span class="stat-l">Forecast layers</span></div>
+        <div class="stat"><span class="stat-v">72h</span><span class="stat-l">Hourly horizon</span></div>
+        <div class="stat"><span class="stat-v">CWA · GFS</span><span class="stat-l">Data sources</span></div>
+      </div>
+    </div>
 
-                <div class="form-section">
-                    <label for="duration">Duration (hours)</label>
-                    <input type="number" id="duration" value="24" min="1" max="84">
-                </div>
-
-                <!-- Leeway params -->
-                <div id="leewayParams" class="model-params visible">
-                    <div class="param-group">
-                        <label for="objectType">Object Type</label>
-                        <select id="objectType">
-                            <option value="26" selected>Life raft, no ballast</option>
-                            <option value="1">Person in water (PIW)</option>
-                            <option value="4">Person in water, vertical</option>
-                            <option value="14">Life raft, ballast, canopy</option>
-                            <option value="27">Life raft, ballast, no canopy</option>
-                            <option value="40">Life raft, capsized</option>
-                            <option value="52">Fishing vessel</option>
-                            <option value="56">Sailboat, monohull</option>
-                            <option value="63">Skiff, flat bottom</option>
-                            <option value="72">Surfboard</option>
-                        </select>
-                    </div>
-                </div>
-                <!-- OceanDrift params -->
-                <div id="oceandriftParams" class="model-params">
-                    <div class="param-group">
-                        <label for="windDriftFactor">Wind Drift Factor</label>
-                        <input type="number" step="0.001" id="windDriftFactor" value="0.02" min="0" max="0.1">
-                    </div>
-                </div>
-                <!-- OpenOil params -->
-                <div id="openoilParams" class="model-params">
-                    <div class="param-group">
-                        <label for="oilType">Oil Type</label>
-                        <select id="oilType">
-                            <option value="GENERIC MEDIUM CRUDE" selected>Medium Crude</option>
-                            <option value="GENERIC HEAVY CRUDE">Heavy Crude</option>
-                            <option value="GENERIC LIGHT CRUDE">Light Crude</option>
-                            <option value="GENERIC DIESEL">Diesel</option>
-                            <option value="GENERIC BUNKER C">Bunker C</option>
-                        </select>
-                        <label for="oilAmount">Amount (m&sup3;)</label>
-                        <input type="number" step="1" id="oilAmount" value="100" min="1" max="10000">
-                    </div>
-                </div>
-
-                <div class="form-section">
-                    <label for="email">Email (results sent here)</label>
-                    <input type="email" id="email" placeholder="your@email.com" required>
-                </div>
-
-                <button type="submit" id="submitBtn" class="submit-btn">Submit Simulation</button>
-            </form>
-
-            <div id="success"></div>
-            <div id="error"></div>
-            <div id="logs"></div>
+    <!-- Hero visual: real Leaflet map of Taiwan + animated drift overlay -->
+    <div class="hero-viz" aria-hidden="true">
+      <div class="viz-topbar">
+        <div class="dot-row"><span></span><span></span><span></span></div>
+        <span class="url">seacurrent / forecast · Taiwan waters</span>
+      </div>
+      <div class="viz-map">
+        <div id="heroMap"></div>
+        <svg class="flow-svg" viewBox="0 0 600 420" preserveAspectRatio="none" style="z-index:500; pointer-events:none;">
+          <defs>
+            <linearGradient id="fg1" x1="0" x2="1">
+              <stop offset="0" stop-color="#1565c0"/><stop offset="0.5" stop-color="#26c6da"/><stop offset="1" stop-color="#76ff03"/>
+            </linearGradient>
+            <linearGradient id="fg2" x1="0" x2="1">
+              <stop offset="0" stop-color="#00e5ff"/><stop offset="1" stop-color="#ffeb3b"/>
+            </linearGradient>
+            <linearGradient id="fg3" x1="0" x2="1">
+              <stop offset="0" stop-color="#42a5f5"/><stop offset="1" stop-color="#ff9800"/>
+            </linearGradient>
+          </defs>
+          <path class="flow-path" stroke="url(#fg1)" d="M20,70 C130,55 230,120 330,100 S520,60 590,110" style="animation-delay:0s"/>
+          <path class="flow-path" stroke="url(#fg2)" d="M10,140 C130,130 240,200 340,170 S520,140 590,190" style="animation-delay:-0.4s"/>
+          <path class="flow-path" stroke="url(#fg1)" d="M10,210 C130,190 250,270 340,240 S520,210 590,260" style="animation-delay:-0.9s"/>
+          <path class="flow-path" stroke="url(#fg3)" d="M20,280 C130,260 250,330 340,300 S520,280 590,320" style="animation-delay:-1.4s"/>
+          <path class="flow-path" stroke="url(#fg2)" d="M30,350 C150,330 240,380 340,360 S520,340 590,370" style="animation-delay:-1.9s"/>
+          <path class="flow-path" stroke="#ff6b6b" stroke-width="2.5" stroke-dasharray="4 6"
+                d="M240,230 C280,210 320,225 370,205 S460,195 510,175" style="animation:none;opacity:0.95"/>
+        </svg>
+        <div class="seed-pin"></div>
+        <div class="viz-overlay">
+          <div class="ol-lbl">Seed</div>
+          <div class="ol-val">121.5°E, 24.0°N</div>
+          <div class="ol-lbl" style="margin-top:0.4rem">Model</div>
+          <div class="ol-val" style="color:var(--fg-1); font-size:0.72rem">Leeway · Life raft</div>
         </div>
+        <div class="viz-scale">
+          <div class="ttl">Ocean current (m/s)</div>
+          <div class="grad"></div>
+          <div class="rng"><span>0.0</span><span>0.75</span><span>1.5</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SCENARIOS ============ -->
+<section id="scenarios">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="section-label">Three drift models</span>
+      <h2 class="section-title">Purpose-built for the three most common<br>open-water response cases.</h2>
+      <p class="section-sub">Each simulation runs OpenDrift in a dedicated Docker environment on GitHub Actions — the same model-family used by national SAR and environmental agencies.</p>
+    </div>
 
         <div class="map-container">
             <div id="map"></div>
@@ -542,7 +563,293 @@
                 <span class="tl-loading" id="idxTlLoading" style="display:none;">…</span>
             </div>
         </div>
+        <h3>Marine debris</h3>
+        <div class="model-tag">MODEL · OceanDrift</div>
+        <p>Track floating objects — containers, fishing gear, plastic — with tunable wind drift factors for different buoyancies.</p>
+        <ul>
+          <li>Wind drift factor 0 – 0.1</li>
+          <li>Container tracking</li>
+          <li>Debris field forecasts</li>
+        </ul>
+      </article>
+
+      <!-- OpenOil -->
+      <article class="sc-card">
+        <div class="sc-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2l5 8a6 6 0 1 1-10 0l5-8z"/>
+            <path d="M9 14a3 3 0 0 0 3 3"/>
+          </svg>
+        </div>
+        <h3>Oil spill</h3>
+        <div class="model-tag">MODEL · OpenOil</div>
+        <p>Oil-spill trajectory and weathering. Supports common fuel oil classes with spill-volume parameters.</p>
+        <ul>
+          <li>Light / medium / heavy crude</li>
+          <li>Diesel, Bunker C</li>
+          <li>Volume 1 – 10,000 m³</li>
+        </ul>
+      </article>
     </div>
+  </div>
+</section>
+
+<!-- ============ FORECAST LAYERS ============ -->
+<section id="layers" style="padding-top:1rem;">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="section-label">Forecast layers</span>
+      <h2 class="section-title">Eight environmental layers,<br>one map.</h2>
+      <p class="section-sub">Beyond drift trajectories, the forecast viewer renders animated vector flows for ocean current and wind at multiple altitudes, plus temperature and humidity heatmaps and a tide table for Taiwan harbours.</p>
+    </div>
+
+    <div class="layers-grid">
+      <!-- Ocean current -->
+      <article class="layer-card">
+        <div class="lc-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 12c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/>
+            <path d="M2 17c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/>
+            <path d="M2 7c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/>
+          </svg>
+        </div>
+        <h4>Ocean current</h4>
+        <span class="lc-tag">CWA · M-B0071</span>
+        <p>Animated surface current vectors, 0 – 1.5 m/s. Drives every drift simulation.</p>
+        <div class="lc-grad current"></div>
+      </article>
+
+      <!-- Wind multi-altitude -->
+      <article class="layer-card">
+        <div class="lc-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 8h11a3 3 0 1 0-3-3"/>
+            <path d="M3 14h17a3 3 0 1 1-3 3"/>
+          </svg>
+        </div>
+        <h4>Wind · multi-altitude</h4>
+        <span class="lc-tag">GFS · 10 m / 850 / 925 / 1000 hPa</span>
+        <p>Toggle pressure levels to see boundary-layer vs. surface flow patterns side-by-side.</p>
+        <div class="lc-grad wind"></div>
+      </article>
+
+      <!-- Temperature -->
+      <article class="layer-card">
+        <div class="lc-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 4a2 2 0 0 0-4 0v10.5a4 4 0 1 0 4 0V4z"/>
+          </svg>
+        </div>
+        <h4>Temperature</h4>
+        <span class="lc-tag">GFS · 2 m / 850 / 925 / 1000 hPa</span>
+        <p>Per-frame p5/p95 auto-scaling so coastal contrast doesn't get washed out by inland extremes.</p>
+        <div class="lc-grad temp"></div>
+      </article>
+
+      <!-- Humidity -->
+      <article class="layer-card">
+        <div class="lc-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3l5.5 8.5a6.5 6.5 0 1 1-11 0L12 3z"/>
+          </svg>
+        </div>
+        <h4>Relative humidity</h4>
+        <span class="lc-tag">GFS · 2 m / 850 / 925 / 1000 hPa</span>
+        <p>Heatmap overlay showing moisture distribution from sea surface up through the lower troposphere.</p>
+        <div class="lc-grad rh"></div>
+      </article>
+
+      <!-- Person overboard -->
+      <article class="layer-card">
+        <div class="lc-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"/>
+            <path d="M12 3v4M12 17v4M3 12h4M17 12h4"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        </div>
+        <h4>Person overboard</h4>
+        <span class="lc-tag">OpenDrift · Leeway</span>
+        <p>SAR trajectory for PIW, life rafts, fishing &amp; sail vessels — pick from 10 object profiles.</p>
+        <div class="lc-grad current"></div>
+      </article>
+
+      <!-- Debris -->
+      <article class="layer-card">
+        <div class="lc-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 12c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/>
+            <path d="M2 17c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/>
+            <path d="M2 7c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/>
+          </svg>
+        </div>
+        <h4>Marine debris</h4>
+        <span class="lc-tag">OpenDrift · OceanDrift</span>
+        <p>Floating-object tracking with tunable wind drift factor (0 – 0.1) for different buoyancy classes.</p>
+        <div class="lc-grad current"></div>
+      </article>
+
+      <!-- Oil spill -->
+      <article class="layer-card">
+        <div class="lc-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2l5 8a6 6 0 1 1-10 0l5-8z"/>
+            <path d="M9 14a3 3 0 0 0 3 3"/>
+          </svg>
+        </div>
+        <h4>Oil spill</h4>
+        <span class="lc-tag">OpenDrift · OpenOil</span>
+        <p>Trajectory + weathering for light/medium/heavy crude, diesel, and Bunker C; 1 – 10,000 m³.</p>
+        <div class="lc-grad current"></div>
+      </article>
+
+      <!-- Tide -->
+      <article class="layer-card">
+        <div class="lc-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 18c2-3 4-3 6 0s4 3 6 0 4-3 6 0"/>
+            <path d="M3 6h18"/>
+            <path d="M5 6v4M19 6v4"/>
+          </svg>
+        </div>
+        <h4>Tide table</h4>
+        <span class="lc-tag">CWA · F-A0021</span>
+        <p>High/low water times, tidal range, lunar date and flood/ebb direction for Taiwan harbours.</p>
+        <div class="lc-grad tide"></div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============ HOW IT WORKS ============ -->
+<section id="how" style="padding-top:1rem;">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="section-label">How it works</span>
+      <h2 class="section-title">From pin-drop to emailed forecast<br>in four steps.</h2>
+    </div>
+    <div class="workflow">
+      <div class="steps">
+        <div class="step">
+          <span class="step-n">STEP 01</span>
+          <h4>Drop a pin</h4>
+          <p>Click anywhere in Taiwan waters on the map. Longitude / latitude populate automatically.</p>
+        </div>
+        <div class="step">
+          <span class="step-n">STEP 02</span>
+          <h4>Choose scenario</h4>
+          <p>Select Person, Debris, or Oil Spill — then tune object type, wind drift, or oil parameters.</p>
+        </div>
+        <div class="step">
+          <span class="step-n">STEP 03</span>
+          <h4>We run OpenDrift</h4>
+          <p>A GitHub Actions job spins up OpenDrift in Docker and runs the model against fresh CWA data.</p>
+        </div>
+        <div class="step">
+          <span class="step-n">STEP 04</span>
+          <h4>Forecast in your inbox</h4>
+          <p>A trajectory map (PNG) plus raw JSON lands in your email, typically within minutes.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ DATA ============ -->
+<section id="data">
+  <div class="wrap data-strip">
+    <div>
+      <span class="section-label">Data source</span>
+      <h2 class="section-title">Built on authoritative<br>CWA open data.</h2>
+      <p>Ocean-current fields are pulled from the Central Weather Administration's public NetCDF dataset on AWS S3, converted to CF-convention standard names, and cached as GitHub artifacts. No proprietary feeds. No API keys on the client.</p>
+      <p>The conversion pipeline renames CWA's <span style="font-family:var(--font-mono); color: var(--accent);">UC</span> / <span style="font-family:var(--font-mono); color: var(--accent);">VC</span> velocity variables into OpenDrift-compatible <span style="font-family:var(--font-mono); color: var(--accent);">x/y_sea_water_velocity</span>, preserving every dimension (time, depth, lat, lon).</p>
+    </div>
+    <div class="kv-table" role="table">
+      <div class="kv-row"><span class="k">Source</span><span class="v accent">CWA OpenData</span></div>
+      <div class="kv-row"><span class="k">Bucket</span><span class="v">cwaopendata.s3…</span></div>
+      <div class="kv-row"><span class="k">Dataset</span><span class="v">Model/M-B0071-*.nc</span></div>
+      <div class="kv-row"><span class="k">Format</span><span class="v">NetCDF (CF)</span></div>
+      <div class="kv-row"><span class="k">Variables</span><span class="v">UC, VC → x/y velocity</span></div>
+      <div class="kv-row"><span class="k">Coverage</span><span class="v">Taiwan waters</span></div>
+      <div class="kv-row"><span class="k">Refresh</span><span class="v">Every 2 days · Actions cron</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FEATURES ============ -->
+<section id="features" style="padding-top:1rem;">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="section-label">What you get</span>
+      <h2 class="section-title">A full forecast viewer, not just a simulator.</h2>
+    </div>
+    <div class="features">
+      <div class="feat">
+        <div class="feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/><path d="M2 7c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/><path d="M2 17c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/></svg></div>
+        <h4>Animated flow fields</h4>
+        <p>Windy-style particle animation for ocean current and surface wind, with toggleable pressure levels (850 / 925 / 1000 hPa).</p>
+      </div>
+      <div class="feat">
+        <div class="feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></div>
+        <h4>Scalar overlays</h4>
+        <p>Temperature and humidity heatmaps at multiple altitudes. Color bars render automatically against 5th / 95th percentile ranges.</p>
+      </div>
+      <div class="feat">
+        <div class="feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+        <h4>72-hour timeline</h4>
+        <p>Scrub or play through three days of forecast frames. Hour snapping handles sparse source data gracefully.</p>
+      </div>
+      <div class="feat">
+        <div class="feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18M3 12h18M3 17h12"/></svg></div>
+        <h4>Email delivery</h4>
+        <p>Results ship via SendGrid as a trajectory PNG plus raw JSON. Nothing to install, no account required.</p>
+      </div>
+      <div class="feat">
+        <div class="feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l9 4v6c0 5-4 9-9 10-5-1-9-5-9-10V6l9-4z"/></svg></div>
+        <h4>Zero-trust client</h4>
+        <p>No secrets in the browser. The Vercel proxy holds the GitHub token; the client only sees queue IDs.</p>
+      </div>
+      <div class="feat">
+        <div class="feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/></svg></div>
+        <h4>Fully open source</h4>
+        <p>MIT-licensed. Fork the repo, add GitHub Secrets for SendGrid, and deploy your own instance.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CTA ============ -->
+<section style="padding-top:1rem;">
+  <div class="wrap">
+    <div class="cta-band">
+      <h2>Ready to forecast the drift?</h2>
+      <p>Open the simulator, drop a pin in Taiwan waters, and get trajectories in your inbox.</p>
+      <div class="cta-row">
+        <a href="app.html" class="btn btn-primary">
+          Launch simulator
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+        </a>
+        <a href="forecast.html" class="btn btn-ghost">Forecast map</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <div class="wrap foot-inner">
+    <div class="brand" style="gap:0.5rem;">
+      <span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 17c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 7c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/></svg></span>
+      <span style="color:var(--fg-2); font-weight:500;">SeaCurrent · MIT · Data courtesy of Taiwan CWA</span>
+    </div>
+    <div class="foot-links">
+      <a href="app.html">Simulator</a>
+      <a href="forecast.html">Forecast</a>
+      <a href="tide.html">Tide</a>
+      <a href="https://github.com/s0914712/seacurrent" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </div>
+</footer>
 
 <script>
 // --- Map ---
@@ -974,22 +1281,5 @@ initIdxFrames().then(function(ok) {
 })();
 </script>
 
-<style>
-.leaflet-control-velocity {
-    background: rgba(16,29,51,0.9) !important;
-    color: #e0e6ed !important;
-    padding: 4px 10px !important;
-    border-radius: 6px !important;
-    border: 1px solid #1e3050 !important;
-    font-size: 0.8em !important;
-    backdrop-filter: blur(8px) !important;
-}
-@media (max-width: 700px) {
-    .leaflet-control-velocity {
-        font-size: 0.72em !important;
-        padding: 3px 8px !important;
-    }
-}
-</style>
 </body>
 </html>

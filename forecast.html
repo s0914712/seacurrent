@@ -2,8 +2,10 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0a1628">
     <title>SeaCurrent - Drift Forecast</title>
+    <link rel="stylesheet" href="colors_and_type.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/leaflet-velocity@2.1.4/dist/leaflet-velocity.min.js"></script>
@@ -11,12 +13,14 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
         html { font-size: clamp(14px, 0.45vw + 11px, 20px); }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
-            background: #0a1628;
-            color: #e0e6ed;
+            font-family: var(--font-sans);
+            background: var(--bg-0);
+            color: var(--fg-1);
             height: 100vh;
+            height: 100dvh;
             display: flex;
             flex-direction: column;
+            overflow: hidden;
         }
 
         /* Top bar */
@@ -25,14 +29,14 @@
             align-items: center;
             justify-content: space-between;
             padding: 12px 24px;
-            background: #101d33;
-            border-bottom: 1px solid #1e3050;
+            background: var(--bg-1);
+            border-bottom: 1px solid var(--border);
             flex-shrink: 0;
         }
-        .topbar h2 { font-size: 1.35em; color: #fff; }
-        .topbar .meta { font-size: 0.9em; color: #7a8fa6; }
-        .topbar .meta span { color: #4a9eff; font-weight: 600; }
-        .topbar a { color: #5ba3f5; text-decoration: none; font-size: 0.95em; }
+        .topbar h2 { font-size: 1.35em; color: var(--fg-0); }
+        .topbar .meta { font-size: 0.9em; color: var(--fg-3); }
+        .topbar .meta span { color: var(--accent); font-weight: 600; }
+        .topbar a { color: var(--accent); text-decoration: none; font-size: 0.95em; }
         .topbar a:hover { text-decoration: underline; }
 
         /* Main layout */
@@ -46,8 +50,8 @@
         .point-list {
             width: 280px;
             min-width: 280px;
-            background: #101d33;
-            border-right: 1px solid #1e3050;
+            background: var(--bg-1);
+            border-right: 1px solid var(--border);
             overflow-y: auto;
             padding: 10px;
         }
@@ -59,21 +63,21 @@
             transition: background 0.15s;
             border: 2px solid transparent;
         }
-        .point-item:hover { background: #152238; }
-        .point-item.active { background: #1a3558; border-color: #4a9eff; }
+        .point-item:hover { background: var(--bg-3); }
+        .point-item.active { background: var(--bg-elevated); border-color: var(--accent); }
         .point-item .name-zh { font-weight: 600; font-size: 1.05em; }
-        .point-item .name-en { color: #7a8fa6; font-size: 0.88em; }
-        .point-item .coords { color: #5a7a9a; font-size: 0.82em; margin-top: 3px; }
-        .point-item .status-ok { color: #34d399; font-size: 0.82em; margin-top: 3px; }
-        .point-item .status-err { color: #f87171; font-size: 0.82em; margin-top: 3px; }
+        .point-item .name-en { color: var(--fg-3); font-size: 0.88em; }
+        .point-item .coords { color: var(--fg-4); font-size: 0.82em; margin-top: 3px; }
+        .point-item .status-ok { color: var(--success); font-size: 0.82em; margin-top: 3px; }
+        .point-item .status-err { color: var(--error); font-size: 0.82em; margin-top: 3px; }
         .point-item .thumb {
             width: 100%;
             aspect-ratio: 4 / 3;
             border-radius: 6px;
             overflow: hidden;
             margin-top: 8px;
-            border: 1px solid #1e3050;
-            background: #0d1a2e;
+            border: 1px solid var(--border);
+            background: var(--bg-2);
         }
         .point-item .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
@@ -97,9 +101,9 @@
             gap: 6px;
             padding: 9px 14px;
             background: rgba(16, 29, 51, 0.92);
-            border: 1px solid #1e3050;
+            border: 1px solid var(--border);
             border-radius: 8px;
-            color: #7a8fa6;
+            color: var(--fg-3);
             font-size: 0.92em;
             cursor: pointer;
             backdrop-filter: blur(8px);
@@ -107,8 +111,8 @@
             white-space: nowrap;
             font-family: inherit;
         }
-        .layer-btn:hover { background: rgba(26, 53, 88, 0.95); color: #e0e6ed; }
-        .layer-btn.active { background: rgba(26, 53, 88, 0.95); color: #fff; border-color: #4a9eff; }
+        .layer-btn:hover { background: rgba(26, 53, 88, 0.95); color: var(--fg-1); }
+        .layer-btn.active { background: rgba(26, 53, 88, 0.95); color: var(--fg-0); border-color: var(--accent); }
         .layer-btn .dot {
             width: 10px; height: 10px;
             border-radius: 50%;
@@ -116,7 +120,7 @@
         }
         .layer-group {
             background: rgba(16, 29, 51, 0.92);
-            border: 1px solid #1e3050;
+            border: 1px solid var(--border);
             border-radius: 8px;
             padding: 8px 10px;
             backdrop-filter: blur(8px);
@@ -126,21 +130,21 @@
             font-size: 0.72em;
             text-transform: uppercase;
             letter-spacing: 0.08em;
-            color: #7a8fa6;
+            color: var(--fg-3);
             margin-bottom: 4px;
         }
         .layer-select {
             width: 100%;
             background: rgba(10, 18, 32, 0.9);
-            color: #e0e6ed;
-            border: 1px solid #1e3050;
+            color: var(--fg-1);
+            border: 1px solid var(--border);
             border-radius: 6px;
             padding: 6px 8px;
             font-family: inherit;
             font-size: 0.9em;
             cursor: pointer;
         }
-        .layer-select:focus { outline: none; border-color: #4a9eff; }
+        .layer-select:focus { outline: none; border-color: var(--accent); }
 
         /* Scalar overlay color bar (temperature / humidity) */
         .scalar-bar {
@@ -151,14 +155,14 @@
             padding: 10px 14px;
             border-radius: 8px;
             z-index: 1000;
-            border: 1px solid #1e3050;
+            border: 1px solid var(--border);
             backdrop-filter: blur(8px);
             min-width: 220px;
             font-size: 0.85em;
-            color: #e0e6ed;
+            color: var(--fg-1);
             display: none;
         }
-        .scalar-bar-title { font-weight: 600; margin-bottom: 6px; color: #fff; }
+        .scalar-bar-title { font-weight: 600; margin-bottom: 6px; color: var(--fg-0); }
         .scalar-gradient {
             height: 10px;
             width: 100%;
@@ -169,7 +173,7 @@
             display: flex;
             justify-content: space-between;
             font-size: 0.82em;
-            color: #8a9bb5;
+            color: var(--fg-2);
         }
 
         /* Legend overlay */
@@ -182,11 +186,11 @@
             border-radius: 8px;
             font-size: 0.92em;
             z-index: 1000;
-            border: 1px solid #1e3050;
+            border: 1px solid var(--border);
             backdrop-filter: blur(8px);
         }
-        .legend-title { font-weight: 600; margin-bottom: 6px; color: #fff; }
-        .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; color: #8a9bb5; }
+        .legend-title { font-weight: 600; margin-bottom: 6px; color: var(--fg-0); }
+        .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; color: var(--fg-2); }
         .legend-color {
             width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0;
         }
@@ -204,11 +208,11 @@
             border-radius: 8px;
             font-size: 0.88em;
             z-index: 1000;
-            border: 1px solid #1e3050;
+            border: 1px solid var(--border);
             backdrop-filter: blur(8px);
             display: none;
         }
-        .velocity-bar-title { color: #fff; font-weight: 600; margin-bottom: 6px; font-size: 1em; }
+        .velocity-bar-title { color: var(--fg-0); font-weight: 600; margin-bottom: 6px; font-size: 1em; }
         .velocity-gradient {
             width: 12rem;
             height: 0.85rem;
@@ -218,7 +222,7 @@
         .velocity-labels {
             display: flex;
             justify-content: space-between;
-            color: #7a8fa6;
+            color: var(--fg-3);
             font-size: 0.9em;
         }
 
@@ -232,22 +236,59 @@
             border-radius: 8px;
             font-size: 0.95em;
             z-index: 1000;
-            border: 1px solid #1e3050;
+            border: 1px solid var(--border);
             max-width: 340px;
             backdrop-filter: blur(8px);
             display: none;
         }
-        .info-panel h4 { color: #fff; margin-bottom: 8px; font-size: 1.05em; }
-        .info-panel .info-row { color: #7a8fa6; margin-bottom: 4px; }
-        .info-panel .info-row span { color: #e0e6ed; font-weight: 600; }
+        .info-panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .info-panel h4 { color: var(--fg-0); font-size: 1.05em; }
+        .info-panel-toggle {
+            background: rgba(26, 53, 88, 0.6);
+            border: 1px solid var(--border-strong);
+            color: var(--fg-1);
+            width: 28px; height: 28px;
+            border-radius: 6px;
+            font-size: 1em;
+            line-height: 1;
+            cursor: pointer;
+            flex-shrink: 0;
+            font-family: inherit;
+            padding: 0;
+        }
+        .info-panel-toggle:hover { background: rgba(26, 53, 88, 0.95); }
+        .info-panel .info-row { color: var(--fg-3); margin-bottom: 4px; }
+        .info-panel .info-row span { color: var(--fg-1); font-weight: 600; }
+        .info-panel.collapsed .info-row,
+        .info-panel.collapsed .sim-image-wrap { display: none; }
+        .info-panel.collapsed .info-panel-header { margin-bottom: 0; }
         .info-panel .sim-image-wrap {
             margin-top: 10px;
             border-radius: 6px;
             overflow: hidden;
-            border: 1px solid #1e3050;
+            border: 1px solid var(--border);
             cursor: zoom-in;
+            aspect-ratio: 4 / 3;
+            background: var(--bg-2);
+            transition: max-height 0.25s ease, aspect-ratio 0.25s ease;
         }
-        .info-panel .sim-image-wrap img { display: block; width: 100%; height: auto; }
+        .info-panel .sim-image-wrap.shrunk {
+            aspect-ratio: auto;
+            max-height: 44px;
+        }
+        .info-panel .sim-image-wrap img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .info-panel .sim-image-wrap.shrunk img { object-position: center 30%; }
 
         /* Simulation image lightbox */
         .sim-lightbox {
@@ -272,9 +313,9 @@
             position: absolute;
             top: 18px;
             right: 22px;
-            color: #fff;
+            color: var(--fg-0);
             background: rgba(16, 29, 51, 0.8);
-            border: 1px solid #1e3050;
+            border: 1px solid var(--border);
             border-radius: 50%;
             width: 40px;
             height: 40px;
@@ -288,7 +329,7 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            color: #7a8fa6;
+            color: var(--fg-3);
             font-size: 1.1em;
             z-index: 1000;
         }
@@ -304,16 +345,16 @@
             gap: 12px;
             padding: 10px 16px;
             background: rgba(16, 29, 51, 0.95);
-            border: 1px solid #1e3050;
+            border: 1px solid var(--border);
             border-radius: 10px;
             backdrop-filter: blur(8px);
             z-index: 1000;
             width: min(calc(100% - 380px), 720px);
         }
         .tl-btn {
-            background: #1a3558;
-            color: #e0e6ed;
-            border: 1px solid #2c4f7a;
+            background: var(--bg-elevated);
+            color: var(--fg-1);
+            border: 1px solid var(--border-strong);
             border-radius: 50%;
             width: 2rem; height: 2rem;
             cursor: pointer;
@@ -322,13 +363,13 @@
             flex-shrink: 0;
             font-family: inherit;
         }
-        .tl-btn:hover { background: #2c4f7a; }
-        .tl-btn.playing { background: #2563eb; border-color: #2563eb; }
+        .tl-btn:hover { background: var(--border-strong); }
+        .tl-btn.playing { background: var(--accent-strong); border-color: var(--accent-strong); }
         .tl-info { display: flex; flex-direction: column; line-height: 1.15; flex-shrink: 0; min-width: 6rem; }
-        .tl-label { color: #4a9eff; font-weight: 700; font-size: 0.95em; }
-        .tl-time { color: #7a8fa6; font-size: 0.8em; }
-        .tl-range { flex: 1; accent-color: #4a9eff; cursor: pointer; min-width: 0; }
-        .tl-loading { color: #f59e0b; font-size: 1em; flex-shrink: 0; width: 1em; text-align: center; }
+        .tl-label { color: var(--accent); font-weight: 700; font-size: 0.95em; }
+        .tl-time { color: var(--fg-3); font-size: 0.8em; }
+        .tl-range { flex: 1; accent-color: var(--accent); cursor: pointer; min-width: 0; }
+        .tl-loading { color: var(--warn); font-size: 1em; flex-shrink: 0; width: 1em; text-align: center; }
 
         /* Windy-style forecast strip */
         .forecast-strip {
@@ -340,7 +381,7 @@
             gap: 8px;
             padding: 6px;
             background: rgba(16, 29, 51, 0.92);
-            border: 1px solid #1e3050;
+            border: 1px solid var(--border);
             border-radius: 10px;
             backdrop-filter: blur(8px);
             z-index: 1000;
@@ -356,19 +397,19 @@
             padding: 5px 10px 5px 5px;
             border-radius: 7px;
             border: 2px solid transparent;
-            background: #152238;
-            color: #c8d4e3;
+            background: var(--bg-3);
+            color: var(--fg-1);
             cursor: pointer;
             transition: all 0.15s;
             font-family: inherit;
             text-align: left;
         }
-        .strip-card:hover { background: #1a3558; border-color: #3a6ea5; }
-        .strip-card.active { border-color: #4a9eff; background: #1a3558; color: #fff; }
+        .strip-card:hover { background: var(--bg-elevated); border-color: var(--border-hover); }
+        .strip-card.active { border-color: var(--accent); background: var(--bg-elevated); color: var(--fg-0); }
         .strip-card .strip-thumb {
             width: 2.4rem;
             height: 2.4rem;
-            background: #0d1a2e;
+            background: var(--bg-2);
             border-radius: 4px;
             overflow: hidden;
             flex-shrink: 0;
@@ -379,51 +420,78 @@
         /* Responsive - Mobile */
         @media (max-width: 700px) {
             .topbar {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 4px;
-                padding: 10px 14px;
+                flex-direction: row;
+                align-items: center;
+                gap: 8px;
+                padding: 8px 12px;
             }
-            .topbar h2 { font-size: 1.05em; }
-            .topbar a { font-size: 0.82em; }
-            .topbar .meta { font-size: 0.75em; line-height: 1.4; }
+            .topbar h2 { font-size: 0.98em; line-height: 1.2; }
+            .topbar a { font-size: 0.78em; flex-shrink: 0; }
+            .topbar .meta { font-size: 0.72em; line-height: 1.35; color: var(--fg-2); }
 
             .main { flex-direction: column; }
 
+            /* Point list: horizontal scroll, compact chips, no thumbs */
             .point-list {
                 width: 100%; min-width: 0;
                 max-height: none;
                 display: flex; gap: 6px;
                 overflow-x: auto; overflow-y: hidden;
-                padding: 8px 10px;
+                padding: 6px 10px;
                 border-right: none;
-                border-bottom: 1px solid #1e3050;
+                border-bottom: 1px solid var(--border);
                 -webkit-overflow-scrolling: touch;
                 scrollbar-width: none;
+                scroll-snap-type: x mandatory;
+                flex-shrink: 0;
             }
             .point-list::-webkit-scrollbar { display: none; }
             .point-item {
-                min-width: 140px;
-                max-width: 180px;
+                min-width: auto;
+                max-width: none;
                 margin-bottom: 0;
-                padding: 10px;
+                padding: 7px 11px;
                 flex-shrink: 0;
                 scroll-snap-align: start;
+                border-width: 1px;
+                border-radius: 999px;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
             }
-            .point-list { scroll-snap-type: x mandatory; }
-            .point-item .name-zh { font-size: 0.92em; }
-            .point-item .name-en { font-size: 0.78em; }
-            .point-item .coords { font-size: 0.72em; }
-            .point-item .thumb { display: none; margin-top: 6px; aspect-ratio: 16 / 10; }
-            .point-item.active .thumb { display: block; }
+            .point-item .name-zh { font-size: 0.88em; font-weight: 600; line-height: 1.15; }
+            .point-item .name-en,
+            .point-item .coords,
+            .point-item .status-ok,
+            .point-item .status-err { display: none; }
+            /* Image belongs to the info-panel only on mobile; hide card thumb
+               in every state so the chip stays compact. */
+            .point-item .thumb,
+            .point-item.active .thumb { display: none; }
 
             .map-area { flex: 1; min-height: 0; }
 
-            /* Layer controls - horizontal on mobile */
+            /* Layer controls - compact pill row; dropdowns become inline */
             .layer-controls {
-                top: 8px; left: 8px;
+                top: 8px; left: 8px; right: 8px;
                 flex-direction: row;
-                gap: 4px;
+                flex-wrap: wrap;
+                gap: 6px;
+            }
+            .layer-group {
+                padding: 5px 8px;
+                min-width: 0;
+                flex: 1 1 calc(50% - 3px);
+                max-width: calc(50% - 3px);
+            }
+            .layer-group-title {
+                font-size: 0.6em;
+                margin-bottom: 2px;
+                letter-spacing: 0.06em;
+            }
+            .layer-select {
+                padding: 4px 6px;
+                font-size: 0.78em;
             }
             .layer-btn {
                 padding: 6px 10px;
@@ -431,57 +499,85 @@
                 border-radius: 6px;
             }
 
+            /* Info panel: compact bottom sheet above the timeline */
             .info-panel {
                 top: auto;
-                bottom: 60px;
-                right: 10px;
-                left: 10px;
+                bottom: 64px;
+                right: 8px;
+                left: 8px;
                 max-width: none;
-                font-size: 0.82em;
-                padding: 10px 14px;
+                font-size: 0.8em;
+                padding: 10px 12px;
+                max-height: 52vh;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
             }
-            .info-panel h4 { font-size: 0.95em; }
+            .info-panel h4 { font-size: 0.95em; margin-bottom: 4px; }
+            .info-panel .info-row { margin-bottom: 2px; font-size: 0.9em; }
+            .info-panel .sim-image-wrap {
+                margin-top: 8px;
+                aspect-ratio: 16 / 11;
+            }
 
             .legend {
                 bottom: 12px;
                 left: 10px;
-                padding: 8px 12px;
-                font-size: 0.75em;
+                padding: 6px 10px;
+                font-size: 0.7em;
             }
-            .legend-color { width: 12px; height: 12px; }
-            .legend-line { width: 16px; height: 3px; }
+            .legend-title { margin-bottom: 3px; }
+            .legend-item { margin-bottom: 2px; gap: 6px; }
+            .legend-color { width: 10px; height: 10px; }
+            .legend-line { width: 14px; height: 2px; }
 
             .velocity-bar {
                 bottom: 12px;
                 right: 10px;
-                padding: 8px 10px;
+                padding: 6px 10px;
+                font-size: 0.75em;
             }
-            .velocity-gradient { width: 120px; height: 10px; }
+            .velocity-bar-title { font-size: 0.9em; margin-bottom: 3px; }
+            .velocity-gradient { width: 100px; height: 8px; }
+
+            .scalar-bar {
+                bottom: 64px;
+                right: 8px;
+                left: 8px;
+                padding: 8px 12px;
+                min-width: 0;
+                font-size: 0.78em;
+            }
 
             /* Hide strip on mobile (sidebar list serves same purpose) */
             .forecast-strip { display: none; }
 
-            /* Timeline - full width on mobile */
+            /* Timeline - full width on mobile, hugging bottom safe area */
             .timeline {
-                width: calc(100% - 20px);
-                left: 10px;
-                right: 10px;
+                width: calc(100% - 16px);
+                left: 8px;
+                right: 8px;
                 transform: none;
-                bottom: 10px;
-                padding: 8px 12px;
+                bottom: max(8px, env(safe-area-inset-bottom, 8px));
+                padding: 7px 10px;
                 gap: 8px;
+                border-radius: 12px;
             }
-            .tl-info { min-width: 4.5rem; }
-            .tl-label { font-size: 0.85em; }
-            .tl-time { font-size: 0.7em; }
+            .tl-btn { width: 1.8rem; height: 1.8rem; font-size: 0.8em; }
+            .tl-info { min-width: 4.2rem; }
+            .tl-label { font-size: 0.82em; }
+            .tl-time { font-size: 0.68em; }
         }
 
         @media (max-width: 380px) {
-            .topbar { padding: 8px 10px; }
-            .topbar h2 { font-size: 0.95em; }
-            .point-list { padding: 6px 8px; }
-            .point-item { min-width: 115px; padding: 8px; }
+            .topbar { padding: 6px 10px; gap: 6px; }
+            .topbar h2 { font-size: 0.88em; }
+            .topbar a { font-size: 0.72em; }
+            .point-list { padding: 5px 8px; gap: 5px; }
+            .point-item { padding: 6px 9px; }
+            .point-item .name-zh { font-size: 0.82em; }
             .layer-btn { padding: 5px 8px; font-size: 0.7em; }
+            .layer-select { font-size: 0.72em; }
+            .info-panel { font-size: 0.75em; padding: 8px 10px; }
         }
     </style>
 </head>
@@ -491,12 +587,16 @@
             <h2>Taiwan Waters Drift Forecast</h2>
             <div class="meta" id="metaInfo"></div>
         </div>
-        <a href="index.html">&larr; Custom Simulation</a>
+        <div>
+            <a href="index.html">&larr; Custom Simulation</a>
+            &nbsp;|&nbsp;
+            <a href="tide.html">Tide &rarr;</a>
+        </div>
     </div>
 
     <div class="main">
         <div class="point-list" id="pointList">
-            <div style="padding:20px;color:#7a8fa6;text-align:center;">Loading...</div>
+            <div style="padding:20px;color:var(--fg-3);text-align:center;">Loading...</div>
         </div>
         <div class="map-area">
             <div id="map"></div>
@@ -576,7 +676,11 @@
             </div>
 
             <div class="info-panel" id="infoPanel">
-                <h4 id="infoPanelTitle"></h4>
+                <div class="info-panel-header">
+                    <h4 id="infoPanelTitle"></h4>
+                    <button type="button" class="info-panel-toggle" id="infoPanelToggle"
+                        aria-label="Collapse panel" title="Collapse / expand">&#x2212;</button>
+                </div>
                 <div class="info-row">Location: <span id="infoPanelCoords"></span></div>
                 <div class="info-row">Particles: <span id="infoPanelParticles"></span></div>
                 <div class="info-row">Duration: <span id="infoPanelDuration"></span></div>
@@ -720,7 +824,14 @@ function selectScalarOverlay(name) {
         return;
     }
     bar.style.display = 'block';
-    updateScalarBar(activeScalarLayer);
+    // Seed the color bar with the unit + placeholder range; renderScalarOverlay
+    // will replace it with per-frame p5/p95 once the first frame arrives.
+    var info = SCALAR_UNITS[scalarKind(activeScalarLayer)];
+    document.getElementById('scalarBarTitle').textContent = scalarLabel(activeScalarLayer) + ' (loading…)';
+    document.getElementById('scalarGradient').style.background = SCALAR_GRADIENTS[scalarKind(activeScalarLayer)];
+    document.getElementById('scalarMin').textContent = '';
+    document.getElementById('scalarMid').textContent = '';
+    document.getElementById('scalarMax').textContent = info.unit;
     if (framesIndex) setForecastHour(currentFrameHour);
 }
 
@@ -739,10 +850,12 @@ function updateVelocityBar(title, maxVal, type) {
 
 // ── Scalar overlay (temperature / humidity) ──
 
-// Temperature colormap range (display in °C) and RH in %.
-var SCALAR_RANGE = {
-    temp: { min: -10, max: 40, unit: '°C', offsetK: -273.15 },  // K → °C
-    rh:   { min: 0,   max: 100, unit: '%',  offsetK: 0 },
+// Display units only — the actual min/max is computed per-frame so color
+// contrast adapts to the region instead of wasting most of the gradient
+// on temperatures that never occur in Taiwan.
+var SCALAR_UNITS = {
+    temp: { unit: '°C', offsetK: -273.15 },
+    rh:   { unit: '%',  offsetK: 0 },
 };
 var SCALAR_GRADIENTS = {
     temp: 'linear-gradient(to right, #3b4cca, #4a9eff, #26c6da, #76ff03, #ffeb3b, #ff9800, #f44336)',
@@ -753,13 +866,18 @@ function scalarKind(name) {
     return name.indexOf('temp_') === 0 ? 'temp' : 'rh';
 }
 
-function updateScalarBar(name) {
+// Current scalar render range (updated per-frame by renderScalarOverlay).
+var scalarActiveRange = { min: 0, max: 1, unit: '' };
+
+function updateScalarBar(name, rangeOverride) {
     var kind = scalarKind(name);
-    var r = SCALAR_RANGE[kind];
+    var info = SCALAR_UNITS[kind];
+    var r = rangeOverride || scalarActiveRange;
+    var digits = (Math.abs(r.max - r.min) >= 20) ? 0 : 1;
     document.getElementById('scalarBarTitle').textContent = scalarLabel(name);
-    document.getElementById('scalarMin').textContent = r.min + ' ' + r.unit;
-    document.getElementById('scalarMid').textContent = ((r.min + r.max) / 2) + ' ' + r.unit;
-    document.getElementById('scalarMax').textContent = r.max + ' ' + r.unit;
+    document.getElementById('scalarMin').textContent = r.min.toFixed(digits) + ' ' + info.unit;
+    document.getElementById('scalarMid').textContent = ((r.min + r.max) / 2).toFixed(digits) + ' ' + info.unit;
+    document.getElementById('scalarMax').textContent = r.max.toFixed(digits) + ' ' + info.unit;
     document.getElementById('scalarGradient').style.background = SCALAR_GRADIENTS[kind];
 }
 
@@ -795,6 +913,22 @@ var SCALAR_STOPS = {
     rh:   ['#fff3bf', '#d0ebff', '#74c0fc', '#339af0', '#1864ab'],
 };
 
+// Percentile of a numeric array (0..1). Uses a copy-sort; the grids here are
+// small (36×26 ≈ 936 samples) so this is cheap per frame.
+function percentile(arr, p) {
+    var sorted = arr.slice().sort(function(a, b) { return a - b; });
+    var idx = Math.max(0, Math.min(sorted.length - 1, Math.round(p * (sorted.length - 1))));
+    return sorted[idx];
+}
+
+// Round a number to a "nice" scale boundary so the color bar shows 10, 15,
+// 20 rather than 13.7, 17.2, 20.6.
+function niceRound(v, direction) {
+    if (!isFinite(v)) return v;
+    var step = Math.abs(v) >= 50 ? 5 : (Math.abs(v) >= 10 ? 1 : 0.5);
+    return direction === 'down' ? Math.floor(v / step) * step : Math.ceil(v / step) * step;
+}
+
 // Render a scalar JSON component as a colorized Leaflet image overlay.
 function renderScalarOverlay(data, layerName) {
     if (!data || !data[0] || !data[0].header) return;
@@ -803,8 +937,19 @@ function renderScalarOverlay(data, layerName) {
     var nx = h.nx, ny = h.ny;
     var values = comp.data;
     var kind = scalarKind(layerName);
-    var range = SCALAR_RANGE[kind];
+    var info = SCALAR_UNITS[kind];
     var stops = SCALAR_STOPS[kind];
+
+    // Auto-scale the color range from this frame's data distribution. p5/p95
+    // keeps outliers from stretching the scale while still covering almost
+    // all pixels with meaningful color gradient.
+    var displayVals = new Array(values.length);
+    for (var k = 0; k < values.length; k++) displayVals[k] = values[k] + info.offsetK;
+    var lo = niceRound(percentile(displayVals, 0.05), 'down');
+    var hi = niceRound(percentile(displayVals, 0.95), 'up');
+    if (hi - lo < 1) { hi = lo + 1; }  // guard against flat fields
+    scalarActiveRange = { min: lo, max: hi, unit: info.unit };
+    updateScalarBar(layerName, scalarActiveRange);
 
     // Build a canvas colorized pixel-per-grid-cell, then wrap as imageOverlay.
     var canvas = document.createElement('canvas');
@@ -814,17 +959,14 @@ function renderScalarOverlay(data, layerName) {
     var img = ctx.createImageData(nx, ny);
 
     for (var i = 0; i < values.length; i++) {
-        var v = values[i];
-        // leaflet-velocity / our scalar JSON replaces NaN with 0; treat strict 0 (K) / 0 RH edge cases
-        // as valid — if you need masking, handle here.
-        var valDisplay = v + range.offsetK;
-        var t = (valDisplay - range.min) / (range.max - range.min);
+        var valDisplay = displayVals[i];
+        var t = (valDisplay - lo) / (hi - lo);
         var rgb = interpColor(stops, Math.max(0, Math.min(1, t)));
         var off = i * 4;
         img.data[off]     = rgb[0];
         img.data[off + 1] = rgb[1];
         img.data[off + 2] = rgb[2];
-        img.data[off + 3] = 160;  // ~63% opacity per-pixel
+        img.data[off + 3] = 170;  // ~67% opacity per-pixel
     }
     ctx.putImageData(img, 0, 0);
 
@@ -846,6 +988,7 @@ function renderScalarOverlay(data, layerName) {
     scalarOverlayImage = L.imageOverlay(canvas.toDataURL('image/png'), bounds, {
         opacity: 0.85,
         interactive: false,
+        className: 'scalar-overlay-img',
     });
     scalarOverlayImage.addTo(map);
     // Push scalar below vector flow lines.
@@ -903,7 +1046,7 @@ function fetchFrame(type, hour) {
     }
     var loading = document.getElementById('tlLoading');
     if (loading) loading.style.display = 'inline-block';
-    return fetch(frameUrl(type, hour))
+    return fetch(frameUrl(type, hour) + '?t=' + Date.now())
         .then(function(r) { if (!r.ok) throw new Error('frame ' + hour + ' missing'); return r.json(); })
         .then(function(data) {
             if (isLegacy) frameCache[type][hour] = data;
@@ -999,7 +1142,7 @@ function buildVelocityLayerWithData(type, data) {
 }
 
 function initFromFrames() {
-    return fetch(FRAMES_INDEX_URL).then(function(r) {
+    return fetch(FRAMES_INDEX_URL + '?t=' + Date.now()).then(function(r) {
         if (!r.ok) throw new Error('no frames');
         return r.json();
     }).then(function(idx) {
@@ -1187,13 +1330,44 @@ function selectPoint(id) {
     }
 }
 
-// Lightbox for simulation image
+// Lightbox + collapse/shrink controls for simulation image
 (function() {
     var lb = document.getElementById('simLightbox');
     var lbImg = document.getElementById('simLightboxImg');
     var lbClose = document.getElementById('simLightboxClose');
     var wrap = document.getElementById('infoPanelImageWrap');
     var thumb = document.getElementById('infoPanelImage');
+    var panel = document.getElementById('infoPanel');
+    var toggleBtn = document.getElementById('infoPanelToggle');
+
+    // Three states cycle on toggle. Default is "shrunk" (44px strip) so the
+    // image hints at content without dominating the bottom of the screen.
+    // Cycle: shrunk → collapsed (title only) → full → shrunk …
+    var STATES = ['shrunk', 'collapsed', 'full'];
+    var saved = localStorage.getItem('seacurrent.infoPanel');
+    var state = STATES.indexOf(saved) >= 0 ? saved : 'shrunk';
+
+    function applyState() {
+        panel.classList.toggle('collapsed', state === 'collapsed');
+        wrap.classList.toggle('shrunk', state === 'shrunk');
+        // Icon hints at the next state in the cycle.
+        toggleBtn.innerHTML = state === 'shrunk' ? '&#x2715;' :    // ✕ → next: hide
+            state === 'collapsed' ? '&#x25BC;' :                   // ▼ → next: expand
+            '&#x2013;';                                            // – → next: shrink
+        toggleBtn.title = state === 'shrunk' ? 'Hide image'
+            : state === 'collapsed' ? 'Expand'
+            : 'Shrink image';
+    }
+    function cycle() {
+        state = STATES[(STATES.indexOf(state) + 1) % STATES.length];
+        localStorage.setItem('seacurrent.infoPanel', state);
+        applyState();
+    }
+    toggleBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        cycle();
+    });
+    applyState();
 
     function open() {
         if (!thumb.src) return;
@@ -1300,32 +1474,40 @@ loadForecast();
 /* Popup & tooltip styles */
 .img-popup .leaflet-popup-content-wrapper {
     background: rgba(16,29,51,0.95) !important;
-    color: #e0e6ed !important;
-    border: 1px solid #1e3050 !important;
+    color: var(--fg-1) !important;
+    border: 1px solid var(--border) !important;
     border-radius: 8px !important;
 }
 .img-popup .leaflet-popup-content { margin: 10px 12px !important; }
 .img-popup .leaflet-popup-tip { background: rgba(16,29,51,0.95) !important; }
-.img-popup .leaflet-popup-close-button { color: #7a8fa6 !important; font-size: 20px !important; }
+.img-popup .leaflet-popup-close-button { color: var(--fg-3) !important; font-size: 20px !important; }
 .point-tooltip {
     background: rgba(16,29,51,0.9) !important;
-    color: #e0e6ed !important;
-    border: 1px solid #1e3050 !important;
+    color: var(--fg-1) !important;
+    border: 1px solid var(--border) !important;
     border-radius: 4px !important;
     font-size: 0.95em !important;
     padding: 3px 8px !important;
     font-weight: 600 !important;
     box-shadow: none !important;
 }
-.point-tooltip::before { border-right-color: #1e3050 !important; }
+.point-tooltip::before { border-right-color: var(--border) !important; }
+
+/* Smooth interpolation for the coarse-grid scalar overlay so the 36×26
+   canvas doesn't render as visible pixel blocks on high-DPI displays. */
+.scalar-overlay-img {
+    image-rendering: auto !important;
+    image-rendering: smooth !important;
+    -ms-interpolation-mode: bicubic !important;
+}
 
 /* Override leaflet-velocity display panel */
 .leaflet-control-velocity {
     background: rgba(16,29,51,0.9) !important;
-    color: #e0e6ed !important;
+    color: var(--fg-1) !important;
     padding: 5px 12px !important;
     border-radius: 6px !important;
-    border: 1px solid #1e3050 !important;
+    border: 1px solid var(--border) !important;
     font-size: 0.9em !important;
     backdrop-filter: blur(8px) !important;
 }
