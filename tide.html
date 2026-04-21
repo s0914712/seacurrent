@@ -115,6 +115,36 @@
         .filter-row select:focus,
         .filter-row input:focus { outline: none; border-color: var(--accent); }
 
+        .tide-chart-wrap {
+            display: none;
+            padding: 8px 12px 6px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-2);
+        }
+        .tide-chart-wrap canvas {
+            display: block;
+            width: 100%;
+            height: 170px;
+        }
+        .tide-chart-legend {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+            padding-top: 4px;
+            font-size: 0.75em;
+            color: var(--fg-3);
+        }
+        .tide-chart-legend span { display: inline-flex; align-items: center; gap: 4px; }
+        .tide-chart-legend .sw {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: var(--fg-2);
+            display: inline-block;
+        }
+        .tide-chart-legend .sw.high { background: var(--accent); }
+        .tide-chart-legend .sw.low  { background: var(--warn); }
+        .tide-chart-legend .unit { margin-left: auto; color: var(--fg-4); }
+
         .tide-list {
             flex: 1;
             overflow-y: auto;
@@ -319,6 +349,15 @@
                 <div>
                     <label for="fltTo">To</label>
                     <input type="date" id="fltTo">
+                </div>
+            </div>
+
+            <div class="tide-chart-wrap" id="tideChartWrap">
+                <canvas id="tideChart"></canvas>
+                <div class="tide-chart-legend">
+                    <span><i class="sw high"></i>滿潮</span>
+                    <span><i class="sw low"></i>乾潮</span>
+                    <span class="unit">cm (AboveTWVD)</span>
                 </div>
             </div>
 
@@ -538,7 +577,207 @@ function renderTide(payload) {
     listEl.innerHTML = html;
     listEl.scrollTop = 0;
     updatePagination(days.length);
+
+    // Wave chart over the same window the list is showing.
+    lastChartPoints = buildChartPoints(days);
+    renderTideChart(lastChartPoints);
 }
+
+// ── Tide wave chart (time × height) ──
+
+var lastChartPoints = [];
+
+function buildChartPoints(days) {
+    var points = [];
+    days.forEach(function(day) {
+        (day.Time || []).forEach(function(t) {
+            var date = new Date(t.DateTime || '');
+            if (isNaN(date.getTime())) return;
+            var th = t.TideHeights || {};
+            var h = null;
+            if (th.AboveTWVD != null && th.AboveTWVD !== '') h = parseFloat(th.AboveTWVD);
+            else if (th.AboveLocalMSL != null) h = parseFloat(th.AboveLocalMSL);
+            else if (th.AboveChartDatum != null) h = parseFloat(th.AboveChartDatum);
+            if (h == null || isNaN(h)) return;
+            var tide = t.Tide || '';
+            var type = 'other';
+            if (tide.indexOf('滿') !== -1 || tide.indexOf('高') !== -1) type = 'high';
+            else if (tide.indexOf('乾') !== -1 || tide.indexOf('低') !== -1) type = 'low';
+            points.push({ t: date, h: h, tide: tide, type: type });
+        });
+    });
+    points.sort(function(a, b) { return a.t - b.t; });
+    return points;
+}
+
+function hideTideChart() {
+    var wrap = document.getElementById('tideChartWrap');
+    if (wrap) wrap.style.display = 'none';
+}
+
+function renderTideChart(points) {
+    var wrap = document.getElementById('tideChartWrap');
+    var canvas = document.getElementById('tideChart');
+    if (!wrap || !canvas || points.length < 2) {
+        if (wrap) wrap.style.display = 'none';
+        return;
+    }
+    wrap.style.display = 'block';
+
+    var dpr = window.devicePixelRatio || 1;
+    var cssW = wrap.clientWidth - 24; // account for horizontal padding
+    if (cssW <= 0) cssW = 280;
+    var cssH = 170;
+    canvas.width = Math.round(cssW * dpr);
+    canvas.height = Math.round(cssH * dpr);
+    canvas.style.width = cssW + 'px';
+    canvas.style.height = cssH + 'px';
+
+    var ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, cssW, cssH);
+
+    var styles = getComputedStyle(document.body);
+    var COLOR_ACCENT = (styles.getPropertyValue('--accent') || '#4a9eff').trim();
+    var COLOR_WARN   = (styles.getPropertyValue('--warn')   || '#f59e0b').trim();
+    var COLOR_FG3    = (styles.getPropertyValue('--fg-3')   || '#7a8fa6').trim();
+    var COLOR_FG4    = (styles.getPropertyValue('--fg-4')   || '#5a7a9a').trim();
+    var COLOR_GRID   = 'rgba(255,255,255,0.06)';
+
+    var padL = 38, padR = 10, padT = 12, padB = 24;
+    var innerW = cssW - padL - padR;
+    var innerH = cssH - padT - padB;
+
+    var tMin = points[0].t.getTime();
+    var tMax = points[points.length - 1].t.getTime();
+    if (tMax === tMin) tMax = tMin + 3600 * 1000;
+    var tRange = tMax - tMin;
+
+    var hVals = points.map(function(p) { return p.h; });
+    var hMin = Math.min.apply(null, hVals);
+    var hMax = Math.max.apply(null, hVals);
+    var hPad = Math.max((hMax - hMin) * 0.2, 5);
+    var yMin = hMin - hPad;
+    var yMax = hMax + hPad;
+    var yRange = yMax - yMin || 1;
+
+    function xOf(t) { return padL + (t.getTime() - tMin) / tRange * innerW; }
+    function yOf(h) { return padT + (yMax - h) / yRange * innerH; }
+
+    // Horizontal gridlines + Y labels (min / mid / max)
+    ctx.font = '10px -apple-system, "Segoe UI", sans-serif';
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'right';
+    ctx.strokeStyle = COLOR_GRID;
+    ctx.lineWidth = 1;
+    [yMin, (yMin + yMax) / 2, yMax].forEach(function(v) {
+        var y = yOf(v);
+        ctx.beginPath();
+        ctx.moveTo(padL, y);
+        ctx.lineTo(padL + innerW, y);
+        ctx.stroke();
+        ctx.fillStyle = COLOR_FG3;
+        ctx.fillText(Math.round(v).toString(), padL - 4, y);
+    });
+    // Zero line (mean sea level) if inside range
+    if (yMin < 0 && yMax > 0) {
+        var yz = yOf(0);
+        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(padL, yz);
+        ctx.lineTo(padL + innerW, yz);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
+
+    // Vertical ticks at each local-day 00:00
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    var startDay = new Date(points[0].t);
+    startDay.setHours(0, 0, 0, 0);
+    var spanDays = tRange / 86400000;
+    var stepDays = spanDays <= 3 ? 1 : spanDays <= 10 ? 2 : Math.ceil(spanDays / 6);
+    for (var day = new Date(startDay); day.getTime() <= tMax; day.setDate(day.getDate() + stepDays)) {
+        var tt = day.getTime();
+        if (tt < tMin) continue;
+        var x = xOf(day);
+        ctx.strokeStyle = COLOR_GRID;
+        ctx.beginPath();
+        ctx.moveTo(x, padT);
+        ctx.lineTo(x, padT + innerH);
+        ctx.stroke();
+        ctx.fillStyle = COLOR_FG3;
+        ctx.fillText((day.getMonth() + 1) + '/' + day.getDate(), x, padT + innerH + 4);
+    }
+
+    // Project points
+    var proj = points.map(function(p) { return { x: xOf(p.t), y: yOf(p.h), d: p }; });
+
+    // Smooth curve via Catmull-Rom → cubic Bezier. Tide data only carries
+    // extrema (2–4 per day) so this interpolation is what makes it look
+    // like a wave rather than a polyline zigzag.
+    function traceCurve() {
+        ctx.beginPath();
+        ctx.moveTo(proj[0].x, proj[0].y);
+        for (var i = 0; i < proj.length - 1; i++) {
+            var p0 = proj[i - 1] || proj[i];
+            var p1 = proj[i];
+            var p2 = proj[i + 1];
+            var p3 = proj[i + 2] || p2;
+            var c1x = p1.x + (p2.x - p0.x) / 6;
+            var c1y = p1.y + (p2.y - p0.y) / 6;
+            var c2x = p2.x - (p3.x - p1.x) / 6;
+            var c2y = p2.y - (p3.y - p1.y) / 6;
+            ctx.bezierCurveTo(c1x, c1y, c2x, c2y, p2.x, p2.y);
+        }
+    }
+
+    // Area fill under curve
+    var grad = ctx.createLinearGradient(0, padT, 0, padT + innerH);
+    grad.addColorStop(0, hexToRgba(COLOR_ACCENT, 0.35));
+    grad.addColorStop(1, hexToRgba(COLOR_ACCENT, 0));
+    traceCurve();
+    ctx.lineTo(proj[proj.length - 1].x, padT + innerH);
+    ctx.lineTo(proj[0].x, padT + innerH);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Curve stroke
+    traceCurve();
+    ctx.strokeStyle = COLOR_ACCENT;
+    ctx.lineWidth = 2;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+
+    // Point markers
+    proj.forEach(function(p) {
+        var fill = p.d.type === 'high' ? COLOR_ACCENT :
+                   p.d.type === 'low'  ? COLOR_WARN   : COLOR_FG4;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 3.5, 0, Math.PI * 2);
+        ctx.fillStyle = fill;
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(10,18,32,0.9)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+    });
+}
+
+function hexToRgba(hex, a) {
+    hex = (hex || '').trim().replace('#', '');
+    if (hex.length === 3) hex = hex.split('').map(function(c) { return c + c; }).join('');
+    if (hex.length !== 6) return 'rgba(74,158,255,' + a + ')';
+    var r = parseInt(hex.substr(0, 2), 16);
+    var g = parseInt(hex.substr(2, 2), 16);
+    var b = parseInt(hex.substr(4, 2), 16);
+    return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
+}
+
+window.addEventListener('resize', function() {
+    if (lastChartPoints && lastChartPoints.length >= 2) renderTideChart(lastChartPoints);
+});
 
 function renderDay(day) {
     var date = day.Date || '';
