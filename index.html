@@ -196,6 +196,33 @@
         .map-layer-btn .dot {
             width: 0.6em; height: 0.6em; border-radius: 50%; flex-shrink: 0;
         }
+        .layer-group {
+            background: rgba(16, 29, 51, 0.92);
+            border: 1px solid #1e3050;
+            border-radius: 8px;
+            padding: 8px 10px;
+            backdrop-filter: blur(8px);
+            min-width: 180px;
+        }
+        .layer-group-title {
+            font-size: 0.72em;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #7a8fa6;
+            margin-bottom: 4px;
+        }
+        .layer-select {
+            width: 100%;
+            background: rgba(10, 18, 32, 0.9);
+            color: #e0e6ed;
+            border: 1px solid #1e3050;
+            border-radius: 6px;
+            padding: 6px 8px;
+            font-family: inherit;
+            font-size: 0.9em;
+            cursor: pointer;
+        }
+        .layer-select:focus { outline: none; border-color: #4a9eff; }
 
         /* Timeline scrubber */
         .timeline {
@@ -335,13 +362,11 @@
                 border-radius: 6px;
             }
 
-            /* Layer buttons - compact pill row */
+            /* Layer controls - compact on mobile */
             .map-layer-controls { top: 10px; left: 10px; bottom: auto; gap: 4px; }
-            .map-layer-btn {
-                padding: 7px 12px;
-                font-size: 0.82em;
-                min-height: 36px;
-            }
+            .layer-group { min-width: 140px; padding: 6px 8px; }
+            .layer-group-title { font-size: 0.62em; margin-bottom: 3px; }
+            .layer-select { padding: 5px 6px; font-size: 0.8em; }
 
             /* Velocity bar - compact on mobile */
             .velocity-bar {
@@ -483,15 +508,18 @@
                 <div>Cursor: <span class="coord-display" id="cursorCoords">--</span></div>
             </div>
             <div class="map-layer-controls">
-                <button class="map-layer-btn active" id="btnCurrentIdx" onclick="toggleIdxLayer('current')">
-                    <span class="dot" style="background:#4af;"></span> Current
-                </button>
-                <button class="map-layer-btn" id="btnWindIdx" onclick="toggleIdxLayer('wind')">
-                    <span class="dot" style="background:#f5f5f5;"></span> Wind
-                </button>
-                <button class="map-layer-btn" id="btnOffIdx" onclick="toggleIdxLayer('off')">
-                    Off
-                </button>
+                <div class="layer-group">
+                    <div class="layer-group-title">Vector flow</div>
+                    <select id="vectorLayerSel" class="layer-select" onchange="selectVectorLayer(this.value)">
+                        <option value="current">Ocean current</option>
+                        <option value="wind">Wind (surface)</option>
+                        <option value="wind_10m">Wind 10 m (GFS)</option>
+                        <option value="wind_850hPa">Wind 850 hPa</option>
+                        <option value="wind_925hPa">Wind 925 hPa</option>
+                        <option value="wind_1000hPa">Wind 1000 hPa</option>
+                        <option value="off">Off</option>
+                    </select>
+                </div>
             </div>
 
             <div class="velocity-bar" id="idxVelocityBar">
@@ -634,33 +662,27 @@ var idxCurrentLayer = null;
 var idxWindLayer = null;
 var idxActiveLayer = 'current';
 
+// GFS multi-level vector layers (per layer id → L.velocityLayer instance)
+var gfsVectorLayers = {};
+var gfsLayerMeta = {};        // layer id → {type, base_time, hours, step, units, level}
+var scalarFrameCache = {};    // "name|hour" → raw JSON
+
+function isGfsVector(type) { return type && type.indexOf('wind_') === 0; }
+
+function vectorLabel(type) {
+    if (type === 'wind_10m') return 'Wind 10 m (GFS)';
+    if (type === 'wind_850hPa') return 'Wind 850 hPa';
+    if (type === 'wind_925hPa') return 'Wind 925 hPa';
+    if (type === 'wind_1000hPa') return 'Wind 1000 hPa';
+    return type;
+}
+
 function loadIdxVelocity(url, type) {
     return fetch(url + '?t=' + Date.now())
         .then(function(r) { return r.ok ? r.json() : null; })
         .then(function(data) {
             if (!data) return null;
-            var isCurrent = type === 'current';
-            var layer = L.velocityLayer({
-                displayValues: true,
-                displayOptions: {
-                    velocityType: isCurrent ? 'Ocean Current' : 'Wind',
-                    displayPosition: 'bottomleft',
-                    displayEmptyString: '',
-                    speedUnit: 'm/s',
-                },
-                data: data,
-                maxVelocity: isCurrent ? 1.5 : 15,
-                velocityScale: isCurrent ? 0.01 : 0.005,
-                particleAge: 60,
-                lineWidth: isCurrent ? 2 : 1.5,
-                particleMultiplier: 1 / 250,
-                colorScale: isCurrent
-                    ? ["#1a237e","#1565c0","#42a5f5","#29b6f6","#26c6da","#00e5ff","#76ff03","#ffeb3b","#ff9800","#f44336"]
-                    : ["#364fc7","#4c6ef5","#748ffc","#91a7ff","#bac8ff","#dbe4ff","#f8f9fa","#ffe8cc","#ffc078","#ff922b"],
-                frameRate: 30,
-                opacity: 0.85,
-            });
-            if (isCurrent) idxCurrentLayer = layer; else idxWindLayer = layer;
+            var layer = buildIdxVelocityLayerWithData(type, data);
             return layer;
         })
         .catch(function() { return null; });
@@ -676,29 +698,43 @@ function updateIdxVelocityBar(type) {
     if (type === 'off') { bar.classList.remove('visible'); return; }
     bar.classList.add('visible');
     var isCurrent = type === 'current';
-    document.getElementById('idxVelocityBarTitle').textContent = isCurrent ? 'Ocean Current (m/s)' : 'Wind (m/s)';
-    document.getElementById('idxVelocityGradient').style.background = IDX_GRADIENTS[type];
-    var max = isCurrent ? 1.5 : 15;
+    var isGfsWind = isGfsVector(type);
+    var title;
+    if (isCurrent) title = 'Ocean Current (m/s)';
+    else if (isGfsWind) title = vectorLabel(type) + ' (m/s)';
+    else title = 'Wind (m/s)';
+    document.getElementById('idxVelocityBarTitle').textContent = title;
+    document.getElementById('idxVelocityGradient').style.background =
+        isCurrent ? IDX_GRADIENTS.current : IDX_GRADIENTS.wind;
+    var max = isCurrent ? 1.5 : (isGfsWind && type !== 'wind_10m' ? 30 : 15);
     document.getElementById('idxVelocityMax').textContent = max;
     document.getElementById('idxVelocityMid').textContent = (max / 2);
 }
 
-function toggleIdxLayer(type) {
-    idxActiveLayer = type;
-    document.getElementById('btnCurrentIdx').classList.toggle('active', type === 'current');
-    document.getElementById('btnWindIdx').classList.toggle('active', type === 'wind');
-    document.getElementById('btnOffIdx').classList.toggle('active', type === 'off');
-
+function removeAllVectorLayers() {
     if (idxCurrentLayer && map.hasLayer(idxCurrentLayer)) map.removeLayer(idxCurrentLayer);
     if (idxWindLayer && map.hasLayer(idxWindLayer)) map.removeLayer(idxWindLayer);
+    Object.keys(gfsVectorLayers).forEach(function(k) {
+        var l = gfsVectorLayers[k];
+        if (l && map.hasLayer(l)) map.removeLayer(l);
+    });
+}
+
+function selectVectorLayer(type) {
+    idxActiveLayer = type;
+    removeAllVectorLayers();
 
     if (type === 'current' && idxCurrentLayer) map.addLayer(idxCurrentLayer);
-    if (type === 'wind' && idxWindLayer) map.addLayer(idxWindLayer);
+    else if (type === 'wind' && idxWindLayer) map.addLayer(idxWindLayer);
+    // GFS layers are lazy-built when their first frame arrives.
 
     updateIdxVelocityBar(type);
 
     if (idxFramesIndex && type !== 'off') setIdxForecastHour(currentIdxFrameHour);
 }
+
+// Back-compat shim for any external callers.
+function toggleIdxLayer(type) { selectVectorLayer(type); }
 
 // ── Lazy-loaded hourly frames (Windy-style timeline) ──
 
@@ -712,8 +748,26 @@ function idxFrameUrl(type, hour) {
     return 'scheduled_results/frames/' + type + '/h' + String(hour).padStart(3, '0') + '.json';
 }
 
+function idxLayerHours(type) {
+    if (!idxFramesIndex) return null;
+    if (type === 'current' || type === 'wind') {
+        return idxFramesIndex[type] && idxFramesIndex[type].hours;
+    }
+    var meta = idxFramesIndex.layers && idxFramesIndex.layers[type];
+    return meta && meta.hours;
+}
+
+function idxLayerBaseTime(type) {
+    if (!idxFramesIndex) return null;
+    if (type === 'current' || type === 'wind') {
+        return idxFramesIndex[type] && idxFramesIndex[type].base_time;
+    }
+    var meta = idxFramesIndex.layers && idxFramesIndex.layers[type];
+    return meta && meta.base_time;
+}
+
 function idxNearestFrameHour(type, hour) {
-    var hours = idxFramesIndex && idxFramesIndex[type] && idxFramesIndex[type].hours;
+    var hours = idxLayerHours(type);
     if (!hours || !hours.length) return null;
     var best = hours[0], diff = Math.abs(hour - best);
     for (var i = 1; i < hours.length; i++) {
@@ -724,17 +778,36 @@ function idxNearestFrameHour(type, hour) {
 }
 
 function idxFetchFrame(type, hour) {
-    if (idxFrameCache[type][hour]) return Promise.resolve(idxFrameCache[type][hour]);
+    var isLegacy = (type === 'current' || type === 'wind');
+    if (isLegacy) {
+        if (idxFrameCache[type][hour]) return Promise.resolve(idxFrameCache[type][hour]);
+    } else {
+        var key = type + '|' + hour;
+        if (scalarFrameCache[key]) return Promise.resolve(scalarFrameCache[key]);
+    }
     var loading = document.getElementById('idxTlLoading');
     if (loading) loading.style.display = 'inline-block';
     return fetch(idxFrameUrl(type, hour))
         .then(function(r) { if (!r.ok) throw new Error('frame ' + hour + ' missing'); return r.json(); })
-        .then(function(data) { idxFrameCache[type][hour] = data; return data; })
+        .then(function(data) {
+            if (isLegacy) idxFrameCache[type][hour] = data;
+            else scalarFrameCache[type + '|' + hour] = data;
+            return data;
+        })
         .finally(function() { if (loading) loading.style.display = 'none'; });
 }
 
 function idxApplyFrameToLayer(type, data) {
-    var layer = (type === 'current') ? idxCurrentLayer : idxWindLayer;
+    var layer;
+    if (type === 'current') layer = idxCurrentLayer;
+    else if (type === 'wind') layer = idxWindLayer;
+    else if (isGfsVector(type)) {
+        if (!gfsVectorLayers[type]) {
+            gfsVectorLayers[type] = buildIdxVelocityLayerWithData(type, data);
+        }
+        layer = gfsVectorLayers[type];
+        if (!map.hasLayer(layer)) map.addLayer(layer);
+    }
     if (!layer) return;
     if (typeof layer.setData === 'function') layer.setData(data);
     else if (layer.options) {
@@ -751,8 +824,7 @@ function setIdxForecastHour(hour, opts) {
 
     document.getElementById('idxTlLabel').textContent = 'T+' + hour + 'h';
     var t = document.getElementById('idxTlTime');
-    var activeType = (idxActiveLayer === 'wind') ? 'wind' : 'current';
-    var base = idxFramesIndex && idxFramesIndex[activeType] ? idxFramesIndex[activeType].base_time : null;
+    var base = idxLayerBaseTime(idxActiveLayer);
     if (t && base) {
         var d = new Date(new Date(base).getTime() + hour * 3600 * 1000);
         t.textContent = d.toLocaleString('zh-TW', {
@@ -761,26 +833,29 @@ function setIdxForecastHour(hour, opts) {
     } else if (t) { t.textContent = ''; }
 
     if (idxActiveLayer === 'off') return;
-    var snapped = idxNearestFrameHour(activeType, hour);
+    var snapped = idxNearestFrameHour(idxActiveLayer, hour);
     if (snapped == null) return;
-    idxFetchFrame(activeType, snapped).then(function(data) {
+    idxFetchFrame(idxActiveLayer, snapped).then(function(data) {
         if (currentIdxFrameHour !== hour) return;
-        idxApplyFrameToLayer(activeType, data);
+        idxApplyFrameToLayer(idxActiveLayer, data);
     }).catch(function(err) { console.warn(err); });
 }
 
 function buildIdxVelocityLayerWithData(type, data) {
     var isCurrent = type === 'current';
+    var isGfsWind = isGfsVector(type);
+    var maxV = isCurrent ? 1.5 : (isGfsWind && type !== 'wind_10m' ? 30 : 15);
     var layer = L.velocityLayer({
         displayValues: true,
         displayOptions: {
-            velocityType: isCurrent ? 'Ocean Current' : 'Wind',
+            velocityType: isCurrent ? 'Ocean Current' : (isGfsWind ? vectorLabel(type) : 'Wind'),
             displayPosition: 'bottomleft',
             displayEmptyString: '',
             speedUnit: 'm/s',
+            angleConvention: 'bearingCW',
         },
         data: data,
-        maxVelocity: isCurrent ? 1.5 : 15,
+        maxVelocity: maxV,
         velocityScale: isCurrent ? 0.01 : 0.005,
         particleAge: 60,
         lineWidth: isCurrent ? 2 : 1.5,
@@ -791,8 +866,32 @@ function buildIdxVelocityLayerWithData(type, data) {
         frameRate: 30,
         opacity: 0.85,
     });
-    if (isCurrent) idxCurrentLayer = layer; else idxWindLayer = layer;
+    if (isCurrent) idxCurrentLayer = layer;
+    else if (type === 'wind') idxWindLayer = layer;
+    else if (isGfsWind) gfsVectorLayers[type] = layer;
     return layer;
+}
+
+// Mark select options that have no frames so users can see what's pending,
+// without removing them (pruning made the feature look missing when the
+// pipeline hadn't run yet).
+function annotateIdxLayerSelect() {
+    var sel = document.getElementById('vectorLayerSel');
+    if (!sel) return;
+    for (var i = 0; i < sel.options.length; i++) {
+        var opt = sel.options[i];
+        var val = opt.value;
+        if (!val || val === 'current' || val === 'wind' || val === 'off') continue;
+        var meta = gfsLayerMeta[val];
+        var hasData = meta && meta.hours && meta.hours.length;
+        opt.textContent = opt.textContent.replace(/\s*\((無資料|no data)\)\s*$/, '');
+        if (!hasData) {
+            opt.textContent = opt.textContent + ' (無資料)';
+            opt.disabled = true;
+        } else {
+            opt.disabled = false;
+        }
+    }
 }
 
 function initIdxFrames() {
@@ -801,6 +900,8 @@ function initIdxFrames() {
         return r.json();
     }).then(function(idx) {
         idxFramesIndex = idx;
+        gfsLayerMeta = idx.layers || {};
+        annotateIdxLayerSelect();
         var maxH = idx.max_hours || 72;
         var slider = document.getElementById('idxTlSlider');
         if (slider) slider.max = maxH;
