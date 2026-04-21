@@ -4,403 +4,642 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>SeaCurrent Drift Simulator</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/leaflet-velocity@2.1.4/dist/leaflet-velocity.min.js"></script>
+    <link rel="stylesheet" href="colors_and_type.css">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        html { font-size: clamp(14px, 0.45vw + 11px, 20px); }
+        html { font-size: var(--fs-fluid); scroll-behavior: smooth; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
-            background: #0a1628;
-            color: #e0e6ed;
+            font-family: var(--font-sans);
+            background: var(--bg-0);
+            color: var(--fg-1);
+            line-height: 1.55;
             min-height: 100vh;
             min-height: 100dvh;
+            -webkit-font-smoothing: antialiased;
         }
-        .layout {
-            display: flex;
-            height: 100vh;
-            height: 100dvh;
-        }
+        img, svg { display: block; max-width: 100%; }
+        a { color: inherit; text-decoration: none; }
 
-        /* Sidebar */
-        .sidebar {
-            width: 22rem;
-            min-width: 22rem;
-            background: #101d33;
-            border-right: 1px solid #1e3050;
-            overflow-y: auto;
-            padding: 1.25rem;
-            display: flex;
-            flex-direction: column;
+        .wrap {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 clamp(1rem, 3vw, 2rem);
         }
-        .sidebar-header {
+        section { padding: clamp(3rem, 6vw, 5rem) 0; }
+
+        /* ============ NAV ============ */
+        .nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(10, 22, 40, 0.78);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+        }
+        .nav-inner {
             display: flex;
-            align-items: flex-start;
+            align-items: center;
             justify-content: space-between;
-            gap: 0.5rem;
+            gap: 1rem;
+            padding-top: 0.9rem;
+            padding-bottom: 0.9rem;
         }
-        .sidebar-header .titles { flex: 1; min-width: 0; }
-        .sidebar-toggle {
-            display: none;
-            background: rgba(26, 53, 88, 0.7);
-            border: 1px solid #1e3050;
-            color: #e0e6ed;
-            width: 2.25rem;
-            height: 2.25rem;
-            border-radius: 50%;
-            font-size: 1.1em;
-            cursor: pointer;
+        .brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.6rem;
+            color: var(--fg-0);
+            font-weight: 700;
+            font-size: 1.08em;
+            letter-spacing: -0.01em;
+        }
+        .brand-mark {
+            display: inline-flex;
             align-items: center;
             justify-content: center;
-            flex-shrink: 0;
-            font-family: inherit;
-            line-height: 1;
+            width: 2rem;
+            height: 2rem;
+            border-radius: var(--r-md);
+            background: linear-gradient(135deg, var(--accent-strong), var(--accent));
         }
-        .sidebar h2 {
-            font-size: 1.4em;
-            margin-bottom: 4px;
-            color: #fff;
-        }
-        .subtitle {
-            color: #7a8fa6;
-            font-size: 0.92em;
-            margin-bottom: 1rem;
-        }
-        .subtitle a { color: #5ba3f5; text-decoration: none; }
-        .subtitle a:hover { text-decoration: underline; }
-
-        /* Sim type cards */
-        .sim-type-cards { display: flex; gap: 0.4rem; margin-bottom: 1rem; }
-        .sim-card {
-            flex: 1;
-            padding: 0.7rem 0.4rem;
-            border: 2px solid #1e3050;
-            border-radius: 8px;
-            background: #152238;
-            cursor: pointer;
-            text-align: center;
-            transition: all 0.15s;
-            color: #8a9bb5;
-            font-family: inherit;
-        }
-        .sim-card:hover { border-color: #3a6ea5; background: #182d4a; }
-        .sim-card.active { border-color: #4a9eff; background: #1a3558; color: #fff; }
-        .sim-card .sim-icon { font-size: 1.55em; display: block; margin-bottom: 4px; }
-        .sim-card .sim-label { font-weight: 600; display: block; font-size: 0.92em; }
-
-        /* Form */
-        .form-section { margin-bottom: 0.75rem; }
-        label { font-weight: 600; font-size: 0.92em; color: #8a9bb5; display: block; margin-bottom: 4px; }
-        input, select {
-            width: 100%;
-            padding: 0.55rem 0.7rem;
-            font-size: 1em;
-            border: 1px solid #1e3050;
-            border-radius: 6px;
-            background: #0d1a2e;
-            color: #e0e6ed;
-            margin-bottom: 0.6rem;
-            font-family: inherit;
-        }
-        input:focus, select:focus { border-color: #4a9eff; outline: none; }
-        .row { display: flex; gap: 0.6rem; }
-        .row > div { flex: 1; }
-        .param-group {
-            padding: 0.7rem;
-            background: #152238;
-            border-radius: 6px;
-            margin-bottom: 0.6rem;
-            border: 1px solid #1e3050;
-        }
-        .model-params { display: none; }
-        .model-params.visible { display: block; }
-        .map-hint {
-            font-size: 0.88em;
-            color: #5a7a9a;
-            margin: -0.3rem 0 0.7rem 0;
-        }
-
-        .submit-btn {
-            width: 100%;
-            padding: 0.75rem;
-            background: #2563eb;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 1em;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.15s;
-            font-family: inherit;
-        }
-        .submit-btn:hover { background: #1d4ed8; }
-        .submit-btn:disabled { background: #374151; cursor: not-allowed; color: #6b7280; }
-
-        /* Status messages */
-        #success { color: #34d399; margin-top: 0.6rem; font-size: 0.95em; }
-        #error { color: #f87171; margin-top: 0.6rem; font-size: 0.95em; }
-        #logs {
-            font-family: monospace;
-            font-size: 0.85em;
-            color: #7a8fa6;
-            margin-top: 0.5rem;
-            white-space: pre-wrap;
-        }
-
-        /* Map */
-        .map-container {
-            flex: 1;
-            position: relative;
-        }
-        #map { width: 100%; height: 100%; }
-        .map-overlay {
-            position: absolute;
-            top: 14px;
-            right: 14px;
-            background: rgba(16, 29, 51, 0.9);
-            padding: 0.6rem 0.9rem;
-            border-radius: 8px;
-            font-size: 0.95em;
-            color: #8a9bb5;
-            z-index: 1000;
-            backdrop-filter: blur(8px);
-            border: 1px solid #1e3050;
-        }
-        .map-overlay .coord-display { color: #4a9eff; font-weight: 600; font-size: 1em; }
-
-        /* Layer toggle */
-        .map-layer-controls {
-            position: absolute;
-            top: 14px;
-            left: 14px;
-            z-index: 1000;
+        .brand-mark svg { width: 1.1rem; height: 1.1rem; }
+        .nav-links {
             display: flex;
-            gap: 6px;
+            gap: clamp(1rem, 2vw, 1.75rem);
+            align-items: center;
         }
-        .map-layer-btn {
+        .nav-links a {
+            color: var(--fg-2);
+            font-size: 0.95em;
+            transition: color var(--dur-fast) var(--ease);
+        }
+        .nav-links a:hover { color: var(--fg-0); }
+        .nav-cta {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.55rem 1rem;
+            background: var(--accent-strong);
+            color: var(--fg-0);
+            border-radius: var(--r-md);
+            font-weight: 600;
+            font-size: 0.95em;
+            transition: background var(--dur-fast) var(--ease);
+        }
+        .nav-cta:hover { background: var(--accent-strong-hover); }
+        .nav-cta svg { width: 0.95em; height: 0.95em; }
+
+        /* ============ HERO ============ */
+        .hero {
+            position: relative;
+            padding: clamp(3rem, 8vw, 6rem) 0 clamp(3rem, 7vw, 5rem);
+            overflow: hidden;
+        }
+        .hero-bg {
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(1100px 520px at 15% 0%, rgba(74, 158, 255, 0.18), transparent 60%),
+                radial-gradient(800px 400px at 90% 40%, rgba(37, 99, 235, 0.12), transparent 65%);
+            pointer-events: none;
+            z-index: 0;
+        }
+        .grid-lines {
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(74, 158, 255, 0.06) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(74, 158, 255, 0.06) 1px, transparent 1px);
+            background-size: 52px 52px;
+            mask-image: radial-gradient(ellipse at center, black 50%, transparent 100%);
+            -webkit-mask-image: radial-gradient(ellipse at center, black 50%, transparent 100%);
+            pointer-events: none;
+            z-index: 0;
+        }
+        .hero-inner {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            grid-template-columns: 1.05fr 1fr;
+            gap: clamp(2rem, 4vw, 4rem);
+            align-items: center;
+        }
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.35rem 0.75rem;
+            background: rgba(74, 158, 255, 0.1);
+            border: 1px solid rgba(74, 158, 255, 0.25);
+            border-radius: 999px;
+            color: var(--accent);
+            font-size: 0.82em;
+            font-weight: 500;
+            margin-bottom: 1.25rem;
+        }
+        .eyebrow .dot {
+            width: 0.45em;
+            height: 0.45em;
+            border-radius: 50%;
+            background: var(--success);
+            box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.6);
+            animation: pulse 2s ease-out infinite;
+        }
+        @keyframes pulse {
+            0%   { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.6); }
+            80%  { box-shadow: 0 0 0 0.5em rgba(52, 211, 153, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
+        }
+        .hero h1 {
+            font-size: var(--fs-hero);
+            line-height: 1.03;
+            letter-spacing: -0.03em;
+            color: var(--fg-0);
+            margin-bottom: 1.1rem;
+        }
+        .hero .grad {
+            background: linear-gradient(90deg, #42a5f5, #26c6da 45%, #76ff03);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .hero-sub {
+            color: var(--fg-2);
+            font-size: 1.05em;
+            max-width: 36em;
+            margin-bottom: 1.6rem;
+        }
+        .cta-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.7rem;
+            margin-bottom: 2rem;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.45rem;
+            padding: 0.75rem 1.25rem;
+            border-radius: var(--r-md);
+            font-family: inherit;
+            font-size: 0.95em;
+            font-weight: 600;
+            line-height: 1.1;
+            cursor: pointer;
+            transition: background var(--dur-fast) var(--ease),
+                        border-color var(--dur-fast) var(--ease),
+                        color var(--dur-fast) var(--ease);
+            border: 1px solid transparent;
+            white-space: nowrap;
+        }
+        .btn svg { width: 1em; height: 1em; flex-shrink: 0; }
+        .btn-primary { background: var(--accent-strong); color: var(--fg-0); }
+        .btn-primary:hover { background: var(--accent-strong-hover); }
+        .btn-ghost {
+            background: transparent;
+            color: var(--fg-1);
+            border-color: var(--border);
+        }
+        .btn-ghost:hover { border-color: var(--border-hover); color: var(--fg-0); }
+        .hero-meta {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            padding-top: 1.25rem;
+            border-top: 1px solid var(--border);
+        }
+        .stat { display: flex; flex-direction: column; gap: 0.2rem; }
+        .stat-v { color: var(--fg-0); font-size: 1.35em; font-weight: 700; letter-spacing: -0.01em; }
+        .stat-l { color: var(--fg-3); font-size: 0.82em; }
+
+        /* Hero visual */
+        .hero-viz {
+            position: relative;
+            border: 1px solid var(--border);
+            border-radius: var(--r-xl);
+            background: var(--bg-1);
+            overflow: hidden;
+            box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.6);
+        }
+        .viz-topbar {
             display: flex;
             align-items: center;
-            gap: 6px;
-            padding: 0.5rem 0.85rem;
-            background: rgba(16, 29, 51, 0.9);
-            border: 1px solid #1e3050;
-            border-radius: 7px;
-            color: #7a8fa6;
-            font-size: 0.95em;
-            cursor: pointer;
-            backdrop-filter: blur(8px);
-            transition: all 0.15s;
-            font-family: inherit;
+            gap: 0.75rem;
+            padding: 0.6rem 0.9rem;
+            background: var(--bg-3);
+            border-bottom: 1px solid var(--border);
         }
-        .map-layer-btn:hover { background: rgba(26, 53, 88, 0.95); color: #e0e6ed; }
-        .map-layer-btn.active { color: #fff; border-color: #4a9eff; background: rgba(26, 53, 88, 0.95); }
-        .map-layer-btn .dot {
-            width: 0.6em; height: 0.6em; border-radius: 50%; flex-shrink: 0;
+        .dot-row { display: flex; gap: 0.35rem; }
+        .dot-row span {
+            width: 0.7rem;
+            height: 0.7rem;
+            border-radius: 50%;
+            background: var(--border-strong);
         }
-        .layer-group {
-            background: rgba(16, 29, 51, 0.92);
-            border: 1px solid #1e3050;
-            border-radius: 8px;
-            padding: 8px 10px;
-            backdrop-filter: blur(8px);
-            min-width: 180px;
-        }
-        .layer-group-title {
+        .dot-row span:nth-child(1) { background: #ff5f56; }
+        .dot-row span:nth-child(2) { background: #ffbd2e; }
+        .dot-row span:nth-child(3) { background: #27c93f; }
+        .viz-topbar .url {
+            font-family: var(--font-mono);
             font-size: 0.72em;
+            color: var(--fg-3);
+        }
+        .viz-map {
+            position: relative;
+            aspect-ratio: 5 / 4;
+            background:
+                radial-gradient(ellipse at 30% 35%, rgba(26, 53, 88, 0.9), transparent 55%),
+                radial-gradient(ellipse at 75% 70%, rgba(21, 101, 192, 0.5), transparent 60%),
+                linear-gradient(180deg, #0d1a2e 0%, #071223 100%);
+            overflow: hidden;
+        }
+        .flow-svg {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+        }
+        .flow-path {
+            fill: none;
+            stroke-width: 1.6;
+            stroke-linecap: round;
+            stroke-dasharray: 4 10;
+            opacity: 0.85;
+            animation: flow-move 5s linear infinite;
+        }
+        @keyframes flow-move {
+            from { stroke-dashoffset: 0; }
+            to   { stroke-dashoffset: -140; }
+        }
+        .seed-pin {
+            position: absolute;
+            left: 40%;
+            top: 55%;
+            width: 0.9rem;
+            height: 0.9rem;
+            border-radius: 50%;
+            background: var(--seed);
+            box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.55);
+            animation: pulse 1.8s ease-out infinite;
+            z-index: 2;
+        }
+        .viz-overlay {
+            position: absolute;
+            left: 0.9rem;
+            top: 0.9rem;
+            background: var(--overlay-bg);
+            backdrop-filter: var(--overlay-blur);
+            -webkit-backdrop-filter: var(--overlay-blur);
+            padding: 0.55rem 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: var(--r-md);
+            font-size: 0.78em;
+            z-index: 3;
+        }
+        .ol-lbl {
+            font-size: 0.9em;
+            color: var(--fg-3);
             text-transform: uppercase;
             letter-spacing: 0.08em;
-            color: #7a8fa6;
-            margin-bottom: 4px;
         }
-        .layer-select {
-            width: 100%;
-            background: rgba(10, 18, 32, 0.9);
-            color: #e0e6ed;
-            border: 1px solid #1e3050;
-            border-radius: 6px;
-            padding: 6px 8px;
-            font-family: inherit;
-            font-size: 0.9em;
-            cursor: pointer;
-        }
-        .layer-select:focus { outline: none; border-color: #4a9eff; }
-
-        /* Timeline scrubber */
-        .timeline {
+        .ol-val { color: var(--fg-0); font-family: var(--font-mono); font-size: 0.95em; }
+        .viz-scale {
             position: absolute;
-            left: 50%;
-            bottom: 14px;
-            transform: translateX(-50%);
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 10px 16px;
-            background: rgba(16, 29, 51, 0.95);
-            border: 1px solid #1e3050;
-            border-radius: 10px;
-            backdrop-filter: blur(8px);
-            z-index: 1000;
-            width: min(calc(100% - 320px), 680px);
+            right: 0.9rem;
+            bottom: 0.9rem;
+            background: var(--overlay-bg);
+            backdrop-filter: var(--overlay-blur);
+            -webkit-backdrop-filter: var(--overlay-blur);
+            padding: 0.5rem 0.7rem;
+            border: 1px solid var(--border);
+            border-radius: var(--r-md);
+            font-size: 0.72em;
+            z-index: 3;
+            min-width: 8.5rem;
         }
-        .tl-btn {
-            background: #1a3558;
-            color: #e0e6ed;
-            border: 1px solid #2c4f7a;
-            border-radius: 50%;
-            width: 2rem; height: 2rem;
-            cursor: pointer;
-            font-size: 0.85em;
-            line-height: 1;
-            flex-shrink: 0;
-            font-family: inherit;
+        .viz-scale .ttl { color: var(--fg-2); margin-bottom: 0.35rem; }
+        .viz-scale .grad {
+            height: 0.45rem;
+            border-radius: 2px;
+            background: var(--gradient-current);
+            margin-bottom: 0.25rem;
         }
-        .tl-btn:hover { background: #2c4f7a; }
-        .tl-btn.playing { background: #2563eb; border-color: #2563eb; }
-        .tl-info { display: flex; flex-direction: column; line-height: 1.15; flex-shrink: 0; min-width: 6rem; }
-        .tl-label { color: #4a9eff; font-weight: 700; font-size: 0.95em; }
-        .tl-time { color: #7a8fa6; font-size: 0.8em; }
-        .tl-range { flex: 1; accent-color: #4a9eff; cursor: pointer; min-width: 0; }
-        .tl-loading { color: #f59e0b; font-size: 1em; flex-shrink: 0; width: 1em; text-align: center; }
+        .viz-scale .rng { display: flex; justify-content: space-between; color: var(--fg-3); }
 
-        /* Velocity color bar */
-        .velocity-bar {
-            position: absolute;
-            bottom: 14px;
-            right: 14px;
-            background: rgba(16, 29, 51, 0.92);
-            padding: 0.7rem 0.9rem;
-            border-radius: 8px;
-            font-size: 0.9em;
-            z-index: 1000;
-            border: 1px solid #1e3050;
-            backdrop-filter: blur(8px);
-            display: none;
+        /* ============ SECTION HEAD ============ */
+        .section-head {
+            max-width: 64ch;
+            margin: 0 auto clamp(2rem, 4vw, 3rem);
+            text-align: center;
         }
-        .velocity-bar.visible { display: block; }
-        .velocity-bar-title { color: #fff; font-weight: 600; margin-bottom: 6px; font-size: 1em; }
-        .velocity-gradient {
-            width: 11rem;
-            height: 0.8rem;
-            border-radius: 3px;
-            margin-bottom: 4px;
+        .section-label {
+            display: inline-block;
+            color: var(--accent);
+            font-size: var(--fs-micro);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            margin-bottom: 0.6rem;
         }
-        .velocity-labels {
+        .section-title {
+            font-size: var(--fs-display);
+            line-height: 1.12;
+            letter-spacing: -0.02em;
+            color: var(--fg-0);
+            margin-bottom: 0.8rem;
+        }
+        .section-sub { color: var(--fg-2); font-size: 1em; }
+
+        /* ============ CARD RECIPE ============ */
+        .sc-card,
+        .layer-card,
+        .step,
+        .feat {
+            padding: 1.5rem;
+            background: var(--bg-3);
+            border: 1px solid var(--border);
+            border-radius: var(--r-xl);
+            transition: border-color var(--dur-fast) var(--ease),
+                        transform var(--dur-fast) var(--ease);
             display: flex;
-            justify-content: space-between;
-            color: #7a8fa6;
+            flex-direction: column;
+            gap: 0.7rem;
+        }
+        .sc-card:hover,
+        .layer-card:hover,
+        .step:hover,
+        .feat:hover {
+            border-color: var(--border-hover);
+            transform: translateY(-2px);
+        }
+        .sc-card h3,
+        .layer-card h4,
+        .step h4,
+        .feat h4 {
+            color: var(--fg-0);
+            font-size: 1.1em;
+            font-weight: 600;
+        }
+        .sc-card p,
+        .layer-card p,
+        .step p,
+        .feat p {
+            color: var(--fg-2);
             font-size: 0.92em;
         }
 
-        /* Responsive - Tablet */
-        @media (max-width: 900px) {
-            .sidebar { width: 20rem; min-width: 20rem; padding: 1rem; }
+        /* ============ SCENARIOS ============ */
+        .sc-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.25rem;
+        }
+        .sc-icon,
+        .lc-icon,
+        .feat-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 2.6rem;
+            height: 2.6rem;
+            border-radius: var(--r-md);
+            background: rgba(74, 158, 255, 0.1);
+            color: var(--accent);
+        }
+        .sc-icon svg,
+        .lc-icon svg,
+        .feat-icon svg { width: 1.3rem; height: 1.3rem; stroke-width: 2; }
+        .model-tag,
+        .lc-tag {
+            display: inline-block;
+            align-self: flex-start;
+            padding: 0.18rem 0.55rem;
+            background: rgba(74, 158, 255, 0.08);
+            border: 1px solid rgba(74, 158, 255, 0.2);
+            border-radius: 999px;
+            color: var(--accent);
+            font-family: var(--font-mono);
+            font-size: 0.72em;
+            letter-spacing: 0.03em;
+        }
+        .sc-card ul { list-style: none; padding: 0; }
+        .sc-card li {
+            color: var(--fg-2);
+            font-size: 0.88em;
+            padding: 0.2rem 0;
+        }
+        .sc-card li::before {
+            content: "▸ ";
+            color: var(--accent);
+            margin-right: 0.3rem;
         }
 
-        /* Responsive - Mobile */
+        /* ============ LAYERS ============ */
+        .layers-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+        }
+        .layer-card { padding: 1.25rem; gap: 0.55rem; }
+        .layer-card h4 { font-size: 1em; }
+        .layer-card p { font-size: 0.88em; }
+        .lc-grad {
+            height: 0.4rem;
+            border-radius: 2px;
+            margin-top: auto;
+        }
+        .lc-grad.current { background: var(--gradient-current); }
+        .lc-grad.wind    { background: var(--gradient-wind); }
+        .lc-grad.temp    { background: linear-gradient(90deg, #1a237e, #26c6da, #ffeb3b, #f44336); }
+        .lc-grad.rh      { background: linear-gradient(90deg, #7c2d12, #ea580c, #84cc16, #0ea5e9); }
+        .lc-grad.tide    { background: linear-gradient(90deg, #0ea5e9, #06b6d4, #22d3ee, #7dd3fc); }
+
+        /* ============ HOW IT WORKS ============ */
+        .workflow { position: relative; }
+        .steps {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.25rem;
+        }
+        .step { gap: 0.55rem; }
+        .step-n {
+            color: var(--accent);
+            font-family: var(--font-mono);
+            font-size: 0.72em;
+            letter-spacing: 0.1em;
+        }
+
+        /* ============ DATA STRIP ============ */
+        .data-strip {
+            display: grid;
+            grid-template-columns: 1.15fr 1fr;
+            gap: clamp(2rem, 4vw, 4rem);
+            align-items: start;
+        }
+        .data-strip p {
+            color: var(--fg-2);
+            margin-top: 1rem;
+            font-size: 0.95em;
+        }
+        .kv-table {
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-3);
+            border: 1px solid var(--border);
+            border-radius: var(--r-lg);
+            overflow: hidden;
+        }
+        .kv-row {
+            display: grid;
+            grid-template-columns: 1fr 1.4fr;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.8rem 1.1rem;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.92em;
+        }
+        .kv-row:last-child { border-bottom: 0; }
+        .kv-row .k {
+            color: var(--fg-3);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-size: 0.82em;
+        }
+        .kv-row .v { color: var(--fg-1); font-family: var(--font-mono); }
+        .kv-row .v.accent { color: var(--accent); }
+
+        /* ============ FEATURES ============ */
+        .features {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.25rem;
+        }
+
+        /* ============ CTA BAND ============ */
+        .cta-band {
+            padding: clamp(2.25rem, 5vw, 3.5rem);
+            border-radius: var(--r-xl);
+            background:
+                radial-gradient(600px 300px at 15% 10%, rgba(74, 158, 255, 0.35), transparent 60%),
+                linear-gradient(135deg, #1d4ed8, #6b21a8);
+            text-align: center;
+            color: var(--fg-0);
+        }
+        .cta-band h2 {
+            color: var(--fg-0);
+            font-size: clamp(1.6rem, 3vw, 2.2rem);
+            letter-spacing: -0.02em;
+            margin-bottom: 0.6rem;
+        }
+        .cta-band p {
+            color: rgba(255, 255, 255, 0.85);
+            margin-bottom: 1.4rem;
+        }
+        .cta-band .cta-row { justify-content: center; margin-bottom: 0; }
+        .cta-band .btn-primary { background: var(--fg-0); color: var(--accent-strong); }
+        .cta-band .btn-primary:hover { background: rgba(255, 255, 255, 0.9); }
+        .cta-band .btn-ghost {
+            color: var(--fg-0);
+            border-color: rgba(255, 255, 255, 0.35);
+        }
+        .cta-band .btn-ghost:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.6);
+        }
+
+        /* ============ FOOTER ============ */
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 1.75rem 0;
+            margin-top: 2rem;
+        }
+        .foot-inner {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        .foot-links {
+            display: flex;
+            gap: 1.25rem;
+            flex-wrap: wrap;
+        }
+        .foot-links a {
+            color: var(--fg-3);
+            font-size: 0.9em;
+            transition: color var(--dur-fast) var(--ease);
+        }
+        .foot-links a:hover { color: var(--fg-0); }
+
+        /* ============ MOBILE (≤700px) ============ */
         @media (max-width: 700px) {
-            .layout { flex-direction: column; }
-            .sidebar {
-                width: 100%; min-width: 0;
-                max-height: 45dvh;
-                padding: 12px 14px;
-                border-right: none;
-                border-bottom: 1px solid #1e3050;
-                transition: max-height 0.25s ease;
-            }
-            .sidebar.collapsed {
-                max-height: 3rem;
-                overflow: hidden;
-                padding: 8px 14px;
-            }
-            .sidebar.collapsed .sidebar-header { align-items: center; }
-            .sidebar.collapsed h2 { font-size: 0.95em; margin-bottom: 0; }
-            .sidebar.collapsed .subtitle,
-            .sidebar.collapsed .sim-type-cards,
-            .sidebar.collapsed form,
-            .sidebar.collapsed #success,
-            .sidebar.collapsed #error,
-            .sidebar.collapsed #logs { display: none; }
-            .sidebar-toggle { display: inline-flex; }
-            .sidebar.collapsed .sidebar-toggle { transform: rotate(180deg); }
-            .map-container { min-height: 55dvh; flex: 1; }
-            .sidebar h2 { font-size: 1.1em; }
-            .subtitle { margin-bottom: 10px; font-size: 0.88em; }
+            section { padding: 2.5rem 0; }
 
-            /* Sim cards - larger touch targets */
-            .sim-type-cards { gap: 8px; margin-bottom: 12px; }
-            .sim-card {
-                padding: 14px 8px;
-                border-radius: 12px;
-            }
-            .sim-card .sim-icon { font-size: 1.8em; margin-bottom: 4px; }
-            .sim-card .sim-label { font-size: 0.88em; }
+            .nav-inner { padding-top: 0.7rem; padding-bottom: 0.7rem; }
+            .nav-links { display: none; }
+            .nav-cta { padding: 0.55rem 0.9rem; font-size: 0.9em; }
 
-            /* Form - larger inputs for touch (16px prevents iOS zoom) */
-            input, select {
-                padding: 12px 14px;
-                font-size: 16px;
-                margin-bottom: 10px;
-                border-radius: 8px;
-                min-height: 44px;
-            }
-            label { font-size: 0.88em; margin-bottom: 5px; }
-            .form-section { margin-bottom: 12px; }
-            .param-group { padding: 12px; border-radius: 8px; }
-            .row { gap: 10px; }
+            .hero { padding: 2rem 0 2.5rem; }
+            .hero-inner { grid-template-columns: 1fr; gap: 2rem; }
+            .hero h1 { font-size: clamp(2rem, 8.5vw, 2.75rem); }
+            .hero-sub { font-size: 1em; }
 
-            /* Submit button - larger touch target */
-            .submit-btn {
-                padding: 15px;
-                font-size: 16px;
-                border-radius: 8px;
+            .cta-row { flex-direction: column; gap: 0.6rem; }
+            .cta-row .btn {
+                width: 100%;
                 min-height: 48px;
+                font-size: 16px;
+                padding: 0.85rem 1.1rem;
             }
 
-            /* Hide live cursor readout on phones — collides with the layer
-               dropdown pinned at top-left */
-            .map-overlay { display: none; }
-
-            /* Layer controls - let them shrink to fit, give the dropdown 16px
-               font so iOS doesn't zoom-in on focus */
-            .map-layer-controls { top: 10px; left: 10px; right: 10px; bottom: auto; gap: 4px; }
-            .layer-group { min-width: 0; padding: 6px 8px; max-width: 100%; }
-            .layer-group-title { font-size: 0.62em; margin-bottom: 3px; }
-            .layer-select { padding: 8px 8px; font-size: 16px; }
-
-            /* Velocity bar sits above the timeline; both respect the iPhone
-               home-indicator safe area */
-            .velocity-bar {
-                bottom: calc(72px + env(safe-area-inset-bottom));
-                right: 10px;
-                padding: 8px 10px;
-                font-size: 0.78em;
+            .hero-meta {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 0.9rem 1.25rem;
             }
-            .velocity-gradient { width: 8rem; height: 0.6rem; }
+            .stat-v { font-size: 1.2em; }
 
-            .timeline {
-                width: calc(100% - 20px);
-                left: 10px;
-                right: 10px;
-                transform: none;
-                bottom: calc(10px + env(safe-area-inset-bottom));
-                padding: 8px 12px;
-                gap: 8px;
+            .viz-map { aspect-ratio: 16 / 11; }
+            .viz-overlay { left: 0.6rem; top: 0.6rem; padding: 0.45rem 0.6rem; font-size: 0.72em; }
+            .viz-scale  { right: 0.6rem; bottom: 0.6rem; padding: 0.4rem 0.55rem; min-width: 7rem; font-size: 0.68em; }
+
+            .section-title { font-size: clamp(1.5rem, 6.5vw, 2rem); }
+            .section-sub   { font-size: 0.95em; }
+
+            .sc-grid,
+            .features,
+            .steps { grid-template-columns: 1fr; gap: 0.9rem; }
+
+            .layers-grid { grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
+            .layer-card  { padding: 1rem; }
+
+            .sc-card,
+            .step,
+            .feat { padding: 1.25rem; }
+
+            .data-strip { grid-template-columns: 1fr; gap: 1.5rem; }
+            .kv-row {
+                grid-template-columns: 1fr;
+                gap: 0.2rem;
+                padding: 0.75rem 0.95rem;
             }
-            .tl-info { min-width: 4.5rem; }
-            .tl-label { font-size: 0.85em; }
-            .tl-time { font-size: 0.7em; }
 
-            /* Attribution would collide with the full-width timeline */
-            .leaflet-control-attribution { display: none; }
+            .cta-band { padding: 1.75rem 1.25rem; }
+            .cta-band .cta-row .btn { width: 100%; }
+
+            .foot-inner { flex-direction: column; align-items: flex-start; gap: 0.8rem; }
         }
 
-        /* Small phones */
+        /* ============ SMALL PHONES (≤380px) ============ */
         @media (max-width: 380px) {
-            .sidebar { padding: 10px 12px; max-height: 42dvh; }
-            .sim-card .sim-icon { font-size: 1.6em; }
-            .sim-card .sim-label { font-size: 0.8em; }
-            .sidebar h2 { font-size: 1em; }
+            section { padding: 2rem 0; }
+            .wrap { padding: 0 0.9rem; }
+            .layers-grid { grid-template-columns: 1fr; }
+            .hero h1 { font-size: clamp(1.75rem, 9vw, 2.25rem); }
+            .hero-meta { grid-template-columns: 1fr 1fr; gap: 0.7rem; }
+            .nav-cta { padding: 0.5rem 0.75rem; font-size: 0.85em; }
         }
     </style>
 </head>
@@ -472,15 +711,14 @@
       </div>
     </div>
 
-    <!-- Hero visual: real Leaflet map of Taiwan + animated drift overlay -->
+    <!-- Hero visual: stylized ocean + animated drift overlay -->
     <div class="hero-viz" aria-hidden="true">
       <div class="viz-topbar">
         <div class="dot-row"><span></span><span></span><span></span></div>
         <span class="url">seacurrent / forecast · Taiwan waters</span>
       </div>
       <div class="viz-map">
-        <div id="heroMap"></div>
-        <svg class="flow-svg" viewBox="0 0 600 420" preserveAspectRatio="none" style="z-index:500; pointer-events:none;">
+        <svg class="flow-svg" viewBox="0 0 600 420" preserveAspectRatio="none">
           <defs>
             <linearGradient id="fg1" x1="0" x2="1">
               <stop offset="0" stop-color="#1565c0"/><stop offset="0.5" stop-color="#26c6da"/><stop offset="1" stop-color="#76ff03"/>
@@ -526,45 +764,33 @@
       <p class="section-sub">Each simulation runs OpenDrift in a dedicated Docker environment on GitHub Actions — the same model-family used by national SAR and environmental agencies.</p>
     </div>
 
-        <div class="map-container">
-            <div id="map"></div>
-            <div class="map-overlay">
-                <div>Cursor: <span class="coord-display" id="cursorCoords">--</span></div>
-            </div>
-            <div class="map-layer-controls">
-                <div class="layer-group">
-                    <div class="layer-group-title">Vector flow</div>
-                    <select id="vectorLayerSel" class="layer-select" onchange="selectVectorLayer(this.value)">
-                        <option value="current">Ocean current</option>
-                        <option value="wind">Wind (surface)</option>
-                        <option value="wind_10m">Wind 10 m (GFS)</option>
-                        <option value="wind_850hPa">Wind 850 hPa</option>
-                        <option value="wind_925hPa">Wind 925 hPa</option>
-                        <option value="wind_1000hPa">Wind 1000 hPa</option>
-                        <option value="off">Off</option>
-                    </select>
-                </div>
-            </div>
+    <div class="sc-grid">
+      <!-- Leeway -->
+      <article class="sc-card">
+        <div class="sc-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="8" r="3"/>
+            <path d="M5 21c1.5-4 4-6 7-6s5.5 2 7 6"/>
+          </svg>
+        </div>
+        <h3>Person overboard</h3>
+        <div class="model-tag">MODEL · Leeway</div>
+        <p>SAR-grade trajectories for 10 object profiles — PIW, life raft (ballast / canopy variants), fishing vessel, sailboat, surfboard.</p>
+        <ul>
+          <li>10 Leeway object profiles</li>
+          <li>Ballast &amp; canopy variants</li>
+          <li>Search-and-rescue focus</li>
+        </ul>
+      </article>
 
-            <div class="velocity-bar" id="idxVelocityBar">
-                <div class="velocity-bar-title" id="idxVelocityBarTitle">Ocean Current (m/s)</div>
-                <div class="velocity-gradient" id="idxVelocityGradient"></div>
-                <div class="velocity-labels">
-                    <span>0</span>
-                    <span id="idxVelocityMid">0.75</span>
-                    <span id="idxVelocityMax">1.5</span>
-                </div>
-            </div>
-
-            <div class="timeline" id="idxTimeline" style="display:none;">
-                <button type="button" class="tl-btn" id="idxTlPlay" aria-label="Play">&#9654;</button>
-                <div class="tl-info">
-                    <span class="tl-label" id="idxTlLabel">T+0h</span>
-                    <span class="tl-time" id="idxTlTime"></span>
-                </div>
-                <input type="range" id="idxTlSlider" min="0" max="72" value="0" step="1" class="tl-range">
-                <span class="tl-loading" id="idxTlLoading" style="display:none;">…</span>
-            </div>
+      <!-- OceanDrift -->
+      <article class="sc-card">
+        <div class="sc-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 12c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/>
+            <path d="M2 17c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/>
+            <path d="M2 7c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/>
+          </svg>
         </div>
         <h3>Marine debris</h3>
         <div class="model-tag">MODEL · OceanDrift</div>
@@ -853,441 +1079,6 @@
     </div>
   </div>
 </footer>
-
-<script>
-// --- Map ---
-var map = L.map('map', { zoomControl: false }).setView([23.5, 121], 7);
-// Zoom control: bottom-right on desktop, hidden on narrow phones where it
-// would collide with the velocity bar + timeline. Pinch-to-zoom still works.
-var IS_PHONE = window.matchMedia('(max-width: 700px)').matches;
-if (!IS_PHONE) {
-    L.control.zoom({ position: 'bottomright' }).addTo(map);
-}
-
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OpenStreetMap &copy; CARTO',
-    maxZoom: 18,
-}).addTo(map);
-
-var seedMarker = null;
-var trajectoryLayer = L.layerGroup().addTo(map);
-
-// Click to set coordinates
-map.on('click', function(e) {
-    document.getElementById('lon').value = e.latlng.lng.toFixed(4);
-    document.getElementById('lat').value = e.latlng.lat.toFixed(4);
-    updateSeedMarker(e.latlng.lat, e.latlng.lng);
-});
-
-map.on('mousemove', function(e) {
-    document.getElementById('cursorCoords').textContent =
-        e.latlng.lat.toFixed(4) + ', ' + e.latlng.lng.toFixed(4);
-});
-
-function updateSeedMarker(lat, lng) {
-    if (seedMarker) map.removeLayer(seedMarker);
-    seedMarker = L.circleMarker([lat, lng], {
-        radius: 8, color: '#ff4444', fillColor: '#ff4444', fillOpacity: 0.8, weight: 2,
-    }).addTo(map).bindPopup('Seed: ' + lat.toFixed(4) + ', ' + lng.toFixed(4));
-}
-
-// Init marker
-updateSeedMarker(24.0, 121.5);
-
-// Update marker when inputs change
-['lon', 'lat'].forEach(function(id) {
-    document.getElementById(id).addEventListener('change', function() {
-        var lat = parseFloat(document.getElementById('lat').value);
-        var lng = parseFloat(document.getElementById('lon').value);
-        if (!isNaN(lat) && !isNaN(lng)) updateSeedMarker(lat, lng);
-    });
-});
-
-// --- Simulation type ---
-var currentSimType = 'leeway';
-var MODEL_CONFIG = {
-    leeway:     { paramsId: 'leewayParams' },
-    oceandrift: { paramsId: 'oceandriftParams' },
-    openoil:    { paramsId: 'openoilParams' },
-};
-
-function setSimType(type) {
-    currentSimType = type;
-    document.querySelectorAll('.sim-card').forEach(function(c) {
-        c.classList.toggle('active', c.dataset.type === type);
-    });
-    document.querySelectorAll('.model-params').forEach(function(el) { el.classList.remove('visible'); });
-    document.getElementById(MODEL_CONFIG[type].paramsId).classList.add('visible');
-}
-
-function getModelParams() {
-    if (currentSimType === 'leeway') return { object_type: document.getElementById('objectType').value };
-    if (currentSimType === 'oceandrift') return { wind_drift_factor: document.getElementById('windDriftFactor').value };
-    if (currentSimType === 'openoil') return { oil_type: document.getElementById('oilType').value, amount: document.getElementById('oilAmount').value };
-    return {};
-}
-
-// --- Submit ---
-var VERCEL_API_URL = 'https://seacurrent.vercel.app/api/simulate';
-
-document.getElementById('simulationForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    var btn = document.getElementById('submitBtn');
-    var successEl = document.getElementById('success');
-    var errorEl = document.getElementById('error');
-    successEl.textContent = '';
-    errorEl.textContent = '';
-
-    var payload = Object.assign({
-        lon: parseFloat(document.getElementById('lon').value),
-        lat: parseFloat(document.getElementById('lat').value),
-        duration: parseInt(document.getElementById('duration').value),
-        email: document.getElementById('email').value.trim(),
-        model_type: currentSimType,
-    }, getModelParams());
-
-    if (!payload.email) { errorEl.textContent = 'Please enter your email.'; return; }
-
-    btn.disabled = true;
-    btn.textContent = 'Submitting...';
-
-    try {
-        var resp = await fetch(VERCEL_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-        });
-        var data = await resp.json();
-        if (data.status === 'queued') {
-            successEl.textContent = 'Simulation queued (ID: ' + data.request_id + '). Results will be emailed to ' + payload.email;
-        } else {
-            errorEl.textContent = 'Error: ' + (data.error || 'Unknown error');
-        }
-    } catch (err) {
-        errorEl.textContent = 'Request failed: ' + err.message;
-    }
-    btn.disabled = false;
-    btn.textContent = 'Submit Simulation';
-});
-
-// --- Velocity layers (Windy-style animated flow) ---
-var CURRENT_VELOCITY_URL = 'scheduled_results/current_velocity.json';
-var WIND_VELOCITY_URL = 'scheduled_results/wind_velocity.json';
-var idxCurrentLayer = null;
-var idxWindLayer = null;
-var idxActiveLayer = 'current';
-
-// GFS multi-level vector layers (per layer id → L.velocityLayer instance)
-var gfsVectorLayers = {};
-var gfsLayerMeta = {};        // layer id → {type, base_time, hours, step, units, level}
-var scalarFrameCache = {};    // "name|hour" → raw JSON
-
-function isGfsVector(type) { return type && type.indexOf('wind_') === 0; }
-
-function vectorLabel(type) {
-    if (type === 'wind_10m') return 'Wind 10 m (GFS)';
-    if (type === 'wind_850hPa') return 'Wind 850 hPa';
-    if (type === 'wind_925hPa') return 'Wind 925 hPa';
-    if (type === 'wind_1000hPa') return 'Wind 1000 hPa';
-    return type;
-}
-
-function loadIdxVelocity(url, type) {
-    return fetch(url + '?t=' + Date.now())
-        .then(function(r) { return r.ok ? r.json() : null; })
-        .then(function(data) {
-            if (!data) return null;
-            var layer = buildIdxVelocityLayerWithData(type, data);
-            return layer;
-        })
-        .catch(function() { return null; });
-}
-
-var IDX_GRADIENTS = {
-    current: 'linear-gradient(to right, #1a237e, #1565c0, #42a5f5, #26c6da, #00e5ff, #76ff03, #ffeb3b, #ff9800, #f44336)',
-    wind:    'linear-gradient(to right, #364fc7, #4c6ef5, #91a7ff, #dbe4ff, #f8f9fa, #ffe8cc, #ffc078, #ff922b)',
-};
-
-function updateIdxVelocityBar(type) {
-    var bar = document.getElementById('idxVelocityBar');
-    if (type === 'off') { bar.classList.remove('visible'); return; }
-    bar.classList.add('visible');
-    var isCurrent = type === 'current';
-    var isGfsWind = isGfsVector(type);
-    var title;
-    if (isCurrent) title = 'Ocean Current (m/s)';
-    else if (isGfsWind) title = vectorLabel(type) + ' (m/s)';
-    else title = 'Wind (m/s)';
-    document.getElementById('idxVelocityBarTitle').textContent = title;
-    document.getElementById('idxVelocityGradient').style.background =
-        isCurrent ? IDX_GRADIENTS.current : IDX_GRADIENTS.wind;
-    var max = isCurrent ? 1.5 : (isGfsWind && type !== 'wind_10m' ? 30 : 15);
-    document.getElementById('idxVelocityMax').textContent = max;
-    document.getElementById('idxVelocityMid').textContent = (max / 2);
-}
-
-function removeAllVectorLayers() {
-    if (idxCurrentLayer && map.hasLayer(idxCurrentLayer)) map.removeLayer(idxCurrentLayer);
-    if (idxWindLayer && map.hasLayer(idxWindLayer)) map.removeLayer(idxWindLayer);
-    Object.keys(gfsVectorLayers).forEach(function(k) {
-        var l = gfsVectorLayers[k];
-        if (l && map.hasLayer(l)) map.removeLayer(l);
-    });
-}
-
-function selectVectorLayer(type) {
-    idxActiveLayer = type;
-    removeAllVectorLayers();
-
-    if (type === 'current' && idxCurrentLayer) map.addLayer(idxCurrentLayer);
-    else if (type === 'wind' && idxWindLayer) map.addLayer(idxWindLayer);
-    // GFS layers are lazy-built when their first frame arrives.
-
-    updateIdxVelocityBar(type);
-
-    if (idxFramesIndex && type !== 'off') setIdxForecastHour(currentIdxFrameHour);
-}
-
-// Back-compat shim for any external callers.
-function toggleIdxLayer(type) { selectVectorLayer(type); }
-
-// ── Lazy-loaded hourly frames (Windy-style timeline) ──
-
-var IDX_FRAMES_INDEX_URL = 'scheduled_results/frames/index.json';
-var idxFramesIndex = null;
-var idxFrameCache = { current: {}, wind: {} };
-var currentIdxFrameHour = 0;
-var idxPlayTimer = null;
-
-function idxFrameUrl(type, hour) {
-    return 'scheduled_results/frames/' + type + '/h' + String(hour).padStart(3, '0') + '.json';
-}
-
-function idxLayerHours(type) {
-    if (!idxFramesIndex) return null;
-    if (type === 'current' || type === 'wind') {
-        return idxFramesIndex[type] && idxFramesIndex[type].hours;
-    }
-    var meta = idxFramesIndex.layers && idxFramesIndex.layers[type];
-    return meta && meta.hours;
-}
-
-function idxLayerBaseTime(type) {
-    if (!idxFramesIndex) return null;
-    if (type === 'current' || type === 'wind') {
-        return idxFramesIndex[type] && idxFramesIndex[type].base_time;
-    }
-    var meta = idxFramesIndex.layers && idxFramesIndex.layers[type];
-    return meta && meta.base_time;
-}
-
-function idxNearestFrameHour(type, hour) {
-    var hours = idxLayerHours(type);
-    if (!hours || !hours.length) return null;
-    var best = hours[0], diff = Math.abs(hour - best);
-    for (var i = 1; i < hours.length; i++) {
-        var d = Math.abs(hour - hours[i]);
-        if (d < diff) { best = hours[i]; diff = d; }
-    }
-    return best;
-}
-
-function idxFetchFrame(type, hour) {
-    var isLegacy = (type === 'current' || type === 'wind');
-    if (isLegacy) {
-        if (idxFrameCache[type][hour]) return Promise.resolve(idxFrameCache[type][hour]);
-    } else {
-        var key = type + '|' + hour;
-        if (scalarFrameCache[key]) return Promise.resolve(scalarFrameCache[key]);
-    }
-    var loading = document.getElementById('idxTlLoading');
-    if (loading) loading.style.display = 'inline-block';
-    return fetch(idxFrameUrl(type, hour))
-        .then(function(r) { if (!r.ok) throw new Error('frame ' + hour + ' missing'); return r.json(); })
-        .then(function(data) {
-            if (isLegacy) idxFrameCache[type][hour] = data;
-            else scalarFrameCache[type + '|' + hour] = data;
-            return data;
-        })
-        .finally(function() { if (loading) loading.style.display = 'none'; });
-}
-
-function idxApplyFrameToLayer(type, data) {
-    var layer;
-    if (type === 'current') layer = idxCurrentLayer;
-    else if (type === 'wind') layer = idxWindLayer;
-    else if (isGfsVector(type)) {
-        if (!gfsVectorLayers[type]) {
-            gfsVectorLayers[type] = buildIdxVelocityLayerWithData(type, data);
-        }
-        layer = gfsVectorLayers[type];
-        if (!map.hasLayer(layer)) map.addLayer(layer);
-    }
-    if (!layer) return;
-    if (typeof layer.setData === 'function') layer.setData(data);
-    else if (layer.options) {
-        layer.options.data = data;
-        if (map.hasLayer(layer)) { map.removeLayer(layer); map.addLayer(layer); }
-    }
-}
-
-function setIdxForecastHour(hour, opts) {
-    opts = opts || {};
-    currentIdxFrameHour = hour;
-    var slider = document.getElementById('idxTlSlider');
-    if (slider && !opts.fromSlider) slider.value = hour;
-
-    document.getElementById('idxTlLabel').textContent = 'T+' + hour + 'h';
-    var t = document.getElementById('idxTlTime');
-    var base = idxLayerBaseTime(idxActiveLayer);
-    if (t && base) {
-        var d = new Date(new Date(base).getTime() + hour * 3600 * 1000);
-        t.textContent = d.toLocaleString('zh-TW', {
-            timeZone: 'Asia/Taipei', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
-        });
-    } else if (t) { t.textContent = ''; }
-
-    if (idxActiveLayer === 'off') return;
-    var snapped = idxNearestFrameHour(idxActiveLayer, hour);
-    if (snapped == null) return;
-    idxFetchFrame(idxActiveLayer, snapped).then(function(data) {
-        if (currentIdxFrameHour !== hour) return;
-        idxApplyFrameToLayer(idxActiveLayer, data);
-    }).catch(function(err) { console.warn(err); });
-}
-
-function buildIdxVelocityLayerWithData(type, data) {
-    var isCurrent = type === 'current';
-    var isGfsWind = isGfsVector(type);
-    var maxV = isCurrent ? 1.5 : (isGfsWind && type !== 'wind_10m' ? 30 : 15);
-    var layer = L.velocityLayer({
-        displayValues: true,
-        displayOptions: {
-            velocityType: isCurrent ? 'Ocean Current' : (isGfsWind ? vectorLabel(type) : 'Wind'),
-            displayPosition: 'bottomleft',
-            displayEmptyString: '',
-            speedUnit: 'm/s',
-            angleConvention: 'bearingCW',
-        },
-        data: data,
-        maxVelocity: maxV,
-        velocityScale: isCurrent ? 0.01 : 0.005,
-        particleAge: 60,
-        lineWidth: isCurrent ? 2 : 1.5,
-        particleMultiplier: 1 / 250,
-        colorScale: isCurrent
-            ? ["#1a237e","#1565c0","#42a5f5","#29b6f6","#26c6da","#00e5ff","#76ff03","#ffeb3b","#ff9800","#f44336"]
-            : ["#364fc7","#4c6ef5","#748ffc","#91a7ff","#bac8ff","#dbe4ff","#f8f9fa","#ffe8cc","#ffc078","#ff922b"],
-        frameRate: 30,
-        opacity: 0.85,
-    });
-    if (isCurrent) idxCurrentLayer = layer;
-    else if (type === 'wind') idxWindLayer = layer;
-    else if (isGfsWind) gfsVectorLayers[type] = layer;
-    return layer;
-}
-
-// Mark select options that have no frames so users can see what's pending,
-// without removing them (pruning made the feature look missing when the
-// pipeline hadn't run yet).
-function annotateIdxLayerSelect() {
-    var sel = document.getElementById('vectorLayerSel');
-    if (!sel) return;
-    for (var i = 0; i < sel.options.length; i++) {
-        var opt = sel.options[i];
-        var val = opt.value;
-        if (!val || val === 'current' || val === 'wind' || val === 'off') continue;
-        var meta = gfsLayerMeta[val];
-        var hasData = meta && meta.hours && meta.hours.length;
-        opt.textContent = opt.textContent.replace(/\s*\((無資料|no data)\)\s*$/, '');
-        if (!hasData) {
-            opt.textContent = opt.textContent + ' (無資料)';
-            opt.disabled = true;
-        } else {
-            opt.disabled = false;
-        }
-    }
-}
-
-function initIdxFrames() {
-    return fetch(IDX_FRAMES_INDEX_URL).then(function(r) {
-        if (!r.ok) throw new Error('no frames');
-        return r.json();
-    }).then(function(idx) {
-        idxFramesIndex = idx;
-        gfsLayerMeta = idx.layers || {};
-        annotateIdxLayerSelect();
-        var maxH = idx.max_hours || 72;
-        var slider = document.getElementById('idxTlSlider');
-        if (slider) slider.max = maxH;
-
-        return Promise.all([
-            idxFetchFrame('current', idxNearestFrameHour('current', 0)),
-            idxFetchFrame('wind', idxNearestFrameHour('wind', 0)),
-        ]).then(function(frames) {
-            buildIdxVelocityLayerWithData('current', frames[0]);
-            buildIdxVelocityLayerWithData('wind', frames[1]);
-            map.addLayer(idxCurrentLayer);
-            updateIdxVelocityBar('current');
-
-            var tl = document.getElementById('idxTimeline');
-            if (tl) tl.style.display = 'flex';
-            wireIdxTimeline();
-            setIdxForecastHour(0);
-            return true;
-        });
-    }).catch(function() { return null; });
-}
-
-function wireIdxTimeline() {
-    var slider = document.getElementById('idxTlSlider');
-    var play = document.getElementById('idxTlPlay');
-    if (!slider || !play) return;
-    var debounce;
-    slider.addEventListener('input', function() {
-        var h = parseInt(slider.value, 10);
-        clearTimeout(debounce);
-        debounce = setTimeout(function() { setIdxForecastHour(h, { fromSlider: true }); }, 80);
-    });
-    play.addEventListener('click', function() {
-        if (idxPlayTimer) {
-            clearInterval(idxPlayTimer); idxPlayTimer = null;
-            play.classList.remove('playing'); play.innerHTML = '&#9654;'; return;
-        }
-        play.classList.add('playing'); play.innerHTML = '&#10074;&#10074;';
-        idxPlayTimer = setInterval(function() {
-            var max = parseInt(slider.max, 10);
-            var next = (currentIdxFrameHour + 1) > max ? 0 : currentIdxFrameHour + 1;
-            setIdxForecastHour(next);
-        }, 600);
-    });
-}
-
-// Try frames first; fall back to single-snapshot velocity files
-initIdxFrames().then(function(ok) {
-    if (ok) return;
-    Promise.all([
-        loadIdxVelocity(CURRENT_VELOCITY_URL, 'current'),
-        loadIdxVelocity(WIND_VELOCITY_URL, 'wind'),
-    ]).then(function() {
-        if (idxCurrentLayer) {
-            map.addLayer(idxCurrentLayer);
-            updateIdxVelocityBar('current');
-        }
-    });
-});
-
-// Mobile sidebar collapse toggle
-(function() {
-    var toggle = document.getElementById('sidebarToggle');
-    var sidebar = document.getElementById('sidebar');
-    if (!toggle || !sidebar) return;
-    toggle.addEventListener('click', function() {
-        sidebar.classList.toggle('collapsed');
-        toggle.setAttribute('aria-expanded', !sidebar.classList.contains('collapsed'));
-    });
-})();
-</script>
 
 </body>
 </html>
