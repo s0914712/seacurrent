@@ -1,438 +1,429 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SeaCurrent Drift Simulator</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/leaflet-velocity@2.1.4/dist/leaflet-velocity.min.js"></script>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        html { font-size: clamp(14px, 0.45vw + 11px, 20px); }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
-            background: #0a1628;
-            color: #e0e6ed;
-            min-height: 100vh;
-        }
-        .layout {
-            display: flex;
-            height: 100vh;
-        }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SeaCurrent — Taiwan Ocean Drift Forecasting</title>
+<link rel="stylesheet" href="colors_and_type.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: clamp(14px, 0.45vw + 11px, 18px); scroll-behavior: smooth; }
+  body {
+    background: var(--bg-0);
+    color: var(--fg-1);
+    font-family: var(--font-sans);
+    line-height: 1.55;
+    overflow-x: hidden;
+  }
+  a { color: inherit; text-decoration: none; }
 
-        /* Sidebar */
-        .sidebar {
-            width: 22rem;
-            min-width: 22rem;
-            background: #101d33;
-            border-right: 1px solid #1e3050;
-            overflow-y: auto;
-            padding: 1.25rem;
-            display: flex;
-            flex-direction: column;
-        }
-        .sidebar-header {
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            gap: 0.5rem;
-        }
-        .sidebar-header .titles { flex: 1; min-width: 0; }
-        .sidebar-toggle {
-            display: none;
-            background: rgba(26, 53, 88, 0.7);
-            border: 1px solid #1e3050;
-            color: #e0e6ed;
-            width: 2.25rem;
-            height: 2.25rem;
-            border-radius: 50%;
-            font-size: 1.1em;
-            cursor: pointer;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-            font-family: inherit;
-            line-height: 1;
-        }
-        .sidebar h2 {
-            font-size: 1.4em;
-            margin-bottom: 4px;
-            color: #fff;
-        }
-        .subtitle {
-            color: #7a8fa6;
-            font-size: 0.92em;
-            margin-bottom: 1rem;
-        }
-        .subtitle a { color: #5ba3f5; text-decoration: none; }
-        .subtitle a:hover { text-decoration: underline; }
+  /* ---------- Shell ---------- */
+  .wrap {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 2rem;
+  }
+  @media (max-width: 640px) { .wrap { padding: 0 1.25rem; } }
 
-        /* Sim type cards */
-        .sim-type-cards { display: flex; gap: 0.4rem; margin-bottom: 1rem; }
-        .sim-card {
-            flex: 1;
-            padding: 0.7rem 0.4rem;
-            border: 2px solid #1e3050;
-            border-radius: 8px;
-            background: #152238;
-            cursor: pointer;
-            text-align: center;
-            transition: all 0.15s;
-            color: #8a9bb5;
-            font-family: inherit;
-        }
-        .sim-card:hover { border-color: #3a6ea5; background: #182d4a; }
-        .sim-card.active { border-color: #4a9eff; background: #1a3558; color: #fff; }
-        .sim-card .sim-icon { font-size: 1.55em; display: block; margin-bottom: 4px; }
-        .sim-card .sim-label { font-weight: 600; display: block; font-size: 0.92em; }
+  /* ---------- Nav ---------- */
+  .nav {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(10, 22, 40, 0.75);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-inner {
+    display: flex; align-items: center; justify-content: space-between;
+    height: 4rem;
+  }
+  .brand { display: flex; align-items: center; gap: 0.6rem; font-weight: 700; color: var(--fg-0); font-size: 1.02rem; letter-spacing: -0.01em; }
+  .brand-mark {
+    width: 1.75rem; height: 1.75rem; border-radius: 6px;
+    background: radial-gradient(120% 120% at 20% 20%, #4a9eff 0%, #1565c0 55%, #0a1628 100%);
+    display: grid; place-items: center; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+  }
+  .brand-mark svg { width: 1.1rem; height: 1.1rem; }
+  .nav-links { display: flex; gap: 1.75rem; font-size: 0.92rem; color: var(--fg-2); }
+  .nav-links a { transition: color var(--dur-fast); }
+  .nav-links a:hover { color: var(--fg-0); }
+  .nav-cta {
+    padding: 0.5rem 0.9rem;
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    color: var(--fg-1);
+    font-size: 0.88rem; font-weight: 600;
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    transition: all var(--dur-fast);
+  }
+  .nav-cta:hover { border-color: var(--border-hover); background: var(--bg-elevated); color: var(--fg-0); }
+  @media (max-width: 720px) { .nav-links { display: none; } }
 
-        /* Form */
-        .form-section { margin-bottom: 0.75rem; }
-        label { font-weight: 600; font-size: 0.92em; color: #8a9bb5; display: block; margin-bottom: 4px; }
-        input, select {
-            width: 100%;
-            padding: 0.55rem 0.7rem;
-            font-size: 1em;
-            border: 1px solid #1e3050;
-            border-radius: 6px;
-            background: #0d1a2e;
-            color: #e0e6ed;
-            margin-bottom: 0.6rem;
-            font-family: inherit;
-        }
-        input:focus, select:focus { border-color: #4a9eff; outline: none; }
-        .row { display: flex; gap: 0.6rem; }
-        .row > div { flex: 1; }
-        .param-group {
-            padding: 0.7rem;
-            background: #152238;
-            border-radius: 6px;
-            margin-bottom: 0.6rem;
-            border: 1px solid #1e3050;
-        }
-        .model-params { display: none; }
-        .model-params.visible { display: block; }
-        .map-hint {
-            font-size: 0.88em;
-            color: #5a7a9a;
-            margin: -0.3rem 0 0.7rem 0;
-        }
+  /* ---------- Hero ---------- */
+  .hero {
+    position: relative;
+    padding: 6rem 0 5rem;
+    overflow: hidden;
+  }
+  .hero-bg {
+    position: absolute; inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(60% 50% at 75% 20%, rgba(74, 158, 255, 0.18), transparent 70%),
+      radial-gradient(50% 60% at 20% 80%, rgba(38, 198, 218, 0.12), transparent 70%);
+  }
+  .grid-lines {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(74,158,255,0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(74,158,255,0.06) 1px, transparent 1px);
+    background-size: 64px 64px;
+    mask-image: radial-gradient(80% 60% at 50% 40%, #000 30%, transparent 75%);
+    -webkit-mask-image: radial-gradient(80% 60% at 50% 40%, #000 30%, transparent 75%);
+  }
+  .hero-inner { position: relative; display: grid; grid-template-columns: 1.15fr 1fr; gap: 4rem; align-items: center; }
+  @media (max-width: 960px) { .hero-inner { grid-template-columns: 1fr; gap: 2.5rem; } }
 
-        .submit-btn {
-            width: 100%;
-            padding: 0.75rem;
-            background: #2563eb;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 1em;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.15s;
-            font-family: inherit;
-        }
-        .submit-btn:hover { background: #1d4ed8; }
-        .submit-btn:disabled { background: #374151; cursor: not-allowed; color: #6b7280; }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 0.55rem;
+    padding: 0.35rem 0.75rem;
+    background: rgba(74, 158, 255, 0.08);
+    border: 1px solid rgba(74, 158, 255, 0.28);
+    border-radius: 999px;
+    font-size: 0.8rem; color: var(--accent);
+    font-weight: 600; letter-spacing: 0.02em;
+    margin-bottom: 1.5rem;
+  }
+  .eyebrow .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 3px rgba(74,158,255,0.2);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 3px rgba(74,158,255,0.2); }
+    50% { box-shadow: 0 0 0 5px rgba(74,158,255,0.05); }
+  }
 
-        /* Status messages */
-        #success { color: #34d399; margin-top: 0.6rem; font-size: 0.95em; }
-        #error { color: #f87171; margin-top: 0.6rem; font-size: 0.95em; }
-        #logs {
-            font-family: monospace;
-            font-size: 0.85em;
-            color: #7a8fa6;
-            margin-top: 0.5rem;
-            white-space: pre-wrap;
-        }
+  .hero h1 {
+    font-size: clamp(2.5rem, 4.5vw + 0.5rem, 4.25rem);
+    line-height: 1.02;
+    letter-spacing: -0.03em;
+    color: var(--fg-0);
+    font-weight: 700;
+    margin-bottom: 1.25rem;
+  }
+  .hero h1 .grad {
+    background: linear-gradient(90deg, #4a9eff 0%, #26c6da 60%, #76ff03 100%);
+    -webkit-background-clip: text; background-clip: text;
+    color: transparent;
+  }
+  .hero-sub {
+    font-size: 1.125rem;
+    color: var(--fg-2);
+    max-width: 36rem;
+    margin-bottom: 2rem;
+    line-height: 1.6;
+  }
+  .cta-row { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    padding: 0.85rem 1.25rem;
+    border-radius: var(--r-sm);
+    font-size: 0.95rem; font-weight: 600;
+    transition: all var(--dur-fast);
+    border: 1px solid transparent;
+    cursor: pointer;
+  }
+  .btn-primary {
+    background: var(--accent-strong);
+    color: #fff;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
+  }
+  .btn-primary:hover { background: var(--accent-strong-hover); transform: translateY(-1px); }
+  .btn-ghost {
+    background: transparent;
+    color: var(--fg-1);
+    border-color: var(--border);
+  }
+  .btn-ghost:hover { border-color: var(--border-hover); background: var(--bg-3); color: var(--fg-0); }
+  .btn svg { width: 1rem; height: 1rem; }
 
-        /* Map */
-        .map-container {
-            flex: 1;
-            position: relative;
-        }
-        #map { width: 100%; height: 100%; }
-        .map-overlay {
-            position: absolute;
-            top: 14px;
-            right: 14px;
-            background: rgba(16, 29, 51, 0.9);
-            padding: 0.6rem 0.9rem;
-            border-radius: 8px;
-            font-size: 0.95em;
-            color: #8a9bb5;
-            z-index: 1000;
-            backdrop-filter: blur(8px);
-            border: 1px solid #1e3050;
-        }
-        .map-overlay .coord-display { color: #4a9eff; font-weight: 600; font-size: 1em; }
+  .hero-meta {
+    display: flex; gap: 2rem;
+    margin-top: 2.5rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .hero-meta .stat { }
+  .hero-meta .stat-v { display: block; font-size: 1.4rem; font-weight: 700; color: var(--fg-0); letter-spacing: -0.01em; }
+  .hero-meta .stat-l { font-size: 0.82rem; color: var(--fg-3); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 0.2rem; }
 
-        /* Layer dropdown controls */
-        .map-layer-controls {
-            position: absolute;
-            top: 14px;
-            left: 14px;
-            z-index: 1000;
-            display: flex;
-            gap: 6px;
-        }
-        .map-layer-controls .layer-group {
-            background: rgba(16, 29, 51, 0.92);
-            border: 1px solid #1e3050;
-            border-radius: 8px;
-            padding: 7px 10px;
-            backdrop-filter: blur(8px);
-            min-width: 175px;
-        }
-        .map-layer-controls .layer-group-title {
-            font-size: 0.7em;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            color: #7a8fa6;
-            margin-bottom: 4px;
-        }
-        .map-layer-controls .layer-select {
-            width: 100%;
-            background: rgba(10, 18, 32, 0.9);
-            color: #e0e6ed;
-            border: 1px solid #1e3050;
-            border-radius: 6px;
-            padding: 5px 7px;
-            font-family: inherit;
-            font-size: 0.88em;
-            cursor: pointer;
-        }
-        .map-layer-controls .layer-select:focus { outline: none; border-color: #4a9eff; }
+  /* ---------- Hero visual (stylized map card) ---------- */
+  .hero-viz {
+    position: relative;
+    border-radius: var(--r-xl);
+    overflow: hidden;
+    background: var(--bg-1);
+    border: 1px solid var(--border);
+    aspect-ratio: 4 / 3.2;
+    box-shadow: 0 40px 80px -30px rgba(0,0,0,0.6);
+  }
+  .viz-topbar {
+    display: flex; align-items: center; gap: 0.5rem;
+    padding: 0.7rem 0.9rem;
+    border-bottom: 1px solid var(--border);
+    background: rgba(16,29,51,0.6);
+  }
+  .viz-topbar .dot-row { display: flex; gap: 0.35rem; }
+  .viz-topbar .dot-row span { width: 10px; height: 10px; border-radius: 50%; background: var(--border-strong); }
+  .viz-topbar .url {
+    font-family: var(--font-mono); font-size: 0.72rem; color: var(--fg-3);
+    margin-left: 0.5rem; letter-spacing: 0.02em;
+  }
+  .viz-map {
+    position: relative; height: calc(100% - 42px);
+    background: #0a1628;
+    overflow: hidden;
+  }
+  #heroMap { position: absolute; inset: 0; background: #0a1628; }
+  .leaflet-container { background: #0a1628 !important; }
 
-        /* Scalar overlay color bar */
-        .scalar-bar {
-            position: absolute;
-            bottom: 76px;
-            right: 14px;
-            background: rgba(16, 29, 51, 0.92);
-            padding: 9px 13px;
-            border-radius: 8px;
-            z-index: 1000;
-            border: 1px solid #1e3050;
-            backdrop-filter: blur(8px);
-            min-width: 200px;
-            font-size: 0.82em;
-            color: #e0e6ed;
-            display: none;
-        }
-        .scalar-bar-title { font-weight: 600; margin-bottom: 5px; color: #fff; }
-        .scalar-gradient { height: 9px; border-radius: 3px; margin-bottom: 4px; }
-        .scalar-labels {
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.82em;
-            color: #8a9bb5;
-        }
-        .scalar-overlay-img {
-            image-rendering: auto !important;
-            image-rendering: smooth !important;
-            -ms-interpolation-mode: bicubic !important;
-        }
+  /* Animated particle flows */
+  .flow-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .flow-path { fill: none; stroke-width: 1.5; opacity: 0.85; stroke-linecap: round;
+    stroke-dasharray: 6 120;
+    animation: flow 3.5s linear infinite;
+  }
+  @keyframes flow {
+    from { stroke-dashoffset: 0; }
+    to { stroke-dashoffset: -126; }
+  }
+  .seed-pin {
+    position: absolute; left: 42%; top: 58%;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--seed);
+    box-shadow: 0 0 0 4px rgba(255,68,68,0.25), 0 0 0 10px rgba(255,68,68,0.08);
+    animation: pinPulse 2.2s infinite ease-out;
+  }
+  @keyframes pinPulse {
+    0% { box-shadow: 0 0 0 0 rgba(255,68,68,0.4), 0 0 0 0 rgba(255,68,68,0.2); }
+    100% { box-shadow: 0 0 0 18px rgba(255,68,68,0), 0 0 0 28px rgba(255,68,68,0); }
+  }
+  .viz-overlay {
+    position: absolute; top: 0.75rem; right: 0.75rem;
+    background: var(--overlay-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    backdrop-filter: var(--overlay-blur);
+    padding: 0.55rem 0.7rem;
+    font-size: 0.72rem;
+    min-width: 160px;
+  }
+  .viz-overlay .ol-lbl { color: var(--fg-3); text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.62rem; margin-bottom: 0.15rem; }
+  .viz-overlay .ol-val { color: var(--accent); font-weight: 700; font-family: var(--font-mono); font-size: 0.85rem; }
+  .viz-scale {
+    position: absolute; left: 0.75rem; bottom: 0.75rem; right: 0.75rem;
+    background: var(--overlay-bg);
+    border: 1px solid var(--border);
+    backdrop-filter: var(--overlay-blur);
+    border-radius: var(--r-md);
+    padding: 0.55rem 0.75rem;
+  }
+  .viz-scale .ttl { font-size: 0.72rem; color: var(--fg-0); font-weight: 600; margin-bottom: 0.35rem; }
+  .viz-scale .grad { height: 8px; border-radius: 2px; background: var(--gradient-current); }
+  .viz-scale .rng { display: flex; justify-content: space-between; font-size: 0.65rem; color: var(--fg-3); margin-top: 0.25rem; font-family: var(--font-mono); }
 
-        /* Timeline scrubber */
-        .timeline {
-            position: absolute;
-            left: 50%;
-            bottom: 14px;
-            transform: translateX(-50%);
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 10px 16px;
-            background: rgba(16, 29, 51, 0.95);
-            border: 1px solid #1e3050;
-            border-radius: 10px;
-            backdrop-filter: blur(8px);
-            z-index: 1000;
-            width: min(calc(100% - 320px), 680px);
-        }
-        .tl-btn {
-            background: #1a3558;
-            color: #e0e6ed;
-            border: 1px solid #2c4f7a;
-            border-radius: 50%;
-            width: 2rem; height: 2rem;
-            cursor: pointer;
-            font-size: 0.85em;
-            line-height: 1;
-            flex-shrink: 0;
-            font-family: inherit;
-        }
-        .tl-btn:hover { background: #2c4f7a; }
-        .tl-btn.playing { background: #2563eb; border-color: #2563eb; }
-        .tl-info { display: flex; flex-direction: column; line-height: 1.15; flex-shrink: 0; min-width: 6rem; }
-        .tl-label { color: #4a9eff; font-weight: 700; font-size: 0.95em; }
-        .tl-time { color: #7a8fa6; font-size: 0.8em; }
-        .tl-range { flex: 1; accent-color: #4a9eff; cursor: pointer; min-width: 0; }
-        .tl-loading { color: #f59e0b; font-size: 1em; flex-shrink: 0; width: 1em; text-align: center; }
+  /* ---------- Section frame ---------- */
+  section { padding: 5rem 0; position: relative; }
+  .section-head { max-width: 42rem; margin: 0 auto 3rem; text-align: center; }
+  .section-label {
+    display: inline-block;
+    font-size: 0.78rem; color: var(--accent); font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.15em;
+    margin-bottom: 0.85rem;
+  }
+  .section-title {
+    font-size: clamp(1.75rem, 2.5vw + 0.5rem, 2.5rem);
+    letter-spacing: -0.02em;
+    color: var(--fg-0);
+    line-height: 1.1;
+    margin-bottom: 1rem;
+  }
+  .section-sub { color: var(--fg-2); font-size: 1.05rem; line-height: 1.6; }
 
-        /* Velocity color bar */
-        .velocity-bar {
-            position: absolute;
-            bottom: 14px;
-            right: 14px;
-            background: rgba(16, 29, 51, 0.92);
-            padding: 0.7rem 0.9rem;
-            border-radius: 8px;
-            font-size: 0.9em;
-            z-index: 1000;
-            border: 1px solid #1e3050;
-            backdrop-filter: blur(8px);
-            display: none;
-        }
-        .velocity-bar.visible { display: block; }
-        .velocity-bar-title { color: #fff; font-weight: 600; margin-bottom: 6px; font-size: 1em; }
-        .velocity-gradient {
-            width: 11rem;
-            height: 0.8rem;
-            border-radius: 3px;
-            margin-bottom: 4px;
-        }
-        .velocity-labels {
-            display: flex;
-            justify-content: space-between;
-            color: #7a8fa6;
-            font-size: 0.92em;
-        }
+  /* ---------- Scenarios ---------- */
+  .scenarios {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;
+  }
+  @media (max-width: 900px) { .scenarios { grid-template-columns: 1fr; } }
+  .sc-card {
+    background: var(--bg-1);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: 1.75rem 1.5rem;
+    position: relative;
+    overflow: hidden;
+    transition: all var(--dur-med) var(--ease);
+  }
+  .sc-card:hover { border-color: var(--border-hover); transform: translateY(-3px); }
+  .sc-card::before {
+    content: ''; position: absolute; left: 0; right: 0; top: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0; transition: opacity var(--dur-med);
+  }
+  .sc-card:hover::before { opacity: 1; }
+  .sc-icon {
+    width: 2.75rem; height: 2.75rem;
+    border-radius: var(--r-sm);
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    display: grid; place-items: center;
+    margin-bottom: 1.25rem;
+    color: var(--accent);
+  }
+  .sc-icon svg { width: 1.4rem; height: 1.4rem; stroke-width: 1.5; }
+  .sc-card h3 { font-size: 1.15rem; color: var(--fg-0); margin-bottom: 0.4rem; font-weight: 600; }
+  .sc-card .model-tag {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--fg-3);
+    margin-bottom: 0.9rem;
+    letter-spacing: 0.04em;
+  }
+  .sc-card p { color: var(--fg-2); font-size: 0.92rem; line-height: 1.55; }
+  .sc-card ul { margin-top: 0.9rem; list-style: none; }
+  .sc-card li { font-size: 0.82rem; color: var(--fg-3); padding: 0.25rem 0; display: flex; align-items: center; gap: 0.45rem; }
+  .sc-card li::before { content: ''; width: 4px; height: 4px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
 
-        /* Responsive - Tablet */
-        @media (max-width: 900px) {
-            .sidebar { width: 20rem; min-width: 20rem; padding: 1rem; }
-        }
+  /* ---------- Workflow ---------- */
+  .workflow {
+    background: var(--bg-1);
+    border: 1px solid var(--border);
+    border-radius: var(--r-xl);
+    padding: 2.5rem;
+  }
+  .steps {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; position: relative;
+  }
+  @media (max-width: 900px) { .steps { grid-template-columns: 1fr; } }
+  .step { padding: 0 1.25rem; position: relative; }
+  .step:not(:last-child)::after {
+    content: ''; position: absolute; right: -1px; top: 1.1rem;
+    width: 1px; height: calc(100% - 2.2rem);
+    background: var(--border);
+  }
+  @media (max-width: 900px) {
+    .step { padding: 1.25rem 0; border-bottom: 1px solid var(--border); }
+    .step:last-child { border-bottom: none; }
+    .step:not(:last-child)::after { display: none; }
+  }
+  .step-n {
+    font-family: var(--font-mono);
+    font-size: 0.72rem; color: var(--accent);
+    letter-spacing: 0.08em;
+    margin-bottom: 0.7rem;
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    background: rgba(74,158,255,0.1);
+    border: 1px solid rgba(74,158,255,0.2);
+    border-radius: 4px;
+  }
+  .step h4 { font-size: 1.02rem; color: var(--fg-0); margin-bottom: 0.35rem; font-weight: 600; }
+  .step p { font-size: 0.88rem; color: var(--fg-3); line-height: 1.55; }
 
-        /* Responsive - Mobile */
-        @media (max-width: 700px) {
-            .layout { flex-direction: column; }
-            .sidebar {
-                width: 100%; min-width: 0;
-                max-height: 45vh;
-                padding: 12px 14px;
-                border-right: none;
-                border-bottom: 1px solid #1e3050;
-                transition: max-height 0.25s ease;
-            }
-            .sidebar.collapsed {
-                max-height: 3.5rem;
-                overflow: hidden;
-                padding-top: 10px;
-                padding-bottom: 10px;
-            }
-            .sidebar.collapsed .subtitle,
-            .sidebar.collapsed .sim-type-cards,
-            .sidebar.collapsed form,
-            .sidebar.collapsed #success,
-            .sidebar.collapsed #error,
-            .sidebar.collapsed #logs { display: none; }
-            .sidebar-toggle { display: inline-flex; }
-            .sidebar.collapsed .sidebar-toggle { transform: rotate(180deg); }
-            .map-container { min-height: 55vh; flex: 1; }
-            .sidebar h2 { font-size: 1.1em; }
-            .subtitle { margin-bottom: 10px; font-size: 0.88em; }
+  /* ---------- Data strip ---------- */
+  .data-strip {
+    display: grid; grid-template-columns: 1.3fr 1fr; gap: 3rem; align-items: center;
+  }
+  @media (max-width: 900px) { .data-strip { grid-template-columns: 1fr; } }
+  .data-strip h2 { margin-bottom: 1rem; }
+  .data-strip p { color: var(--fg-2); margin-bottom: 1.25rem; line-height: 1.6; }
+  .kv-table {
+    background: var(--bg-1);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    overflow: hidden;
+  }
+  .kv-row {
+    display: grid; grid-template-columns: 1fr 1.4fr;
+    padding: 0.85rem 1.1rem;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.88rem;
+  }
+  .kv-row:last-child { border-bottom: none; }
+  .kv-row .k { color: var(--fg-3); }
+  .kv-row .v { color: var(--fg-1); font-family: var(--font-mono); font-size: 0.82rem; }
+  .kv-row .v.accent { color: var(--accent); }
 
-            /* Sim cards - larger touch targets */
-            .sim-type-cards { gap: 8px; margin-bottom: 12px; }
-            .sim-card {
-                padding: 14px 8px;
-                border-radius: 12px;
-            }
-            .sim-card .sim-icon { font-size: 1.8em; margin-bottom: 4px; }
-            .sim-card .sim-label { font-size: 0.88em; }
+  /* ---------- Features ---------- */
+  .features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
+  @media (max-width: 900px) { .features { grid-template-columns: 1fr; } }
+  .feat {
+    background: var(--bg-1);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: 1.5rem;
+    transition: border-color var(--dur-fast);
+  }
+  .feat:hover { border-color: var(--border-hover); }
+  .feat-icon {
+    width: 2rem; height: 2rem; border-radius: 6px;
+    display: grid; place-items: center;
+    background: rgba(74,158,255,0.08);
+    color: var(--accent);
+    margin-bottom: 1rem;
+  }
+  .feat-icon svg { width: 1rem; height: 1rem; stroke-width: 1.5; }
+  .feat h4 { font-size: 1rem; color: var(--fg-0); margin-bottom: 0.35rem; font-weight: 600; }
+  .feat p { font-size: 0.88rem; color: var(--fg-3); line-height: 1.5; }
 
-            /* Form - larger inputs for touch (16px prevents iOS zoom) */
-            input, select {
-                padding: 12px 14px;
-                font-size: 16px;
-                margin-bottom: 10px;
-                border-radius: 8px;
-                min-height: 44px;
-            }
-            label { font-size: 0.88em; margin-bottom: 5px; }
-            .form-section { margin-bottom: 12px; }
-            .param-group { padding: 12px; border-radius: 8px; }
-            .row { gap: 10px; }
+  /* ---------- CTA ---------- */
+  .cta-band {
+    background:
+      radial-gradient(60% 120% at 80% 0%, rgba(74, 158, 255, 0.22), transparent 60%),
+      radial-gradient(40% 100% at 0% 100%, rgba(38, 198, 218, 0.15), transparent 60%),
+      var(--bg-1);
+    border: 1px solid var(--border);
+    border-radius: var(--r-xl);
+    padding: 3.5rem 2.5rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .cta-band::after {
+    content: ''; position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(74,158,255,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(74,158,255,0.05) 1px, transparent 1px);
+    background-size: 40px 40px;
+    mask-image: radial-gradient(60% 80% at 50% 50%, #000, transparent);
+    -webkit-mask-image: radial-gradient(60% 80% at 50% 50%, #000, transparent);
+    pointer-events: none;
+  }
+  .cta-band h2 { position: relative; font-size: clamp(1.75rem, 2.5vw + 0.5rem, 2.35rem); margin-bottom: 0.75rem; letter-spacing: -0.02em; }
+  .cta-band p { position: relative; color: var(--fg-2); margin-bottom: 1.5rem; max-width: 32rem; margin-left: auto; margin-right: auto; }
+  .cta-band .cta-row { position: relative; justify-content: center; }
 
-            /* Submit button - larger touch target */
-            .submit-btn {
-                padding: 15px;
-                font-size: 16px;
-                border-radius: 8px;
-                min-height: 48px;
-            }
-
-            /* Map overlay - compact */
-            .map-overlay {
-                top: 8px; right: 8px;
-                padding: 6px 10px;
-                font-size: 0.82em;
-                border-radius: 6px;
-            }
-
-            /* Layer dropdowns - two columns on mobile */
-            .map-layer-controls {
-                top: 8px; left: 8px; right: 8px;
-                gap: 6px;
-                flex-wrap: wrap;
-            }
-            .map-layer-controls .layer-group {
-                padding: 5px 8px;
-                min-width: 0;
-                flex: 1 1 calc(50% - 3px);
-                max-width: calc(50% - 3px);
-            }
-            .map-layer-controls .layer-group-title {
-                font-size: 0.6em;
-                margin-bottom: 2px;
-            }
-            .map-layer-controls .layer-select {
-                padding: 4px 6px;
-                font-size: 0.78em;
-            }
-            .scalar-bar {
-                bottom: 64px;
-                right: 8px;
-                left: 8px;
-                padding: 8px 12px;
-                min-width: 0;
-                font-size: 0.78em;
-            }
-
-            /* Velocity bar - compact on mobile */
-            .velocity-bar {
-                bottom: 60px;
-                right: 10px;
-                padding: 8px 10px;
-                font-size: 0.78em;
-            }
-            .velocity-gradient { width: 8rem; height: 0.6rem; }
-
-            /* Timeline - full width on mobile */
-            .timeline {
-                width: calc(100% - 20px);
-                left: 10px;
-                right: 10px;
-                transform: none;
-                bottom: 10px;
-                padding: 8px 12px;
-                gap: 8px;
-            }
-            .tl-info { min-width: 4.5rem; }
-            .tl-label { font-size: 0.85em; }
-            .tl-time { font-size: 0.7em; }
-        }
-
-        /* Small phones */
-        @media (max-width: 380px) {
-            .sidebar { padding: 10px 12px; max-height: 42vh; }
-            .sim-card .sim-icon { font-size: 1.6em; }
-            .sim-card .sim-label { font-size: 0.8em; }
-            .sidebar h2 { font-size: 1em; }
-        }
-    </style>
+  /* ---------- Footer ---------- */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 2.5rem 0;
+    margin-top: 2rem;
+    color: var(--fg-3);
+    font-size: 0.85rem;
+  }
+  .foot-inner {
+    display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .foot-links { display: flex; gap: 1.25rem; }
+  .foot-links a:hover { color: var(--fg-1); }
+</style>
 </head>
 <body>
     <div class="layout">
@@ -477,660 +468,325 @@
                 </div>
                 <p class="map-hint">Click the map to set coordinates</p>
 
-                <div class="form-section">
-                    <label for="duration">Duration (hours)</label>
-                    <input type="number" id="duration" value="24" min="1" max="84">
-                </div>
+<!-- ============ NAV ============ -->
+<nav class="nav">
+  <div class="wrap nav-inner">
+    <a href="#" class="brand">
+      <span class="brand-mark">
+        <!-- wave mark -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2 12c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 17c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 7c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/>
+        </svg>
+      </span>
+      SeaCurrent
+    </a>
+    <div class="nav-links">
+      <a href="#scenarios">Scenarios</a>
+      <a href="#how">How it works</a>
+      <a href="#data">Data</a>
+      <a href="#features">Features</a>
+    </div>
+    <a href="app.html" class="nav-cta">
+      Launch app
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+    </a>
+  </div>
+</nav>
 
-                <!-- Leeway params -->
-                <div id="leewayParams" class="model-params visible">
-                    <div class="param-group">
-                        <label for="objectType">Object Type</label>
-                        <select id="objectType">
-                            <option value="26" selected>Life raft, no ballast</option>
-                            <option value="1">Person in water (PIW)</option>
-                            <option value="4">Person in water, vertical</option>
-                            <option value="14">Life raft, ballast, canopy</option>
-                            <option value="27">Life raft, ballast, no canopy</option>
-                            <option value="40">Life raft, capsized</option>
-                            <option value="52">Fishing vessel</option>
-                            <option value="56">Sailboat, monohull</option>
-                            <option value="63">Skiff, flat bottom</option>
-                            <option value="72">Surfboard</option>
-                        </select>
-                    </div>
-                </div>
-                <!-- OceanDrift params -->
-                <div id="oceandriftParams" class="model-params">
-                    <div class="param-group">
-                        <label for="windDriftFactor">Wind Drift Factor</label>
-                        <input type="number" step="0.001" id="windDriftFactor" value="0.02" min="0" max="0.1">
-                    </div>
-                </div>
-                <!-- OpenOil params -->
-                <div id="openoilParams" class="model-params">
-                    <div class="param-group">
-                        <label for="oilType">Oil Type</label>
-                        <select id="oilType">
-                            <option value="GENERIC MEDIUM CRUDE" selected>Medium Crude</option>
-                            <option value="GENERIC HEAVY CRUDE">Heavy Crude</option>
-                            <option value="GENERIC LIGHT CRUDE">Light Crude</option>
-                            <option value="GENERIC DIESEL">Diesel</option>
-                            <option value="GENERIC BUNKER C">Bunker C</option>
-                        </select>
-                        <label for="oilAmount">Amount (m&sup3;)</label>
-                        <input type="number" step="1" id="oilAmount" value="100" min="1" max="10000">
-                    </div>
-                </div>
-
-                <div class="form-section">
-                    <label for="email">Email (results sent here)</label>
-                    <input type="email" id="email" placeholder="your@email.com" required>
-                </div>
-
-                <button type="submit" id="submitBtn" class="submit-btn">Submit Simulation</button>
-            </form>
-
-            <div id="success"></div>
-            <div id="error"></div>
-            <div id="logs"></div>
-        </div>
-
-        <div class="map-container">
-            <div id="map"></div>
-            <div class="map-overlay">
-                <div>Cursor: <span class="coord-display" id="cursorCoords">--</span></div>
-            </div>
-            <div class="map-layer-controls">
-                <div class="layer-group">
-                    <div class="layer-group-title">Vector flow</div>
-                    <select id="idxVectorSel" class="layer-select" onchange="selectIdxVectorLayer(this.value)">
-                        <option value="current">Ocean current</option>
-                        <option value="wind">Wind (surface)</option>
-                        <option value="wind_10m">Wind 10 m (GFS)</option>
-                        <option value="wind_850hPa">Wind 850 hPa</option>
-                        <option value="wind_925hPa">Wind 925 hPa</option>
-                        <option value="wind_1000hPa">Wind 1000 hPa</option>
-                        <option value="off">Off</option>
-                    </select>
-                </div>
-                <div class="layer-group">
-                    <div class="layer-group-title">Overlay</div>
-                    <select id="idxScalarSel" class="layer-select" onchange="selectIdxScalarOverlay(this.value)">
-                        <option value="">None</option>
-                        <option value="temp_2m">Temperature 2 m</option>
-                        <option value="temp_850hPa">Temperature 850 hPa</option>
-                        <option value="temp_925hPa">Temperature 925 hPa</option>
-                        <option value="temp_1000hPa">Temperature 1000 hPa</option>
-                        <option value="rh_2m">Humidity 2 m</option>
-                        <option value="rh_850hPa">Humidity 850 hPa</option>
-                        <option value="rh_925hPa">Humidity 925 hPa</option>
-                        <option value="rh_1000hPa">Humidity 1000 hPa</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="scalar-bar" id="idxScalarBar">
-                <div class="scalar-bar-title" id="idxScalarBarTitle"></div>
-                <div class="scalar-gradient" id="idxScalarGradient"></div>
-                <div class="scalar-labels">
-                    <span id="idxScalarMin"></span>
-                    <span id="idxScalarMid"></span>
-                    <span id="idxScalarMax"></span>
-                </div>
-            </div>
-
-            <div class="velocity-bar" id="idxVelocityBar">
-                <div class="velocity-bar-title" id="idxVelocityBarTitle">Ocean Current (m/s)</div>
-                <div class="velocity-gradient" id="idxVelocityGradient"></div>
-                <div class="velocity-labels">
-                    <span>0</span>
-                    <span id="idxVelocityMid">0.75</span>
-                    <span id="idxVelocityMax">1.5</span>
-                </div>
-            </div>
-
-            <div class="timeline" id="idxTimeline" style="display:none;">
-                <button type="button" class="tl-btn" id="idxTlPlay" aria-label="Play">&#9654;</button>
-                <div class="tl-info">
-                    <span class="tl-label" id="idxTlLabel">T+0h</span>
-                    <span class="tl-time" id="idxTlTime"></span>
-                </div>
-                <input type="range" id="idxTlSlider" min="0" max="72" value="0" step="1" class="tl-range">
-                <span class="tl-loading" id="idxTlLoading" style="display:none;">…</span>
-            </div>
-        </div>
+<!-- ============ HERO ============ -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="grid-lines"></div>
+  <div class="wrap hero-inner">
+    <div>
+      <span class="eyebrow">
+        <span class="dot"></span>
+        Live CWA ocean-current data · Updated every 2 days
+      </span>
+      <h1>Forecast ocean drift<br>across <span class="grad">Taiwan waters.</span></h1>
+      <p class="hero-sub">
+        SeaCurrent turns Central Weather Administration open data into actionable
+        drift trajectories — for search &amp; rescue, marine debris, and oil-spill response.
+        Drop a pin, pick a scenario, receive a forecast by email.
+      </p>
+      <div class="cta-row">
+        <a href="app.html" class="btn btn-primary">
+          Launch simulator
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+        </a>
+        <a href="forecast.html" class="btn btn-ghost">
+          View forecast map
+        </a>
+        <a href="https://github.com/s0914712/seacurrent" class="btn btn-ghost" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.2c-3.3.7-4-1.4-4-1.4-.5-1.3-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.6-.3-5.4-1.3-5.4-6 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.3 11.3 0 0 1 6 0C17 4.6 18 5 18 5c.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.7-2.8 5.7-5.5 6 .4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5z"/></svg>
+          GitHub
+        </a>
+      </div>
+      <div class="hero-meta">
+        <div class="stat"><span class="stat-v">3</span><span class="stat-l">Drift models</span></div>
+        <div class="stat"><span class="stat-v">72h</span><span class="stat-l">Max forecast</span></div>
+        <div class="stat"><span class="stat-v">CWA</span><span class="stat-l">Data source</span></div>
+        <div class="stat"><span class="stat-v">MIT</span><span class="stat-l">Open source</span></div>
+      </div>
     </div>
 
+    <!-- Hero visual: real Leaflet map of Taiwan + animated drift overlay -->
+    <div class="hero-viz" aria-hidden="true">
+      <div class="viz-topbar">
+        <div class="dot-row"><span></span><span></span><span></span></div>
+        <span class="url">seacurrent / forecast · Taiwan waters</span>
+      </div>
+      <div class="viz-map">
+        <div id="heroMap"></div>
+        <svg class="flow-svg" viewBox="0 0 600 420" preserveAspectRatio="none" style="z-index:500; pointer-events:none;">
+          <defs>
+            <linearGradient id="fg1" x1="0" x2="1">
+              <stop offset="0" stop-color="#1565c0"/><stop offset="0.5" stop-color="#26c6da"/><stop offset="1" stop-color="#76ff03"/>
+            </linearGradient>
+            <linearGradient id="fg2" x1="0" x2="1">
+              <stop offset="0" stop-color="#00e5ff"/><stop offset="1" stop-color="#ffeb3b"/>
+            </linearGradient>
+            <linearGradient id="fg3" x1="0" x2="1">
+              <stop offset="0" stop-color="#42a5f5"/><stop offset="1" stop-color="#ff9800"/>
+            </linearGradient>
+          </defs>
+          <path class="flow-path" stroke="url(#fg1)" d="M20,70 C130,55 230,120 330,100 S520,60 590,110" style="animation-delay:0s"/>
+          <path class="flow-path" stroke="url(#fg2)" d="M10,140 C130,130 240,200 340,170 S520,140 590,190" style="animation-delay:-0.4s"/>
+          <path class="flow-path" stroke="url(#fg1)" d="M10,210 C130,190 250,270 340,240 S520,210 590,260" style="animation-delay:-0.9s"/>
+          <path class="flow-path" stroke="url(#fg3)" d="M20,280 C130,260 250,330 340,300 S520,280 590,320" style="animation-delay:-1.4s"/>
+          <path class="flow-path" stroke="url(#fg2)" d="M30,350 C150,330 240,380 340,360 S520,340 590,370" style="animation-delay:-1.9s"/>
+          <path class="flow-path" stroke="#ff6b6b" stroke-width="2.5" stroke-dasharray="4 6"
+                d="M240,230 C280,210 320,225 370,205 S460,195 510,175" style="animation:none;opacity:0.95"/>
+        </svg>
+        <div class="seed-pin"></div>
+        <div class="viz-overlay">
+          <div class="ol-lbl">Seed</div>
+          <div class="ol-val">121.5°E, 24.0°N</div>
+          <div class="ol-lbl" style="margin-top:0.4rem">Model</div>
+          <div class="ol-val" style="color:var(--fg-1); font-size:0.72rem">Leeway · Life raft</div>
+        </div>
+        <div class="viz-scale">
+          <div class="ttl">Ocean current (m/s)</div>
+          <div class="grad"></div>
+          <div class="rng"><span>0.0</span><span>0.75</span><span>1.5</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SCENARIOS ============ -->
+<section id="scenarios">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="section-label">Three drift models</span>
+      <h2 class="section-title">Purpose-built for the three most common<br>open-water response cases.</h2>
+      <p class="section-sub">Each simulation runs OpenDrift in a dedicated Docker environment on GitHub Actions — the same model-family used by national SAR and environmental agencies.</p>
+    </div>
+
+    <div class="scenarios">
+      <!-- Leeway -->
+      <article class="sc-card">
+        <div class="sc-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"/>
+            <path d="M12 3v4M12 17v4M3 12h4M17 12h4"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        </div>
+        <h3>Person overboard</h3>
+        <div class="model-tag">MODEL · Leeway</div>
+        <p>Search-and-rescue trajectory prediction for people and vessels lost at sea. Accounts for object-specific windage.</p>
+        <ul>
+          <li>Person-in-water (PIW)</li>
+          <li>Life rafts (ballast / canopy variants)</li>
+          <li>Fishing &amp; sail vessels</li>
+        </ul>
+      </article>
+
+      <!-- OceanDrift -->
+      <article class="sc-card">
+        <div class="sc-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 12c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/>
+            <path d="M2 17c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/>
+            <path d="M2 7c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/>
+          </svg>
+        </div>
+        <h3>Marine debris</h3>
+        <div class="model-tag">MODEL · OceanDrift</div>
+        <p>Track floating objects — containers, fishing gear, plastic — with tunable wind drift factors for different buoyancies.</p>
+        <ul>
+          <li>Wind drift factor 0 – 0.1</li>
+          <li>Container tracking</li>
+          <li>Debris field forecasts</li>
+        </ul>
+      </article>
+
+      <!-- OpenOil -->
+      <article class="sc-card">
+        <div class="sc-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2l5 8a6 6 0 1 1-10 0l5-8z"/>
+            <path d="M9 14a3 3 0 0 0 3 3"/>
+          </svg>
+        </div>
+        <h3>Oil spill</h3>
+        <div class="model-tag">MODEL · OpenOil</div>
+        <p>Oil-spill trajectory and weathering. Supports common fuel oil classes with spill-volume parameters.</p>
+        <ul>
+          <li>Light / medium / heavy crude</li>
+          <li>Diesel, Bunker C</li>
+          <li>Volume 1 – 10,000 m³</li>
+        </ul>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============ HOW IT WORKS ============ -->
+<section id="how" style="padding-top:1rem;">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="section-label">How it works</span>
+      <h2 class="section-title">From pin-drop to emailed forecast<br>in four steps.</h2>
+    </div>
+    <div class="workflow">
+      <div class="steps">
+        <div class="step">
+          <span class="step-n">STEP 01</span>
+          <h4>Drop a pin</h4>
+          <p>Click anywhere in Taiwan waters on the map. Longitude / latitude populate automatically.</p>
+        </div>
+        <div class="step">
+          <span class="step-n">STEP 02</span>
+          <h4>Choose scenario</h4>
+          <p>Select Person, Debris, or Oil Spill — then tune object type, wind drift, or oil parameters.</p>
+        </div>
+        <div class="step">
+          <span class="step-n">STEP 03</span>
+          <h4>We run OpenDrift</h4>
+          <p>A GitHub Actions job spins up OpenDrift in Docker and runs the model against fresh CWA data.</p>
+        </div>
+        <div class="step">
+          <span class="step-n">STEP 04</span>
+          <h4>Forecast in your inbox</h4>
+          <p>A trajectory map (PNG) plus raw JSON lands in your email, typically within minutes.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ DATA ============ -->
+<section id="data">
+  <div class="wrap data-strip">
+    <div>
+      <span class="section-label">Data source</span>
+      <h2 class="section-title">Built on authoritative<br>CWA open data.</h2>
+      <p>Ocean-current fields are pulled from the Central Weather Administration's public NetCDF dataset on AWS S3, converted to CF-convention standard names, and cached as GitHub artifacts. No proprietary feeds. No API keys on the client.</p>
+      <p>The conversion pipeline renames CWA's <span style="font-family:var(--font-mono); color: var(--accent);">UC</span> / <span style="font-family:var(--font-mono); color: var(--accent);">VC</span> velocity variables into OpenDrift-compatible <span style="font-family:var(--font-mono); color: var(--accent);">x/y_sea_water_velocity</span>, preserving every dimension (time, depth, lat, lon).</p>
+    </div>
+    <div class="kv-table" role="table">
+      <div class="kv-row"><span class="k">Source</span><span class="v accent">CWA OpenData</span></div>
+      <div class="kv-row"><span class="k">Bucket</span><span class="v">cwaopendata.s3…</span></div>
+      <div class="kv-row"><span class="k">Dataset</span><span class="v">Model/M-B0071-*.nc</span></div>
+      <div class="kv-row"><span class="k">Format</span><span class="v">NetCDF (CF)</span></div>
+      <div class="kv-row"><span class="k">Variables</span><span class="v">UC, VC → x/y velocity</span></div>
+      <div class="kv-row"><span class="k">Coverage</span><span class="v">Taiwan waters</span></div>
+      <div class="kv-row"><span class="k">Refresh</span><span class="v">Every 2 days · Actions cron</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FEATURES ============ -->
+<section id="features" style="padding-top:1rem;">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="section-label">What you get</span>
+      <h2 class="section-title">A full forecast viewer, not just a simulator.</h2>
+    </div>
+    <div class="features">
+      <div class="feat">
+        <div class="feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/><path d="M2 7c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/><path d="M2 17c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/></svg></div>
+        <h4>Animated flow fields</h4>
+        <p>Windy-style particle animation for ocean current and surface wind, with toggleable pressure levels (850 / 925 / 1000 hPa).</p>
+      </div>
+      <div class="feat">
+        <div class="feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></div>
+        <h4>Scalar overlays</h4>
+        <p>Temperature and humidity heatmaps at multiple altitudes. Color bars render automatically against 5th / 95th percentile ranges.</p>
+      </div>
+      <div class="feat">
+        <div class="feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+        <h4>72-hour timeline</h4>
+        <p>Scrub or play through three days of forecast frames. Hour snapping handles sparse source data gracefully.</p>
+      </div>
+      <div class="feat">
+        <div class="feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18M3 12h18M3 17h12"/></svg></div>
+        <h4>Email delivery</h4>
+        <p>Results ship via SendGrid as a trajectory PNG plus raw JSON. Nothing to install, no account required.</p>
+      </div>
+      <div class="feat">
+        <div class="feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l9 4v6c0 5-4 9-9 10-5-1-9-5-9-10V6l9-4z"/></svg></div>
+        <h4>Zero-trust client</h4>
+        <p>No secrets in the browser. The Vercel proxy holds the GitHub token; the client only sees queue IDs.</p>
+      </div>
+      <div class="feat">
+        <div class="feat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/></svg></div>
+        <h4>Fully open source</h4>
+        <p>MIT-licensed. Fork the repo, add GitHub Secrets for SendGrid, and deploy your own instance.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CTA ============ -->
+<section style="padding-top:1rem;">
+  <div class="wrap">
+    <div class="cta-band">
+      <h2>Ready to forecast the drift?</h2>
+      <p>Open the simulator, drop a pin in Taiwan waters, and get trajectories in your inbox.</p>
+      <div class="cta-row">
+        <a href="app.html" class="btn btn-primary">
+          Launch simulator
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+        </a>
+        <a href="forecast.html" class="btn btn-ghost">Forecast map</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <div class="wrap foot-inner">
+    <div class="brand" style="gap:0.5rem;">
+      <span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 17c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 7c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/></svg></span>
+      <span style="color:var(--fg-2); font-weight:500;">SeaCurrent · MIT · Data courtesy of Taiwan CWA</span>
+    </div>
+    <div class="foot-links">
+      <a href="app.html">Simulator</a>
+      <a href="forecast.html">Forecast</a>
+      <a href="https://github.com/s0914712/seacurrent" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </div>
+</footer>
+
 <script>
-// --- Map ---
-var map = L.map('map', { zoomControl: false }).setView([23.5, 121], 7);
-L.control.zoom({ position: 'bottomright' }).addTo(map);
-
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OpenStreetMap &copy; CARTO',
-    maxZoom: 18,
-}).addTo(map);
-
-var seedMarker = null;
-var trajectoryLayer = L.layerGroup().addTo(map);
-
-// Click to set coordinates
-map.on('click', function(e) {
-    document.getElementById('lon').value = e.latlng.lng.toFixed(4);
-    document.getElementById('lat').value = e.latlng.lat.toFixed(4);
-    updateSeedMarker(e.latlng.lat, e.latlng.lng);
-});
-
-map.on('mousemove', function(e) {
-    document.getElementById('cursorCoords').textContent =
-        e.latlng.lat.toFixed(4) + ', ' + e.latlng.lng.toFixed(4);
-});
-
-function updateSeedMarker(lat, lng) {
-    if (seedMarker) map.removeLayer(seedMarker);
-    seedMarker = L.circleMarker([lat, lng], {
-        radius: 8, color: '#ff4444', fillColor: '#ff4444', fillOpacity: 0.8, weight: 2,
-    }).addTo(map).bindPopup('Seed: ' + lat.toFixed(4) + ', ' + lng.toFixed(4));
-}
-
-// Init marker
-updateSeedMarker(24.0, 121.5);
-
-// Update marker when inputs change
-['lon', 'lat'].forEach(function(id) {
-    document.getElementById(id).addEventListener('change', function() {
-        var lat = parseFloat(document.getElementById('lat').value);
-        var lng = parseFloat(document.getElementById('lon').value);
-        if (!isNaN(lat) && !isNaN(lng)) updateSeedMarker(lat, lng);
-    });
-});
-
-// --- Simulation type ---
-var currentSimType = 'leeway';
-var MODEL_CONFIG = {
-    leeway:     { paramsId: 'leewayParams' },
-    oceandrift: { paramsId: 'oceandriftParams' },
-    openoil:    { paramsId: 'openoilParams' },
-};
-
-function setSimType(type) {
-    currentSimType = type;
-    document.querySelectorAll('.sim-card').forEach(function(c) {
-        c.classList.toggle('active', c.dataset.type === type);
-    });
-    document.querySelectorAll('.model-params').forEach(function(el) { el.classList.remove('visible'); });
-    document.getElementById(MODEL_CONFIG[type].paramsId).classList.add('visible');
-}
-
-function getModelParams() {
-    if (currentSimType === 'leeway') return { object_type: document.getElementById('objectType').value };
-    if (currentSimType === 'oceandrift') return { wind_drift_factor: document.getElementById('windDriftFactor').value };
-    if (currentSimType === 'openoil') return { oil_type: document.getElementById('oilType').value, amount: document.getElementById('oilAmount').value };
-    return {};
-}
-
-// --- Submit ---
-var VERCEL_API_URL = 'https://seacurrent.vercel.app/api/simulate';
-
-document.getElementById('simulationForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    var btn = document.getElementById('submitBtn');
-    var successEl = document.getElementById('success');
-    var errorEl = document.getElementById('error');
-    successEl.textContent = '';
-    errorEl.textContent = '';
-
-    var payload = Object.assign({
-        lon: parseFloat(document.getElementById('lon').value),
-        lat: parseFloat(document.getElementById('lat').value),
-        duration: parseInt(document.getElementById('duration').value),
-        email: document.getElementById('email').value.trim(),
-        model_type: currentSimType,
-    }, getModelParams());
-
-    if (!payload.email) { errorEl.textContent = 'Please enter your email.'; return; }
-
-    btn.disabled = true;
-    btn.textContent = 'Submitting...';
-
-    try {
-        var resp = await fetch(VERCEL_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-        });
-        var data = await resp.json();
-        if (data.status === 'queued') {
-            successEl.textContent = 'Simulation queued (ID: ' + data.request_id + '). Results will be emailed to ' + payload.email;
-        } else {
-            errorEl.textContent = 'Error: ' + (data.error || 'Unknown error');
-        }
-    } catch (err) {
-        errorEl.textContent = 'Request failed: ' + err.message;
-    }
-    btn.disabled = false;
-    btn.textContent = 'Submit Simulation';
-});
-
-// --- Velocity layers (Windy-style animated flow) + scalar overlays ---
-var CURRENT_VELOCITY_URL = 'scheduled_results/current_velocity.json';
-var WIND_VELOCITY_URL = 'scheduled_results/wind_velocity.json';
-var IDX_FRAMES_INDEX_URL = 'scheduled_results/frames/index.json';
-
-var idxVectorLayers = {};   // name → L.velocityLayer (built lazily)
-var idxActiveVector = 'current';
-var idxScalarLayer = '';
-var idxScalarOverlay = null;
-var idxFramesIndex = null;
-var idxLayerMeta = {};      // GFS layer metadata (from index.layers)
-var idxFrameCache = {};     // "type|hour" → component data
-var currentIdxFrameHour = 0;
-var idxPlayTimer = null;
-
-function isIdxGfsVector(name) { return name.indexOf('wind_') === 0; }
-function isIdxLegacyVector(name) { return name === 'current' || name === 'wind'; }
-
-function idxFrameUrl(type, hour) {
-    return 'scheduled_results/frames/' + type + '/h' + String(hour).padStart(3, '0') + '.json';
-}
-function idxLayerHours(type) {
-    if (!idxFramesIndex) return null;
-    if (isIdxLegacyVector(type)) return idxFramesIndex[type] && idxFramesIndex[type].hours;
-    var meta = idxLayerMeta[type];
-    return meta && meta.hours;
-}
-function idxLayerBaseTime(type) {
-    if (!idxFramesIndex) return null;
-    if (isIdxLegacyVector(type)) return idxFramesIndex[type] && idxFramesIndex[type].base_time;
-    var meta = idxLayerMeta[type];
-    return meta && meta.base_time;
-}
-function idxNearestFrameHour(type, hour) {
-    var hours = idxLayerHours(type);
-    if (!hours || !hours.length) return null;
-    var best = hours[0], diff = Math.abs(hour - best);
-    for (var i = 1; i < hours.length; i++) {
-        var d = Math.abs(hour - hours[i]);
-        if (d < diff) { best = hours[i]; diff = d; }
-    }
-    return best;
-}
-function idxFetchFrame(type, hour) {
-    var key = type + '|' + hour;
-    if (idxFrameCache[key]) return Promise.resolve(idxFrameCache[key]);
-    var loading = document.getElementById('idxTlLoading');
-    if (loading) loading.style.display = 'inline-block';
-    return fetch(idxFrameUrl(type, hour) + '?t=' + Date.now())
-        .then(function(r) { if (!r.ok) throw new Error('frame ' + hour + ' missing'); return r.json(); })
-        .then(function(data) { idxFrameCache[key] = data; return data; })
-        .finally(function() { if (loading) loading.style.display = 'none'; });
-}
-
-// ── Vector layer building ──
-function buildIdxVelocityLayer(type, data) {
-    var isCurrent = type === 'current';
-    var isGfs = isIdxGfsVector(type);
-    var maxV = isCurrent ? 1.5 : (isGfs && type !== 'wind_10m' ? 30 : 15);
-    var layer = L.velocityLayer({
-        displayValues: true,
-        displayOptions: {
-            velocityType: isCurrent ? 'Ocean Current' : (isGfs ? idxVectorLabel(type) : 'Wind'),
-            displayPosition: 'bottomleft',
-            displayEmptyString: '',
-            speedUnit: 'm/s',
-        },
-        data: data,
-        maxVelocity: maxV,
-        velocityScale: isCurrent ? 0.01 : 0.005,
-        particleAge: 60,
-        lineWidth: isCurrent ? 2 : 1.5,
-        particleMultiplier: 1 / 250,
-        colorScale: isCurrent
-            ? ["#1a237e","#1565c0","#42a5f5","#29b6f6","#26c6da","#00e5ff","#76ff03","#ffeb3b","#ff9800","#f44336"]
-            : ["#364fc7","#4c6ef5","#748ffc","#91a7ff","#bac8ff","#dbe4ff","#f8f9fa","#ffe8cc","#ffc078","#ff922b"],
-        frameRate: 30,
-        opacity: 0.85,
-    });
-    idxVectorLayers[type] = layer;
-    return layer;
-}
-function idxVectorLabel(name) {
-    if (name === 'current') return 'Ocean current';
-    if (name === 'wind') return 'Wind (surface)';
-    if (name === 'wind_10m') return 'Wind 10 m';
-    var m = name.match(/^wind_(\d+)hPa$/);
-    return m ? 'Wind ' + m[1] + ' hPa' : name;
-}
-function idxApplyFrameToVector(type, data) {
-    if (!idxVectorLayers[type]) {
-        var layer = buildIdxVelocityLayer(type, data);
-        if (idxActiveVector === type) map.addLayer(layer);
-        return;
-    }
-    var layer = idxVectorLayers[type];
-    if (typeof layer.setData === 'function') layer.setData(data);
-    else if (layer.options) {
-        layer.options.data = data;
-        if (map.hasLayer(layer)) { map.removeLayer(layer); map.addLayer(layer); }
-    }
-}
-
-// ── Velocity color bar (vectors) ──
-var IDX_GRADIENTS = {
-    current: 'linear-gradient(to right, #1a237e, #1565c0, #42a5f5, #26c6da, #00e5ff, #76ff03, #ffeb3b, #ff9800, #f44336)',
-    wind:    'linear-gradient(to right, #364fc7, #4c6ef5, #91a7ff, #dbe4ff, #f8f9fa, #ffe8cc, #ffc078, #ff922b)',
-};
-function updateIdxVelocityBar(type) {
-    var bar = document.getElementById('idxVelocityBar');
-    if (type === 'off') { bar.classList.remove('visible'); return; }
-    bar.classList.add('visible');
-    var isCurrent = type === 'current';
-    var max = isCurrent ? 1.5 : (isIdxGfsVector(type) && type !== 'wind_10m' ? 30 : 15);
-    document.getElementById('idxVelocityBarTitle').textContent = idxVectorLabel(type) + ' (m/s)';
-    document.getElementById('idxVelocityGradient').style.background = isCurrent ? IDX_GRADIENTS.current : IDX_GRADIENTS.wind;
-    document.getElementById('idxVelocityMax').textContent = max;
-    document.getElementById('idxVelocityMid').textContent = (max / 2);
-}
-
-function selectIdxVectorLayer(type) {
-    idxActiveVector = type;
-    Object.keys(idxVectorLayers).forEach(function(k) {
-        if (idxVectorLayers[k] && map.hasLayer(idxVectorLayers[k])) map.removeLayer(idxVectorLayers[k]);
-    });
-    if (type === 'off') {
-        updateIdxVelocityBar('off');
-        return;
-    }
-    if (idxVectorLayers[type]) map.addLayer(idxVectorLayers[type]);
-    updateIdxVelocityBar(type);
-    if (idxFramesIndex) setIdxForecastHour(currentIdxFrameHour);
-}
-
-// ── Scalar overlay (temperature / humidity) ──
-var IDX_SCALAR_UNITS = {
-    temp: { unit: '°C', offsetK: -273.15 },
-    rh:   { unit: '%',  offsetK: 0 },
-};
-var IDX_SCALAR_GRADIENTS = {
-    temp: 'linear-gradient(to right, #3b4cca, #4a9eff, #26c6da, #76ff03, #ffeb3b, #ff9800, #f44336)',
-    rh:   'linear-gradient(to right, #fff3bf, #d0ebff, #74c0fc, #339af0, #1864ab)',
-};
-var IDX_SCALAR_STOPS = {
-    temp: ['#3b4cca', '#4a9eff', '#26c6da', '#76ff03', '#ffeb3b', '#ff9800', '#f44336'],
-    rh:   ['#fff3bf', '#d0ebff', '#74c0fc', '#339af0', '#1864ab'],
-};
-function idxScalarKind(name) { return name.indexOf('temp_') === 0 ? 'temp' : 'rh'; }
-function idxScalarLabel(name) {
-    if (name === 'temp_2m') return 'Temperature 2 m';
-    if (name === 'rh_2m') return 'Humidity 2 m';
-    var m = name.match(/^(temp|rh)_(\d+)hPa$/);
-    return m ? (m[1] === 'temp' ? 'Temperature ' : 'Humidity ') + m[2] + ' hPa' : name;
-}
-function idxHexToRgb(h) {
-    h = h.replace('#', '');
-    return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)];
-}
-function idxInterpColor(stops, t) {
-    if (t <= 0) return idxHexToRgb(stops[0]);
-    if (t >= 1) return idxHexToRgb(stops[stops.length - 1]);
-    var seg = t * (stops.length - 1);
-    var i = Math.floor(seg);
-    var frac = seg - i;
-    var c1 = idxHexToRgb(stops[i]);
-    var c2 = idxHexToRgb(stops[i + 1]);
-    return [
-        Math.round(c1[0] + (c2[0] - c1[0]) * frac),
-        Math.round(c1[1] + (c2[1] - c1[1]) * frac),
-        Math.round(c1[2] + (c2[2] - c1[2]) * frac),
-    ];
-}
-function idxPercentile(arr, p) {
-    var sorted = arr.slice().sort(function(a, b) { return a - b; });
-    var idx = Math.max(0, Math.min(sorted.length - 1, Math.round(p * (sorted.length - 1))));
-    return sorted[idx];
-}
-function idxNiceRound(v, dir) {
-    if (!isFinite(v)) return v;
-    var step = Math.abs(v) >= 50 ? 5 : (Math.abs(v) >= 10 ? 1 : 0.5);
-    return dir === 'down' ? Math.floor(v / step) * step : Math.ceil(v / step) * step;
-}
-function updateIdxScalarBar(name, range) {
-    var info = IDX_SCALAR_UNITS[idxScalarKind(name)];
-    var digits = (Math.abs(range.max - range.min) >= 20) ? 0 : 1;
-    document.getElementById('idxScalarBarTitle').textContent = idxScalarLabel(name);
-    document.getElementById('idxScalarMin').textContent = range.min.toFixed(digits) + ' ' + info.unit;
-    document.getElementById('idxScalarMid').textContent = ((range.min + range.max) / 2).toFixed(digits) + ' ' + info.unit;
-    document.getElementById('idxScalarMax').textContent = range.max.toFixed(digits) + ' ' + info.unit;
-    document.getElementById('idxScalarGradient').style.background = IDX_SCALAR_GRADIENTS[idxScalarKind(name)];
-}
-function renderIdxScalarOverlay(data, layerName) {
-    if (!data || !data[0] || !data[0].header) return;
-    var comp = data[0];
-    var h = comp.header;
-    var nx = h.nx, ny = h.ny;
-    var values = comp.data;
-    var kind = idxScalarKind(layerName);
-    var info = IDX_SCALAR_UNITS[kind];
-    var stops = IDX_SCALAR_STOPS[kind];
-
-    var displayVals = new Array(values.length);
-    for (var k = 0; k < values.length; k++) displayVals[k] = values[k] + info.offsetK;
-    var lo = idxNiceRound(idxPercentile(displayVals, 0.05), 'down');
-    var hi = idxNiceRound(idxPercentile(displayVals, 0.95), 'up');
-    if (hi - lo < 1) hi = lo + 1;
-    updateIdxScalarBar(layerName, { min: lo, max: hi });
-
-    var canvas = document.createElement('canvas');
-    canvas.width = nx; canvas.height = ny;
-    var ctx = canvas.getContext('2d');
-    var img = ctx.createImageData(nx, ny);
-    for (var i = 0; i < values.length; i++) {
-        var t = (displayVals[i] - lo) / (hi - lo);
-        var rgb = idxInterpColor(stops, Math.max(0, Math.min(1, t)));
-        var off = i * 4;
-        img.data[off]     = rgb[0];
-        img.data[off + 1] = rgb[1];
-        img.data[off + 2] = rgb[2];
-        img.data[off + 3] = 170;
-    }
-    ctx.putImageData(img, 0, 0);
-
-    var northLat = Math.max(h.la1, h.la2);
-    var southLat = Math.min(h.la1, h.la2);
-    var westLon = Math.min(h.lo1, h.lo2);
-    var eastLon = Math.max(h.lo1, h.lo2);
-    if (eastLon > 180) { westLon -= 360; eastLon -= 360; }
-    var bounds = [[southLat, westLon], [northLat, eastLon]];
-
-    if (idxScalarOverlay && map.hasLayer(idxScalarOverlay)) map.removeLayer(idxScalarOverlay);
-    idxScalarOverlay = L.imageOverlay(canvas.toDataURL('image/png'), bounds, {
-        opacity: 0.85, interactive: false, className: 'scalar-overlay-img',
-    });
-    idxScalarOverlay.addTo(map);
-    idxScalarOverlay.bringToBack();
-}
-
-function selectIdxScalarOverlay(name) {
-    idxScalarLayer = name || '';
-    if (idxScalarOverlay && map.hasLayer(idxScalarOverlay)) map.removeLayer(idxScalarOverlay);
-    idxScalarOverlay = null;
-
-    var bar = document.getElementById('idxScalarBar');
-    if (!idxScalarLayer) { bar.style.display = 'none'; return; }
-    bar.style.display = 'block';
-    var info = IDX_SCALAR_UNITS[idxScalarKind(idxScalarLayer)];
-    document.getElementById('idxScalarBarTitle').textContent = idxScalarLabel(idxScalarLayer) + ' (loading…)';
-    document.getElementById('idxScalarGradient').style.background = IDX_SCALAR_GRADIENTS[idxScalarKind(idxScalarLayer)];
-    document.getElementById('idxScalarMin').textContent = '';
-    document.getElementById('idxScalarMid').textContent = '';
-    document.getElementById('idxScalarMax').textContent = info.unit;
-    if (idxFramesIndex) setIdxForecastHour(currentIdxFrameHour);
-}
-
-// Mark GFS dropdown options as "(無資料)" when the index is missing them.
-function annotateIdxLayerSelects() {
-    var vsel = document.getElementById('idxVectorSel');
-    var ssel = document.getElementById('idxScalarSel');
-    function annotate(sel) {
-        for (var i = 0; i < sel.options.length; i++) {
-            var opt = sel.options[i];
-            var val = opt.value;
-            if (!val || val === 'current' || val === 'wind' || val === 'off') continue;
-            var meta = idxLayerMeta[val];
-            var hasData = meta && meta.hours && meta.hours.length;
-            opt.textContent = opt.textContent.replace(/\s*\((無資料|no data)\)\s*$/, '');
-            if (!hasData) {
-                opt.textContent = opt.textContent + ' (無資料)';
-                opt.disabled = true;
-            } else { opt.disabled = false; }
-        }
-    }
-    annotate(vsel); annotate(ssel);
-}
-
-function setIdxForecastHour(hour, opts) {
-    opts = opts || {};
-    currentIdxFrameHour = hour;
-    var slider = document.getElementById('idxTlSlider');
-    if (slider && !opts.fromSlider) slider.value = hour;
-
-    document.getElementById('idxTlLabel').textContent = 'T+' + hour + 'h';
-    var t = document.getElementById('idxTlTime');
-    var base = idxLayerBaseTime(idxActiveVector === 'off' ? 'current' : idxActiveVector);
-    if (t && base) {
-        var d = new Date(new Date(base).getTime() + hour * 3600 * 1000);
-        t.textContent = d.toLocaleString('zh-TW', {
-            timeZone: 'Asia/Taipei', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
-        });
-    } else if (t) { t.textContent = ''; }
-
-    if (idxActiveVector !== 'off') {
-        var snapped = idxNearestFrameHour(idxActiveVector, hour);
-        if (snapped != null) {
-            idxFetchFrame(idxActiveVector, snapped).then(function(data) {
-                if (currentIdxFrameHour !== hour) return;
-                idxApplyFrameToVector(idxActiveVector, data);
-            }).catch(function(err) { console.warn(err); });
-        }
-    }
-    if (idxScalarLayer) {
-        var sSnap = idxNearestFrameHour(idxScalarLayer, hour);
-        if (sSnap != null) {
-            idxFetchFrame(idxScalarLayer, sSnap).then(function(data) {
-                if (currentIdxFrameHour !== hour || !idxScalarLayer) return;
-                renderIdxScalarOverlay(data, idxScalarLayer);
-            }).catch(function(err) { console.warn(err); });
-        }
-    }
-}
-
-function wireIdxTimeline() {
-    var slider = document.getElementById('idxTlSlider');
-    var play = document.getElementById('idxTlPlay');
-    if (!slider || !play) return;
-    var debounce;
-    slider.addEventListener('input', function() {
-        var h = parseInt(slider.value, 10);
-        clearTimeout(debounce);
-        debounce = setTimeout(function() { setIdxForecastHour(h, { fromSlider: true }); }, 80);
-    });
-    play.addEventListener('click', function() {
-        if (idxPlayTimer) {
-            clearInterval(idxPlayTimer); idxPlayTimer = null;
-            play.classList.remove('playing'); play.innerHTML = '&#9654;'; return;
-        }
-        play.classList.add('playing'); play.innerHTML = '&#10074;&#10074;';
-        idxPlayTimer = setInterval(function() {
-            var max = parseInt(slider.max, 10);
-            var next = (currentIdxFrameHour + 1) > max ? 0 : currentIdxFrameHour + 1;
-            setIdxForecastHour(next);
-        }, 600);
-    });
-}
-
-function initIdxFrames() {
-    return fetch(IDX_FRAMES_INDEX_URL + '?t=' + Date.now()).then(function(r) {
-        if (!r.ok) throw new Error('no frames');
-        return r.json();
-    }).then(function(idx) {
-        idxFramesIndex = idx;
-        idxLayerMeta = idx.layers || {};
-        annotateIdxLayerSelects();
-        var maxH = idx.max_hours || 72;
-        var slider = document.getElementById('idxTlSlider');
-        if (slider) slider.max = maxH;
-
-        return Promise.all([
-            idxFetchFrame('current', idxNearestFrameHour('current', 0)),
-            idxFetchFrame('wind', idxNearestFrameHour('wind', 0)),
-        ]).then(function(frames) {
-            buildIdxVelocityLayer('current', frames[0]);
-            buildIdxVelocityLayer('wind', frames[1]);
-            map.addLayer(idxVectorLayers.current);
-            updateIdxVelocityBar('current');
-
-            var tl = document.getElementById('idxTimeline');
-            if (tl) tl.style.display = 'flex';
-            wireIdxTimeline();
-            setIdxForecastHour(0);
-            return true;
-        });
-    }).catch(function() { return null; });
-}
-
-// Fallback: load single-snapshot velocity files if the frames index is missing.
-function loadIdxVelocityFallback(url, type) {
-    return fetch(url + '?t=' + Date.now())
-        .then(function(r) { return r.ok ? r.json() : null; })
-        .then(function(data) {
-            if (!data) return null;
-            return buildIdxVelocityLayer(type, data);
-        }).catch(function() { return null; });
-}
-
-initIdxFrames().then(function(ok) {
-    if (ok) return;
-    annotateIdxLayerSelects();
-    Promise.all([
-        loadIdxVelocityFallback(CURRENT_VELOCITY_URL, 'current'),
-        loadIdxVelocityFallback(WIND_VELOCITY_URL, 'wind'),
-    ]).then(function() {
-        if (idxVectorLayers.current) {
-            map.addLayer(idxVectorLayers.current);
-            updateIdxVelocityBar('current');
-        }
-    });
-});
-
-// Mobile sidebar collapse toggle
-(function() {
-    var toggle = document.getElementById('sidebarToggle');
-    var sidebar = document.getElementById('sidebar');
-    if (!toggle || !sidebar) return;
-    toggle.addEventListener('click', function() {
-        sidebar.classList.toggle('collapsed');
-        toggle.setAttribute('aria-expanded', !sidebar.classList.contains('collapsed'));
-    });
-})();
+  (function() {
+    var el = document.getElementById('heroMap');
+    if (!el || typeof L === 'undefined') return;
+    var map = L.map(el, {
+      zoomControl: false, attributionControl: false,
+      dragging: false, scrollWheelZoom: false, doubleClickZoom: false,
+      touchZoom: false, boxZoom: false, keyboard: false, tap: false,
+    }).setView([23.8, 121.0], 6);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      maxZoom: 18, subdomains: 'abcd',
+    }).addTo(map);
+  })();
 </script>
 
-<style>
-.leaflet-control-velocity {
-    background: rgba(16,29,51,0.9) !important;
-    color: #e0e6ed !important;
-    padding: 4px 10px !important;
-    border-radius: 6px !important;
-    border: 1px solid #1e3050 !important;
-    font-size: 0.8em !important;
-    backdrop-filter: blur(8px) !important;
-}
-@media (max-width: 700px) {
-    .leaflet-control-velocity {
-        font-size: 0.72em !important;
-        padding: 3px 8px !important;
-    }
-}
-</style>
 </body>
 </html>
