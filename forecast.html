@@ -611,7 +611,16 @@
             font-size: 0.7em;
             padding: 6px 8px;
         }
+        /* The leaflet-velocity control shows "Unavailable" whenever the
+           pointer isn't hovering a grid cell. In the embed it just clutters
+           the corner — hide it. */
+        body.embed-mode .leaflet-control-velocity { display: none !important; }
         body.embed-mode .leaflet-control-attribution { font-size: 9px; }
+        /* On narrow iframes the color bars overlap the map; drop them. */
+        @media (max-width: 520px) {
+            body.embed-mode .velocity-bar,
+            body.embed-mode .scalar-bar { display: none !important; }
+        }
     </style>
 </head>
 <body>
@@ -1040,7 +1049,9 @@ function renderScalarOverlay(data, layerName) {
         map.removeLayer(scalarOverlayImage);
     }
     scalarOverlayImage = L.imageOverlay(canvas.toDataURL('image/png'), bounds, {
-        opacity: 0.85,
+        // In embed mode the hero is also meant to showcase the vector
+        // particles, so keep the heatmap lighter so the flow shows through.
+        opacity: EMBED_MODE ? 0.55 : 0.85,
         interactive: false,
         className: 'scalar-overlay-img',
     });
