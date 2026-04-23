@@ -282,14 +282,35 @@
         .popup-btn:hover { background: var(--accent-strong-hover); }
 
         @media (max-width: 820px) {
-            .main { flex-direction: column; }
-            .map-area { min-height: 40vh; flex: 0 0 40vh; }
+            body {
+                height: auto;
+                min-height: 100vh;
+                min-height: 100dvh;
+                overflow-y: auto;
+                overflow-x: hidden;
+            }
+            .main {
+                flex: none;
+                flex-direction: column;
+                overflow: visible;
+            }
+            .map-area {
+                flex: 0 0 auto;
+                height: 45vh;
+                min-height: 280px;
+            }
             .tide-panel {
                 width: 100%;
                 min-width: 0;
                 border-left: none;
                 border-top: 1px solid var(--border);
+                overflow: visible;
             }
+            .tide-list {
+                flex: none;
+                overflow: visible;
+            }
+            .tide-chart-wrap canvas { height: 200px; }
             .topbar { padding: 10px 14px; gap: 8px; }
             .topbar h2 { font-size: 1.1em; }
             .topbar .meta { display: none; }
@@ -627,7 +648,7 @@ function renderTideChart(points) {
     var dpr = window.devicePixelRatio || 1;
     var cssW = wrap.clientWidth - 24; // account for horizontal padding
     if (cssW <= 0) cssW = 280;
-    var cssH = 170;
+    var cssH = window.innerWidth <= 820 ? 200 : 170;
     canvas.width = Math.round(cssW * dpr);
     canvas.height = Math.round(cssH * dpr);
     canvas.style.width = cssW + 'px';
