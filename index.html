@@ -255,35 +255,17 @@
                 linear-gradient(180deg, #0d1a2e 0%, #071223 100%);
             overflow: hidden;
         }
-        .flow-svg {
+        .viz-frame {
             position: absolute;
             inset: 0;
             width: 100%;
             height: 100%;
-        }
-        .flow-path {
-            fill: none;
-            stroke-width: 1.6;
-            stroke-linecap: round;
-            stroke-dasharray: 4 10;
-            opacity: 0.85;
-            animation: flow-move 5s linear infinite;
-        }
-        @keyframes flow-move {
-            from { stroke-dashoffset: 0; }
-            to   { stroke-dashoffset: -140; }
-        }
-        .seed-pin {
-            position: absolute;
-            left: 40%;
-            top: 55%;
-            width: 0.9rem;
-            height: 0.9rem;
-            border-radius: 50%;
-            background: var(--seed);
-            box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.55);
-            animation: pulse 1.8s ease-out infinite;
-            z-index: 2;
+            border: 0;
+            display: block;
+            background: #0d1a2e;
+            /* Let pointer events fall through so the page still scrolls
+               past the iframe on mobile. */
+            pointer-events: none;
         }
         .viz-overlay {
             position: absolute;
@@ -305,28 +287,6 @@
             letter-spacing: 0.08em;
         }
         .ol-val { color: var(--fg-0); font-family: var(--font-mono); font-size: 0.95em; }
-        .viz-scale {
-            position: absolute;
-            right: 0.9rem;
-            bottom: 0.9rem;
-            background: var(--overlay-bg);
-            backdrop-filter: var(--overlay-blur);
-            -webkit-backdrop-filter: var(--overlay-blur);
-            padding: 0.5rem 0.7rem;
-            border: 1px solid var(--border);
-            border-radius: var(--r-md);
-            font-size: 0.72em;
-            z-index: 3;
-            min-width: 8.5rem;
-        }
-        .viz-scale .ttl { color: var(--fg-2); margin-bottom: 0.35rem; }
-        .viz-scale .grad {
-            height: 0.45rem;
-            border-radius: 2px;
-            background: var(--gradient-current);
-            margin-bottom: 0.25rem;
-        }
-        .viz-scale .rng { display: flex; justify-content: space-between; color: var(--fg-3); }
 
         /* ============ SECTION HEAD ============ */
         .section-head {
@@ -603,7 +563,6 @@
 
             .viz-map { aspect-ratio: 16 / 11; }
             .viz-overlay { left: 0.6rem; top: 0.6rem; padding: 0.45rem 0.6rem; font-size: 0.72em; }
-            .viz-scale  { right: 0.6rem; bottom: 0.6rem; padding: 0.4rem 0.55rem; min-width: 7rem; font-size: 0.68em; }
 
             .section-title { font-size: clamp(1.5rem, 6.5vw, 2rem); }
             .section-sub   { font-size: 0.95em; }
@@ -711,44 +670,26 @@
       </div>
     </div>
 
-    <!-- Hero visual: stylized ocean + animated drift overlay -->
-    <div class="hero-viz" aria-hidden="true">
+    <!-- Hero visual: live forecast map embedded from forecast.html.
+         The iframe auto-cycles through ocean current, wind, temperature,
+         and humidity layers. pointer-events are disabled on the iframe so
+         the page still scrolls naturally over it. -->
+    <div class="hero-viz">
       <div class="viz-topbar">
-        <div class="dot-row"><span></span><span></span><span></span></div>
+        <div class="dot-row" aria-hidden="true"><span></span><span></span><span></span></div>
         <span class="url">seacurrent / forecast · Taiwan waters</span>
       </div>
       <div class="viz-map">
-        <svg class="flow-svg" viewBox="0 0 600 420" preserveAspectRatio="none">
-          <defs>
-            <linearGradient id="fg1" x1="0" x2="1">
-              <stop offset="0" stop-color="#1565c0"/><stop offset="0.5" stop-color="#26c6da"/><stop offset="1" stop-color="#76ff03"/>
-            </linearGradient>
-            <linearGradient id="fg2" x1="0" x2="1">
-              <stop offset="0" stop-color="#00e5ff"/><stop offset="1" stop-color="#ffeb3b"/>
-            </linearGradient>
-            <linearGradient id="fg3" x1="0" x2="1">
-              <stop offset="0" stop-color="#42a5f5"/><stop offset="1" stop-color="#ff9800"/>
-            </linearGradient>
-          </defs>
-          <path class="flow-path" stroke="url(#fg1)" d="M20,70 C130,55 230,120 330,100 S520,60 590,110" style="animation-delay:0s"/>
-          <path class="flow-path" stroke="url(#fg2)" d="M10,140 C130,130 240,200 340,170 S520,140 590,190" style="animation-delay:-0.4s"/>
-          <path class="flow-path" stroke="url(#fg1)" d="M10,210 C130,190 250,270 340,240 S520,210 590,260" style="animation-delay:-0.9s"/>
-          <path class="flow-path" stroke="url(#fg3)" d="M20,280 C130,260 250,330 340,300 S520,280 590,320" style="animation-delay:-1.4s"/>
-          <path class="flow-path" stroke="url(#fg2)" d="M30,350 C150,330 240,380 340,360 S520,340 590,370" style="animation-delay:-1.9s"/>
-          <path class="flow-path" stroke="#ff6b6b" stroke-width="2.5" stroke-dasharray="4 6"
-                d="M240,230 C280,210 320,225 370,205 S460,195 510,175" style="animation:none;opacity:0.95"/>
-        </svg>
-        <div class="seed-pin"></div>
+        <iframe
+          class="viz-frame"
+          src="forecast.html?embed=1"
+          title="Live Taiwan waters forecast preview"
+          loading="lazy"
+          referrerpolicy="no-referrer"
+          aria-label="Live ocean current, wind, temperature, and humidity forecast for Taiwan waters"></iframe>
         <div class="viz-overlay">
-          <div class="ol-lbl">Seed</div>
-          <div class="ol-val">121.5°E, 24.0°N</div>
-          <div class="ol-lbl" style="margin-top:0.4rem">Model</div>
-          <div class="ol-val" style="color:var(--fg-1); font-size:0.72rem">Leeway · Life raft</div>
-        </div>
-        <div class="viz-scale">
-          <div class="ttl">Ocean current (m/s)</div>
-          <div class="grad"></div>
-          <div class="rng"><span>0.0</span><span>0.75</span><span>1.5</span></div>
+          <div class="ol-lbl">Live preview</div>
+          <div class="ol-val" style="color:var(--fg-1); font-size:0.72rem">CWA · GFS · auto-cycling layers</div>
         </div>
       </div>
     </div>

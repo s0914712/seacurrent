@@ -579,6 +579,28 @@
             .layer-select { font-size: 16px; padding: 5px 6px; }
             .info-panel { font-size: 0.75em; padding: 8px 10px; }
         }
+
+        /* ── Embed mode (used when this page is loaded in an iframe from
+              index.html's hero visual). Strip all chrome so only the live
+              map + velocity bar remain. ── */
+        body.embed-mode { height: 100%; }
+        body.embed-mode .topbar,
+        body.embed-mode .point-list,
+        body.embed-mode .layer-controls,
+        body.embed-mode .forecast-strip,
+        body.embed-mode .timeline,
+        body.embed-mode .info-panel,
+        body.embed-mode .legend,
+        body.embed-mode .loading-msg,
+        body.embed-mode .sim-lightbox { display: none !important; }
+        body.embed-mode .main { flex: 1; }
+        body.embed-mode .map-area { width: 100%; }
+        body.embed-mode .velocity-bar,
+        body.embed-mode .scalar-bar {
+            font-size: 0.7em;
+            padding: 6px 8px;
+        }
+        body.embed-mode .leaflet-control-attribution { font-size: 9px; }
     </style>
 </head>
 <body>
@@ -701,11 +723,27 @@ var MANIFEST_URL = 'scheduled_results/manifest.json';
 var CURRENT_VELOCITY_URL = 'scheduled_results/current_velocity.json';
 var WIND_VELOCITY_URL = 'scheduled_results/wind_velocity.json';
 
-var map = L.map('map', { zoomControl: false }).setView([23.5, 121], 7);
+// Embed mode: loaded in an iframe (hero visual on index.html). Hide all
+// chrome via the CSS class, lock map interactions, and auto-cycle layers.
+var EMBED_MODE = /[?&]embed=1\b/.test(window.location.search);
+if (EMBED_MODE) document.body.classList.add('embed-mode');
+
+var mapOptions = { zoomControl: false };
+if (EMBED_MODE) {
+    mapOptions.dragging = false;
+    mapOptions.scrollWheelZoom = false;
+    mapOptions.doubleClickZoom = false;
+    mapOptions.touchZoom = false;
+    mapOptions.boxZoom = false;
+    mapOptions.keyboard = false;
+    mapOptions.tap = false;
+    mapOptions.attributionControl = false;
+}
+var map = L.map('map', mapOptions).setView([23.5, 121], 7);
 // Zoom control: bottom-right on desktop, hidden on narrow phones where it
 // would collide with the velocity bar + timeline. Pinch-to-zoom still works.
 var IS_PHONE = window.matchMedia('(max-width: 700px)').matches;
-if (!IS_PHONE) {
+if (!IS_PHONE && !EMBED_MODE) {
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 }
 
@@ -1472,7 +1510,56 @@ async function loadForecast() {
     }
 }
 
-loadForecast();
+if (!EMBED_MODE) loadForecast();
+
+// ── Embed-mode auto cycle ──
+// Rotates through a small set of vector/scalar presets so the iframe on
+// the landing page showcases wind, current, temperature, and humidity
+// without any user interaction.
+if (EMBED_MODE) {
+    var EMBED_PRESETS_GFS = [
+        { vector: 'current',  scalar: '' },
+        { vector: 'current',  scalar: 'temp_2m' },
+        { vector: 'wind_10m', scalar: '' },
+        { vector: 'wind_10m', scalar: 'rh_2m' },
+    ];
+    var EMBED_PRESETS_FALLBACK = [
+        { vector: 'current', scalar: '' },
+        { vector: 'wind',    scalar: '' },
+    ];
+    var embedCycleTimer = null;
+    var embedCycleIdx = 0;
+
+    function startEmbedCycle() {
+        if (embedCycleTimer) return;
+        var hasGfs = !!framesIndex && framesIndex.layers &&
+                     Object.keys(framesIndex.layers).indexOf('wind_10m') !== -1;
+        var presets = hasGfs ? EMBED_PRESETS_GFS : EMBED_PRESETS_FALLBACK;
+        function step() {
+            var p = presets[embedCycleIdx % presets.length];
+            embedCycleIdx++;
+            try {
+                selectVectorLayer(p.vector);
+                selectScalarOverlay(p.scalar);
+            } catch (e) { /* layer not ready yet — skip this tick */ }
+        }
+        step();                           // switch immediately to the first preset
+        embedCycleTimer = setInterval(step, 8000);
+    }
+
+    // Wait until either GFS frames or the fallback current layer is ready,
+    // then start cycling. Poll briefly — loadForecast is fetch-based and
+    // finishes quickly in the common case.
+    var embedReadyTries = 0;
+    var embedReadyTimer = setInterval(function() {
+        embedReadyTries++;
+        var ready = !!framesIndex || !!currentVelocityLayer;
+        if (ready || embedReadyTries > 40) {  // give up after ~20 s
+            clearInterval(embedReadyTimer);
+            if (ready) startEmbedCycle();
+        }
+    }, 500);
+}
 </script>
 
 <style>
