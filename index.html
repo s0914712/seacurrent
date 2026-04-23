@@ -263,30 +263,7 @@
             border: 0;
             display: block;
             background: #0d1a2e;
-            /* Let pointer events fall through so the page still scrolls
-               past the iframe on mobile. */
-            pointer-events: none;
         }
-        .viz-overlay {
-            position: absolute;
-            left: 0.9rem;
-            top: 0.9rem;
-            background: var(--overlay-bg);
-            backdrop-filter: var(--overlay-blur);
-            -webkit-backdrop-filter: var(--overlay-blur);
-            padding: 0.55rem 0.75rem;
-            border: 1px solid var(--border);
-            border-radius: var(--r-md);
-            font-size: 0.78em;
-            z-index: 3;
-        }
-        .ol-lbl {
-            font-size: 0.9em;
-            color: var(--fg-3);
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-        }
-        .ol-val { color: var(--fg-0); font-family: var(--font-mono); font-size: 0.95em; }
 
         /* ============ SECTION HEAD ============ */
         .section-head {
@@ -562,7 +539,6 @@
             .stat-v { font-size: 1.2em; }
 
             .viz-map { aspect-ratio: 16 / 11; }
-            .viz-overlay { left: 0.6rem; top: 0.6rem; padding: 0.45rem 0.6rem; font-size: 0.72em; }
 
             .section-title { font-size: clamp(1.5rem, 6.5vw, 2rem); }
             .section-sub   { font-size: 0.95em; }
@@ -672,8 +648,7 @@
 
     <!-- Hero visual: live forecast map embedded from forecast.html.
          The iframe auto-cycles through ocean current, wind, temperature,
-         and humidity layers. pointer-events are disabled on the iframe so
-         the page still scrolls naturally over it. -->
+         and humidity layers until the visitor picks their own. -->
     <div class="hero-viz">
       <div class="viz-topbar">
         <div class="dot-row" aria-hidden="true"><span></span><span></span><span></span></div>
@@ -687,10 +662,6 @@
           loading="lazy"
           referrerpolicy="no-referrer"
           aria-label="Live ocean current, wind, temperature, and humidity forecast for Taiwan waters"></iframe>
-        <div class="viz-overlay">
-          <div class="ol-lbl">Live preview</div>
-          <div class="ol-val" style="color:var(--fg-1); font-size:0.72rem">CWA · GFS · auto-cycling layers</div>
-        </div>
       </div>
     </div>
   </div>
