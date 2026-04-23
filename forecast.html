@@ -581,12 +581,10 @@
         }
 
         /* ── Embed mode (used when this page is loaded in an iframe from
-              index.html's hero visual). Strip all chrome so only the live
-              map + velocity bar remain. ── */
-        body.embed-mode { height: 100%; }
+              index.html's hero visual). Strip most chrome but keep the
+              layer selectors so visitors can explore. ── */
         body.embed-mode .topbar,
         body.embed-mode .point-list,
-        body.embed-mode .layer-controls,
         body.embed-mode .forecast-strip,
         body.embed-mode .timeline,
         body.embed-mode .info-panel,
@@ -595,6 +593,19 @@
         body.embed-mode .sim-lightbox { display: none !important; }
         body.embed-mode .main { flex: 1; }
         body.embed-mode .map-area { width: 100%; }
+        /* Shrink the layer selectors so they don't dominate the small
+           hero preview, and nudge them in from the edge. */
+        body.embed-mode .layer-controls {
+            top: 8px;
+            left: 8px;
+            gap: 3px;
+        }
+        body.embed-mode .layer-group-title { font-size: 0.62em; }
+        body.embed-mode .layer-select {
+            font-size: 0.75em;
+            padding: 3px 6px;
+            max-width: 9rem;
+        }
         body.embed-mode .velocity-bar,
         body.embed-mode .scalar-bar {
             font-size: 0.7em;
@@ -1515,7 +1526,8 @@ if (!EMBED_MODE) loadForecast();
 // ── Embed-mode auto cycle ──
 // Rotates through a small set of vector/scalar presets so the iframe on
 // the landing page showcases wind, current, temperature, and humidity
-// without any user interaction.
+// without user interaction — but stops as soon as the visitor picks a
+// layer themselves.
 if (EMBED_MODE) {
     var EMBED_PRESETS_GFS = [
         { vector: 'current',  scalar: '' },
@@ -1530,15 +1542,26 @@ if (EMBED_MODE) {
     var embedCycleTimer = null;
     var embedCycleIdx = 0;
 
+    function stopEmbedCycle() {
+        if (embedCycleTimer) {
+            clearInterval(embedCycleTimer);
+            embedCycleTimer = null;
+        }
+    }
+
     function startEmbedCycle() {
         if (embedCycleTimer) return;
         var hasGfs = !!framesIndex && framesIndex.layers &&
                      Object.keys(framesIndex.layers).indexOf('wind_10m') !== -1;
         var presets = hasGfs ? EMBED_PRESETS_GFS : EMBED_PRESETS_FALLBACK;
+        var vecSel    = document.getElementById('vectorLayerSel');
+        var scalarSel = document.getElementById('scalarLayerSel');
         function step() {
             var p = presets[embedCycleIdx % presets.length];
             embedCycleIdx++;
             try {
+                if (vecSel)    vecSel.value    = p.vector;
+                if (scalarSel) scalarSel.value = p.scalar;
                 selectVectorLayer(p.vector);
                 selectScalarOverlay(p.scalar);
             } catch (e) { /* layer not ready yet — skip this tick */ }
@@ -1546,6 +1569,12 @@ if (EMBED_MODE) {
         step();                           // switch immediately to the first preset
         embedCycleTimer = setInterval(step, 8000);
     }
+
+    // Stop cycling as soon as the visitor interacts with either dropdown.
+    ['vectorLayerSel', 'scalarLayerSel'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.addEventListener('change', stopEmbedCycle);
+    });
 
     // Wait until either GFS frames or the fallback current layer is ready,
     // then start cycling. Poll briefly — loadForecast is fetch-based and
