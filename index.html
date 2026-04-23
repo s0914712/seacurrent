@@ -538,7 +538,11 @@
             }
             .stat-v { font-size: 1.2em; }
 
-            .viz-map { aspect-ratio: 16 / 11; }
+            .viz-map {
+                /* Taller aspect ratio on phones so the embedded forecast
+                   map has room to breathe beside the floating selectors. */
+                aspect-ratio: 4 / 5;
+            }
 
             .section-title { font-size: clamp(1.5rem, 6.5vw, 2rem); }
             .section-sub   { font-size: 0.95em; }
