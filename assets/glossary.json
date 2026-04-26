@@ -1,0 +1,26 @@
+{
+  "leeway": {
+    "title": "Leeway（風偏漂移）",
+    "body": "物體在水面被風吹動時，相對於海流的偏移量。OpenDrift 的 Leeway 模型用來推估人員落水時的漂流軌跡。"
+  },
+  "opendrift": {
+    "title": "OpenDrift",
+    "body": "由挪威氣象局開發的開源海洋拉格朗日漂流模型，可模擬人員、漂流物、油污等物體於海面上的軌跡。"
+  },
+  "cwa": {
+    "title": "CWA 中央氣象署",
+    "body": "Taiwan Central Weather Administration。本平台使用 CWA 開放資料平台提供的海溫、海流、潮汐等預報資料。"
+  },
+  "drift": {
+    "title": "海漂（Drift）",
+    "body": "物體隨海流與風吹動而在水面移動的現象。本平台針對「人員落水、漂流物、油污」三種情境提供模擬。"
+  },
+  "tide": {
+    "title": "潮汐（Tide）",
+    "body": "海水位因月亮、太陽引力與地球自轉而出現的週期性升降。CWA F-A0021-001 提供臺灣沿海潮位預報。"
+  },
+  "particle": {
+    "title": "粒子（Particle）",
+    "body": "OpenDrift 用大量隨機擾動的粒子模擬不確定性。粒子越多，預測的散布範圍越貼近真實風險。"
+  }
+}
