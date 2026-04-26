@@ -4,7 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SeaCurrent Drift Simulator</title>
+    <script src="assets/theme.js"></script>
     <link rel="stylesheet" href="colors_and_type.css" />
+    <link rel="stylesheet" href="assets/tokens.css" />
+    <link rel="stylesheet" href="assets/a11y.css" />
+    <script src="assets/components.js" defer></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/leaflet-velocity@2.1.4/dist/leaflet-velocity.min.js"></script>
@@ -269,6 +273,7 @@
         .tl-info { display: flex; flex-direction: column; line-height: 1.15; flex-shrink: 0; min-width: 6rem; }
         .tl-label { color: var(--accent); font-weight: 700; font-size: 0.95em; }
         .tl-time { color: var(--fg-3); font-size: 0.8em; }
+        .tl-base { color: var(--fg-4); font-size: 0.7em; letter-spacing: 0.02em; }
         .tl-range { flex: 1; accent-color: var(--accent); cursor: pointer; min-width: 0; }
         .tl-loading { color: var(--warn); font-size: 1em; flex-shrink: 0; width: 1em; text-align: center; }
 
@@ -311,11 +316,13 @@
             .layout { flex-direction: column; }
             .sidebar {
                 width: 100%; min-width: 0;
-                max-height: 45vh;
+                max-height: 60vh;
                 padding: 12px 14px;
                 border-right: none;
                 border-bottom: 1px solid var(--border);
                 transition: max-height 0.25s ease;
+                overflow-y: auto;
+                overscroll-behavior: contain;
             }
             .sidebar.collapsed {
                 max-height: 3.5rem;
@@ -436,6 +443,7 @@
     </style>
 </head>
 <body>
+    <a class="skip-link" href="#main">跳至地圖</a>
     <div class="layout">
         <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
@@ -446,6 +454,11 @@
                         &nbsp;|&nbsp; <a href="forecast.html">Forecast Map &rarr;</a>
                     </p>
                 </div>
+                <button type="button" class="sidebar-toggle" id="themeToggleBtn" aria-label="切換深淺色主題" title="切換主題"
+                        onclick="if(window.SeaTheme){SeaTheme.toggle();this.firstElementChild.textContent=SeaTheme.get()==='light'?'☾':'☀';}"
+                        style="display:inline-flex;">
+                    <span aria-hidden="true">&#9728;</span>
+                </button>
                 <button type="button" class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle panel">&#x25B2;</button>
             </div>
 
@@ -467,15 +480,19 @@
             <form id="simulationForm">
                 <div class="row">
                     <div>
-                        <label for="lon">Longitude</label>
-                        <input type="number" step="any" id="lon" value="121.5" required>
+                        <label for="lon">Longitude（經度）</label>
+                        <input type="number" step="0.0001" min="-180" max="180" id="lon"
+                               value="121.5" required placeholder="例：121.5"
+                               aria-describedby="coordHint">
                     </div>
                     <div>
-                        <label for="lat">Latitude</label>
-                        <input type="number" step="any" id="lat" value="24.0" required>
+                        <label for="lat">Latitude（緯度）</label>
+                        <input type="number" step="0.0001" min="-90" max="90" id="lat"
+                               value="24.0" required placeholder="例：24.0"
+                               aria-describedby="coordHint">
                     </div>
                 </div>
-                <p class="map-hint">Click the map to set coordinates</p>
+                <p class="map-hint" id="coordHint">點擊地圖即可帶入座標 · Click the map to set coordinates</p>
 
                 <div class="form-section">
                     <label for="duration">Duration (hours)</label>
@@ -536,7 +553,7 @@
             <div id="logs"></div>
         </div>
 
-        <div class="map-container">
+        <main id="main" tabindex="-1" class="map-container">
             <div id="map"></div>
             <div class="map-overlay">
                 <div>Cursor: <span class="coord-display" id="cursorCoords">--</span></div>
@@ -595,11 +612,12 @@
                 <div class="tl-info">
                     <span class="tl-label" id="idxTlLabel">T+0h</span>
                     <span class="tl-time" id="idxTlTime"></span>
+                    <span class="tl-base" id="idxTlBase" title="資料起始時間"></span>
                 </div>
-                <input type="range" id="idxTlSlider" min="0" max="72" value="0" step="1" class="tl-range">
+                <input type="range" id="idxTlSlider" min="0" max="72" value="0" step="1" class="tl-range" aria-label="預報時間軸">
                 <span class="tl-loading" id="idxTlLoading" style="display:none;">…</span>
             </div>
-        </div>
+        </main>
     </div>
 
 <script>
@@ -673,6 +691,13 @@ function getModelParams() {
 // --- Submit ---
 var VERCEL_API_URL = 'https://seacurrent.vercel.app/api/simulate';
 
+function _toast(opts) {
+    if (window.SeaToast && SeaToast.notify) return SeaToast.notify(opts);
+    // Fallback if components.js failed to load — still show inline messages.
+    var el = document.getElementById(opts.type === 'error' || opts.type === 'warn' ? 'error' : 'success');
+    if (el) el.textContent = (opts.title ? opts.title + ' — ' : '') + opts.msg;
+}
+
 document.getElementById('simulationForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     var btn = document.getElementById('submitBtn');
@@ -689,25 +714,47 @@ document.getElementById('simulationForm').addEventListener('submit', async funct
         model_type: currentSimType,
     }, getModelParams());
 
-    if (!payload.email) { errorEl.textContent = 'Please enter your email.'; return; }
+    if (!payload.email) {
+        _toast({ type: 'error', title: '缺少 Email', msg: '請輸入收件信箱以接收模擬結果。' });
+        return;
+    }
 
     btn.disabled = true;
     btn.textContent = 'Submitting...';
 
-    try {
+    var doSubmit = async function () {
         var resp = await fetch(VERCEL_API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
         });
-        var data = await resp.json();
+        return resp.json();
+    };
+
+    try {
+        var data = await doSubmit();
         if (data.status === 'queued') {
-            successEl.textContent = 'Simulation queued (ID: ' + data.request_id + '). Results will be emailed to ' + payload.email;
+            _toast({
+                type: 'success',
+                title: '已送出模擬',
+                msg: 'Request ID: ' + data.request_id + '．完成後會寄到 ' + payload.email,
+                ttl: 8000,
+            });
         } else {
-            errorEl.textContent = 'Error: ' + (data.error || 'Unknown error');
+            _toast({
+                type: 'error',
+                title: '模擬失敗',
+                msg: data.error || '未知錯誤',
+                retry: function () { btn.click(); },
+            });
         }
     } catch (err) {
-        errorEl.textContent = 'Request failed: ' + err.message;
+        _toast({
+            type: 'error',
+            title: '網路錯誤',
+            msg: err.message || '無法連線至模擬服務',
+            retry: function () { btn.click(); },
+        });
     }
     btn.disabled = false;
     btn.textContent = 'Submit Simulation';
@@ -997,6 +1044,7 @@ function setIdxForecastHour(hour, opts) {
 
     document.getElementById('idxTlLabel').textContent = 'T+' + hour + 'h';
     var t = document.getElementById('idxTlTime');
+    var bEl = document.getElementById('idxTlBase');
     var base = idxLayerBaseTime(idxActiveVector === 'off' ? 'current' : idxActiveVector);
     if (t && base) {
         var d = new Date(new Date(base).getTime() + hour * 3600 * 1000);
@@ -1004,6 +1052,12 @@ function setIdxForecastHour(hour, opts) {
             timeZone: 'Asia/Taipei', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
         });
     } else if (t) { t.textContent = ''; }
+    if (bEl && base) {
+        var bd = new Date(base);
+        bEl.textContent = '資料起始 ' + bd.toLocaleString('zh-TW', {
+            timeZone: 'Asia/Taipei', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
+        });
+    } else if (bEl) { bEl.textContent = ''; }
 
     if (idxActiveVector !== 'off') {
         var snapped = idxNearestFrameHour(idxActiveVector, hour);
@@ -1011,7 +1065,17 @@ function setIdxForecastHour(hour, opts) {
             idxFetchFrame(idxActiveVector, snapped).then(function(data) {
                 if (currentIdxFrameHour !== hour) return;
                 idxApplyFrameToVector(idxActiveVector, data);
-            }).catch(function(err) { console.warn(err); });
+            }).catch(function(err) {
+                console.warn(err);
+                if (window.SeaToast && SeaToast.notify) {
+                    SeaToast.notify({
+                        type: 'warn',
+                        title: '時間軸載入失敗',
+                        msg: '部分預報資料下載失敗。',
+                        ttl: 4000,
+                    });
+                }
+            });
         }
     }
     if (idxScalarLayer) {
@@ -1020,7 +1084,17 @@ function setIdxForecastHour(hour, opts) {
             idxFetchFrame(idxScalarLayer, sSnap).then(function(data) {
                 if (currentIdxFrameHour !== hour || !idxScalarLayer) return;
                 renderIdxScalarOverlay(data, idxScalarLayer);
-            }).catch(function(err) { console.warn(err); });
+            }).catch(function(err) {
+                console.warn(err);
+                if (window.SeaToast && SeaToast.notify) {
+                    SeaToast.notify({
+                        type: 'warn',
+                        title: '時間軸載入失敗',
+                        msg: '部分預報資料下載失敗。',
+                        ttl: 4000,
+                    });
+                }
+            });
         }
     }
 }
@@ -1132,5 +1206,12 @@ initIdxFrames().then(function(ok) {
     }
 }
 </style>
+<sea-toast></sea-toast>
+<sea-onboarding storage-key="sc:seen-tour" steps='[
+  {"title":"歡迎使用 SeaCurrent","body":"模擬人員落水、漂流物或油污在台灣海域的漂流軌跡。整個流程約 1 分鐘。"},
+  {"title":"步驟 1．選擇情境","body":"側邊欄三張卡片分別對應人員（Person）、漂流物（Debris）與油污（Oil Spill）。每種情境會載入不同模型參數。"},
+  {"title":"步驟 2．設定起點","body":"直接點地圖標座標，或在 Lon/Lat 欄位輸入經緯度。紅色標記就是模擬起點。"},
+  {"title":"步驟 3．送出模擬","body":"填入 Email、調整時間長度後按 Submit。模擬完成（約 5–15 分鐘）會將結果寄到您的信箱。"}
+]'></sea-onboarding>
 </body>
 </html>

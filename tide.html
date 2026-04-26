@@ -5,7 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0a1628">
     <title>SeaCurrent - Tide Forecast</title>
+    <script src="assets/theme.js"></script>
     <link rel="stylesheet" href="colors_and_type.css" />
+    <link rel="stylesheet" href="assets/tokens.css" />
+    <link rel="stylesheet" href="assets/a11y.css" />
+    <script src="assets/components.js" defer></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
@@ -318,25 +322,22 @@
     </style>
 </head>
 <body>
+    <a class="skip-link" href="#main">跳至地圖</a>
+    <sea-header current-page="tide" variant="topbar"></sea-header>
     <div class="topbar">
         <div>
             <h2>Tide Forecast &mdash; 潮汐預報</h2>
             <div class="meta">Source: <span>CWA F-A0021-001</span></div>
         </div>
-        <div>
-            <a href="index.html">&larr; Simulator</a>
-            &nbsp;|&nbsp;
-            <a href="forecast.html">Forecast Map</a>
-        </div>
     </div>
 
     <div class="main">
-        <div class="map-area">
+        <main id="main" tabindex="-1" class="map-area">
             <div id="map"></div>
             <div class="map-overlay">
                 <div class="hint"><strong>Click a marker</strong> or tap anywhere on the map to load the nearest coastal station's tide forecast.</div>
             </div>
-        </div>
+        </main>
 
         <aside class="tide-panel">
             <header>
@@ -373,14 +374,16 @@
                 </div>
             </div>
 
-            <div class="tide-chart-wrap" id="tideChartWrap">
-                <canvas id="tideChart"></canvas>
+            <figure class="tide-chart-wrap" id="tideChartWrap" role="img"
+                    aria-labelledby="tideChartCaption">
+                <canvas id="tideChart" aria-hidden="true"></canvas>
+                <figcaption id="tideChartCaption" class="sr-only">潮位預報曲線圖：縱軸為水位（公分，TWVD 基準），橫軸為時間。</figcaption>
                 <div class="tide-chart-legend">
                     <span><i class="sw high"></i>滿潮</span>
                     <span><i class="sw low"></i>乾潮</span>
                     <span class="unit">cm (AboveTWVD)</span>
                 </div>
-            </div>
+            </figure>
 
             <div class="tide-list" id="tideList">
                 <div class="tide-placeholder">
@@ -888,5 +891,6 @@ document.getElementById('fltLimit').addEventListener('change', function(e) {
     });
 });
 </script>
+<sea-toast></sea-toast>
 </body>
 </html>

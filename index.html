@@ -4,7 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>SeaCurrent Drift Simulator</title>
+    <script src="assets/theme.js"></script>
     <link rel="stylesheet" href="colors_and_type.css">
+    <link rel="stylesheet" href="assets/tokens.css">
+    <link rel="stylesheet" href="assets/a11y.css">
+    <script src="assets/components.js" defer></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         html { font-size: var(--fs-fluid); scroll-behavior: smooth; }
@@ -75,6 +79,25 @@
             transition: color var(--dur-fast) var(--ease);
         }
         .nav-links a:hover { color: var(--fg-0); }
+        .nav-toggle, .theme-toggle {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--fg-1);
+            padding: 0.4rem 0.65rem;
+            border-radius: var(--r-sm);
+            font-size: 1em;
+            cursor: pointer;
+            line-height: 1;
+        }
+        .theme-toggle:hover { background: rgba(74,158,255,0.10); }
+        .nav-toggle { display: none; font-size: 1.1em; }
+        .nav-toggle:focus-visible, .theme-toggle:focus-visible {
+            outline: none;
+            box-shadow: var(--focus-ring);
+        }
         .nav-cta {
             display: inline-flex;
             align-items: center;
@@ -512,11 +535,41 @@
         .foot-links a:hover { color: var(--fg-0); }
 
         /* ============ MOBILE (≤700px) ============ */
+        /* Cover the previous 700–900 gap: hide horizontal nav, show hamburger */
+        @media (max-width: 900px) {
+            .nav-toggle { display: inline-flex; }
+            .nav-inner { gap: 0.5rem; }
+            .nav-links {
+                position: absolute;
+                top: calc(100% + 0.25rem);
+                right: 1rem;
+                left: 1rem;
+                flex-direction: column;
+                align-items: stretch;
+                gap: 0;
+                background: var(--bg-elevated);
+                border: 1px solid var(--border);
+                border-radius: var(--r-md);
+                padding: 0.4rem;
+                box-shadow: var(--shadow-2);
+                display: none;
+                z-index: 250;
+            }
+            .nav-links.open { display: flex; }
+            .nav-links a {
+                padding: 0.7rem 0.8rem;
+                border-radius: var(--r-sm);
+            }
+            .nav-links a:hover, .nav-links a:focus-visible {
+                background: rgba(74, 158, 255, 0.10);
+                color: var(--fg-0);
+            }
+        }
+
         @media (max-width: 700px) {
             section { padding: 2.5rem 0; }
 
             .nav-inner { padding-top: 0.7rem; padding-bottom: 0.7rem; }
-            .nav-links { display: none; }
             .nav-cta { padding: 0.55rem 0.9rem; font-size: 0.9em; }
 
             .hero { padding: 2rem 0 2.5rem; }
@@ -584,6 +637,8 @@
 </head>
 <body>
 
+<a class="skip-link" href="#main">跳至主要內容</a>
+
 <!-- ============ NAV ============ -->
 <nav class="nav">
   <div class="wrap nav-inner">
@@ -596,13 +651,18 @@
       </span>
       SeaCurrent
     </a>
-    <div class="nav-links">
+    <button type="button" class="nav-toggle" aria-label="切換選單" aria-expanded="false" aria-controls="navLinks">&#9776;</button>
+    <div class="nav-links" id="navLinks">
       <a href="#scenarios">Scenarios</a>
       <a href="#layers">Forecast layers</a>
       <a href="#how">How it works</a>
       <a href="#data">Data</a>
       <a href="tide.html">Tide</a>
     </div>
+    <button type="button" class="theme-toggle" aria-label="切換深淺色主題" title="切換主題"
+            onclick="if(window.SeaTheme){SeaTheme.toggle();this.firstElementChild.textContent=SeaTheme.get()==='light'?'☾':'☀';}">
+      <span aria-hidden="true">◐</span>
+    </button>
     <a href="app.html" class="nav-cta">
       Launch app
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
@@ -611,6 +671,7 @@
 </nav>
 
 <!-- ============ HERO ============ -->
+<main id="main" tabindex="-1">
 <section class="hero">
   <div class="hero-bg"></div>
   <div class="grid-lines"></div>
@@ -618,7 +679,7 @@
     <div>
       <span class="eyebrow">
         <span class="dot"></span>
-        Live CWA ocean-current data · Updated every 2 days
+        Live <sea-glossary term="cwa">CWA</sea-glossary> ocean-current data · Updated every 2 days
       </span>
       <h1>Forecast ocean drift<br>across <span class="grad">Taiwan waters.</span></h1>
       <p class="hero-sub">
@@ -677,7 +738,7 @@
     <div class="section-head">
       <span class="section-label">Three drift models</span>
       <h2 class="section-title">Purpose-built for the three most common<br>open-water response cases.</h2>
-      <p class="section-sub">Each simulation runs OpenDrift in a dedicated Docker environment on GitHub Actions — the same model-family used by national SAR and environmental agencies.</p>
+      <p class="section-sub">Each simulation runs <sea-glossary term="opendrift">OpenDrift</sea-glossary> in a dedicated Docker environment on GitHub Actions — the same model-family used by national SAR and environmental agencies.</p>
     </div>
 
     <div class="sc-grid">
@@ -979,6 +1040,7 @@
     </div>
   </div>
 </section>
+</main>
 
 <!-- ============ FOOTER ============ -->
 <footer>
@@ -996,5 +1058,29 @@
   </div>
 </footer>
 
+<sea-toast></sea-toast>
+<script>
+(function () {
+  var btn = document.querySelector('.nav-toggle');
+  var menu = document.getElementById('navLinks');
+  if (btn && menu) {
+    btn.addEventListener('click', function () {
+      var open = menu.classList.toggle('open');
+      btn.setAttribute('aria-expanded', String(open));
+    });
+    menu.addEventListener('click', function (e) {
+      if (e.target.tagName === 'A') {
+        menu.classList.remove('open');
+        btn.setAttribute('aria-expanded', 'false');
+      }
+    });
+  }
+  // Sync theme toggle glyph at load
+  var tBtn = document.querySelector('.theme-toggle');
+  if (tBtn && window.SeaTheme) {
+    tBtn.firstElementChild.textContent = SeaTheme.get() === 'light' ? '☾' : '☀';
+  }
+})();
+</script>
 </body>
 </html>

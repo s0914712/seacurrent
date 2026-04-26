@@ -5,7 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0a1628">
     <title>SeaCurrent - Drift Forecast</title>
+    <script src="assets/theme.js"></script>
     <link rel="stylesheet" href="colors_and_type.css" />
+    <link rel="stylesheet" href="assets/tokens.css" />
+    <link rel="stylesheet" href="assets/a11y.css" />
+    <script src="assets/components.js" defer></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/leaflet-velocity@2.1.4/dist/leaflet-velocity.min.js"></script>
@@ -624,15 +628,12 @@
     </style>
 </head>
 <body>
+    <a class="skip-link" href="#main">跳至地圖</a>
+    <sea-header current-page="forecast" variant="topbar"></sea-header>
     <div class="topbar">
         <div>
             <h2>Taiwan Waters Drift Forecast</h2>
             <div class="meta" id="metaInfo"></div>
-        </div>
-        <div>
-            <a href="index.html">&larr; Custom Simulation</a>
-            &nbsp;|&nbsp;
-            <a href="tide.html">Tide &rarr;</a>
         </div>
     </div>
 
@@ -640,7 +641,7 @@
         <div class="point-list" id="pointList">
             <div style="padding:20px;color:var(--fg-3);text-align:center;">Loading...</div>
         </div>
-        <div class="map-area">
+        <main id="main" tabindex="-1" class="map-area">
             <div id="map"></div>
             <div class="loading-msg" id="loadingMsg">Loading forecast data...</div>
 
@@ -730,7 +731,7 @@
                     <img id="infoPanelImage" alt="Simulation preview">
                 </div>
             </div>
-        </div>
+        </main>
     </div>
 
     <div class="sim-lightbox" id="simLightbox">
@@ -1498,6 +1499,15 @@ async function loadForecast() {
             var item = document.createElement('div');
             item.className = 'point-item';
             item.dataset.id = pt.id;
+            item.setAttribute('role', 'button');
+            item.setAttribute('tabindex', '0');
+            item.setAttribute('aria-label', '選擇 ' + pt.name_zh + ' (' + pt.name + ')');
+            item.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    selectPoint(pt.id);
+                }
+            });
             item.innerHTML =
                 '<div class="name-zh">' + pt.name_zh + '</div>' +
                 '<div class="name-en">' + pt.name + '</div>' +
@@ -1529,6 +1539,14 @@ async function loadForecast() {
     } catch (err) {
         loadingMsg.textContent = 'Failed to load: ' + err.message;
         pointList.innerHTML = '<div style="padding:20px;color:#f87171;text-align:center;">Error</div>';
+        if (window.SeaToast && SeaToast.notify) {
+            SeaToast.notify({
+                type: 'error',
+                title: '預報資料載入失敗',
+                msg: err.message || '無法取得最新預報。',
+                retry: function () { location.reload(); },
+            });
+        }
     }
 }
 
@@ -1657,5 +1675,6 @@ if (EMBED_MODE) {
     .point-tooltip { font-size: 0.8em !important; padding: 2px 6px !important; }
 }
 </style>
+<sea-toast></sea-toast>
 </body>
 </html>

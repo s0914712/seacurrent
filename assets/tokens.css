@@ -1,0 +1,62 @@
+/* SeaCurrent — extended design tokens (loaded after colors_and_type.css) */
+
+:root {
+  /* Focus + elevation (new) */
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--accent) 65%, transparent);
+  --focus-ring-inset: inset 0 0 0 2px var(--accent);
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.30);
+  --shadow-2: 0 4px 14px rgba(0, 0, 0, 0.35);
+  --shadow-3: 0 12px 32px rgba(0, 0, 0, 0.45);
+
+  /* Breakpoints (use as fallbacks; CSS @media still needs literals) */
+  --bp-sm: 480px;
+  --bp-md: 768px;
+  --bp-lg: 1024px;
+  --bp-xl: 1280px;
+
+  /* Higher-contrast foreground (AAA on --bg-0 #0a1628) */
+  --fg-2: #a9b8cf;
+
+  /* Semantic surface tints for toast / skeleton */
+  --surface-success: rgba(52, 211, 153, 0.12);
+  --surface-warn: rgba(245, 158, 11, 0.14);
+  --surface-error: rgba(248, 113, 113, 0.14);
+
+  /* Animation */
+  --dur-slow: 0.4s;
+}
+
+/* Light mode override (Phase 8) */
+[data-theme="light"] {
+  --bg-0: #f5f7fb;
+  --bg-1: #ffffff;
+  --bg-2: #eef2f7;
+  --bg-3: #ffffff;
+  --bg-elevated: #ffffff;
+
+  --border: #d4dce5;
+  --border-strong: #94a3b8;
+  --border-hover: #64748b;
+  --border-focus: #2563eb;
+
+  --fg-0: #0a1628;
+  --fg-1: #1e293b;
+  --fg-2: #475569;
+  --fg-3: #64748b;
+  --fg-4: #94a3b8;
+
+  --accent: #2563eb;
+  --accent-strong: #1d4ed8;
+  --accent-strong-hover: #1e40af;
+
+  --overlay-bg: rgba(255, 255, 255, 0.92);
+
+  --shadow-1: 0 1px 2px rgba(15, 23, 42, 0.08);
+  --shadow-2: 0 4px 14px rgba(15, 23, 42, 0.12);
+  --shadow-3: 0 12px 32px rgba(15, 23, 42, 0.18);
+
+  --surface-success: rgba(5, 150, 105, 0.10);
+  --surface-warn: rgba(217, 119, 6, 0.12);
+  --surface-error: rgba(220, 38, 38, 0.10);
+}
