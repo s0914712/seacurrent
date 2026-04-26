@@ -131,24 +131,28 @@
             min-width: 180px;
         }
         .layer-group-title {
-            font-size: 0.72em;
+            font-size: 0.8em;
             text-transform: uppercase;
             letter-spacing: 0.08em;
-            color: var(--fg-3);
-            margin-bottom: 4px;
+            color: var(--fg-2);
+            font-weight: 600;
+            margin-bottom: 5px;
         }
         .layer-select {
             width: 100%;
-            background: rgba(10, 18, 32, 0.9);
-            color: var(--fg-1);
-            border: 1px solid var(--border);
+            background: rgba(10, 18, 32, 0.95);
+            color: var(--fg-0);
+            border: 1px solid var(--border-strong);
             border-radius: 6px;
-            padding: 6px 8px;
+            padding: 7px 9px;
             font-family: inherit;
-            font-size: 0.9em;
+            font-size: 1em;
+            font-weight: 500;
             cursor: pointer;
         }
-        .layer-select:focus { outline: none; border-color: var(--accent); }
+        .layer-select:hover { border-color: var(--border-hover); }
+        .layer-select:focus { outline: none; border-color: var(--accent); box-shadow: var(--focus-ring); }
+        .layer-select option { background: var(--bg-1); color: var(--fg-0); }
 
         /* Scalar overlay color bar (temperature / humidity) */
         .scalar-bar {
@@ -185,16 +189,17 @@
             position: absolute;
             bottom: 20px;
             left: 20px;
-            background: rgba(16, 29, 51, 0.92);
+            background: rgba(16, 29, 51, 0.95);
             padding: 14px 18px;
             border-radius: 8px;
-            font-size: 0.92em;
+            font-size: 1em;
             z-index: 1000;
-            border: 1px solid var(--border);
+            border: 1px solid var(--border-strong);
             backdrop-filter: blur(8px);
+            color: var(--fg-1);
         }
-        .legend-title { font-weight: 600; margin-bottom: 6px; color: var(--fg-0); }
-        .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; color: var(--fg-2); }
+        .legend-title { font-weight: 700; margin-bottom: 8px; color: var(--fg-0); font-size: 1.02em; }
+        .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; color: var(--fg-1); font-weight: 500; }
         .legend-color {
             width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0;
         }
@@ -267,8 +272,8 @@
             padding: 0;
         }
         .info-panel-toggle:hover { background: rgba(26, 53, 88, 0.95); }
-        .info-panel .info-row { color: var(--fg-3); margin-bottom: 4px; }
-        .info-panel .info-row span { color: var(--fg-1); font-weight: 600; }
+        .info-panel .info-row { color: var(--fg-2); margin-bottom: 5px; font-size: 0.95em; }
+        .info-panel .info-row span { color: var(--fg-0); font-weight: 600; }
         .info-panel.collapsed .info-row,
         .info-panel.collapsed .sim-image-wrap { display: none; }
         .info-panel.collapsed .info-panel-header { margin-bottom: 0; }
@@ -1632,14 +1637,14 @@ if (EMBED_MODE) {
 .img-popup .leaflet-popup-tip { background: rgba(16,29,51,0.95) !important; }
 .img-popup .leaflet-popup-close-button { color: var(--fg-3) !important; font-size: 20px !important; }
 .point-tooltip {
-    background: rgba(16,29,51,0.9) !important;
-    color: var(--fg-1) !important;
-    border: 1px solid var(--border) !important;
+    background: rgba(16,29,51,0.96) !important;
+    color: var(--fg-0) !important;
+    border: 1px solid var(--border-strong) !important;
     border-radius: 4px !important;
-    font-size: 0.95em !important;
-    padding: 3px 8px !important;
-    font-weight: 600 !important;
-    box-shadow: none !important;
+    font-size: 1em !important;
+    padding: 4px 10px !important;
+    font-weight: 700 !important;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4) !important;
 }
 .point-tooltip::before { border-right-color: var(--border) !important; }
 

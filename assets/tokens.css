@@ -1,6 +1,10 @@
 /* SeaCurrent — extended design tokens (loaded after colors_and_type.css) */
 
 :root {
+  /* Tell the browser our default chrome is dark — fixes native <select>
+   * dropdown panels, scrollbars and date pickers rendering as white-on-white. */
+  color-scheme: dark;
+
   /* Focus + elevation (new) */
   --focus-ring: 0 0 0 3px color-mix(in srgb, var(--accent) 65%, transparent);
   --focus-ring-inset: inset 0 0 0 2px var(--accent);
@@ -27,8 +31,16 @@
   --dur-slow: 0.4s;
 }
 
+/* Make sure native form-control options render with our palette. Some
+ * browsers don't propagate the styled select bg/fg to the popup. */
+option {
+  background: #101d33;
+  color: #ffffff;
+}
+
 /* Light mode override (Phase 8) */
 [data-theme="light"] {
+  color-scheme: light;
   --bg-0: #f5f7fb;
   --bg-1: #ffffff;
   --bg-2: #eef2f7;
@@ -59,4 +71,9 @@
   --surface-success: rgba(5, 150, 105, 0.10);
   --surface-warn: rgba(217, 119, 6, 0.12);
   --surface-error: rgba(220, 38, 38, 0.10);
+}
+
+[data-theme="light"] option {
+  background: #ffffff;
+  color: #0a1628;
 }
