@@ -19,8 +19,12 @@
   --bp-lg: 1024px;
   --bp-xl: 1280px;
 
-  /* Higher-contrast foreground (AAA on --bg-0 #0a1628) */
-  --fg-2: #a9b8cf;
+  /* Foreground — pushed near-white in dark mode so any text on the deep-blue
+   * surfaces reads as white. Distinctions live in font weight / size, not color. */
+  --fg-1: #f5f7fb;   /* primary body text  (was #e0e6ed) */
+  --fg-2: #e1e7ef;   /* secondary labels   (was #a9b8cf, before that #8a9bb5) */
+  --fg-3: #c9d1dc;   /* hints / captions   (was #7a8fa6) */
+  --fg-4: #9ca8b8;   /* dividers / icons   (was #5a7a9a) */
 
   /* Semantic surface tints for toast / skeleton */
   --surface-success: rgba(52, 211, 153, 0.12);
