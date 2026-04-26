@@ -93,11 +93,11 @@ class SeaHeader extends HTMLElement {
           margin-left: auto;
         }
         .link {
-          color: var(--fg-2, #a9b8cf);
+          color: var(--fg-0, #ffffff);
           text-decoration: none;
           padding: 0.45rem 0.75rem;
           border-radius: var(--r-sm, 6px);
-          font-size: 0.92em;
+          font-size: 0.95em;
           font-weight: 500;
           transition: background var(--dur-fast, 0.15s) var(--ease, ease),
                       color var(--dur-fast, 0.15s) var(--ease, ease);
@@ -105,7 +105,7 @@ class SeaHeader extends HTMLElement {
           align-items: center;
           gap: 0.4em;
         }
-        .link .en { display: none; color: var(--fg-3, #7a8fa6); font-size: 0.85em; }
+        .link .en { display: none; color: var(--fg-2, #e1e7ef); font-size: 0.85em; }
         .link:hover, .link:focus-visible {
           color: var(--fg-0, #fff);
           background: rgba(74, 158, 255, 0.10);
@@ -240,8 +240,8 @@ class SeaFooter extends HTMLElement {
           padding: 1.25rem 1rem;
           border-top: 1px solid var(--border, #1e3050);
           background: var(--bg-1, #101d33);
-          color: var(--fg-2, #a9b8cf);
-          font-size: 0.88em;
+          color: var(--fg-1, #f5f7fb);
+          font-size: 0.92em;
           display: flex;
           flex-wrap: wrap;
           gap: 0.75rem 1.5rem;
@@ -249,7 +249,7 @@ class SeaFooter extends HTMLElement {
           justify-content: space-between;
         }
         .links { display: flex; gap: 1rem; flex-wrap: wrap; }
-        a { color: var(--fg-2, #a9b8cf); text-decoration: none; }
+        a { color: var(--fg-0, #ffffff); text-decoration: none; }
         a:hover, a:focus-visible { color: var(--accent, #4a9eff); outline: none; }
         a:focus-visible { box-shadow: var(--focus-ring, 0 0 0 3px rgba(74,158,255,0.6)); border-radius: var(--r-sm, 6px); }
       </style>
