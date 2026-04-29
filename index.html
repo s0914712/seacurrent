@@ -33,6 +33,8 @@
 
         /* ============ NAV ============ */
         .nav {
+            --nav-text: #eaf2ff;
+            --nav-text-muted: rgba(234, 242, 255, 0.82);
             position: sticky;
             top: 0;
             z-index: 100;
@@ -54,7 +56,7 @@
             display: inline-flex;
             align-items: center;
             gap: 0.6rem;
-            color: var(--fg-0);
+            color: var(--nav-text);
             font-weight: 700;
             font-size: 1.08em;
             letter-spacing: -0.01em;
@@ -75,26 +77,26 @@
             align-items: center;
         }
         .nav-links a {
-            color: var(--fg-0);
+            color: var(--nav-text-muted);
             font-size: 1em;
             font-weight: 500;
             transition: color var(--dur-fast) var(--ease);
         }
-        .nav-links a:hover, .nav-links a:focus-visible { color: var(--accent); outline: none; }
+        .nav-links a:hover, .nav-links a:focus-visible { color: var(--nav-text); outline: none; }
         .nav-toggle, .theme-toggle {
             display: inline-flex;
             align-items: center;
             justify-content: center;
             background: transparent;
             border: 0;
-            color: var(--fg-1);
+            color: var(--nav-text-muted);
             padding: 0.45rem 0.55rem;
             border-radius: var(--r-sm);
             font-size: 1.1em;
             cursor: pointer;
             line-height: 1;
         }
-        .theme-toggle:hover, .nav-toggle:hover { background: rgba(74,158,255,0.12); color: var(--fg-0); }
+        .theme-toggle:hover, .nav-toggle:hover { background: rgba(74,158,255,0.12); color: var(--nav-text); }
         .nav-toggle { display: none; font-size: 1.2em; }
         .nav-toggle:focus-visible, .theme-toggle:focus-visible {
             outline: none;
@@ -106,7 +108,7 @@
             gap: 0.4rem;
             padding: 0.55rem 1rem;
             background: var(--accent-strong);
-            color: var(--fg-0);
+            color: #ffffff;
             border-radius: var(--r-md);
             font-weight: 600;
             font-size: 0.95em;
