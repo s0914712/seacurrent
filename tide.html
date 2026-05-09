@@ -49,7 +49,16 @@
         }
 
         /* Map */
-        .map-area { flex: 1; position: relative; min-width: 0; }
+        .map-area {
+            flex: 1;
+            position: relative;
+            min-width: 0;
+            /* Theme-independent tokens: the dark-glass map overlay must
+             * stay readable in both light and dark themes. */
+            --map-ui-text: #eaf2ff;
+            --map-ui-text-muted: rgba(234, 242, 255, 0.82);
+            --map-ui-text-strong: #ffffff;
+        }
         #map { width: 100%; height: 100%; }
 
         .map-overlay {
@@ -65,8 +74,8 @@
             backdrop-filter: blur(8px);
             max-width: 280px;
         }
-        .map-overlay .hint { color: var(--fg-2); }
-        .map-overlay .hint strong { color: var(--fg-0); }
+        .map-overlay .hint { color: var(--map-ui-text-muted); }
+        .map-overlay .hint strong { color: var(--map-ui-text-strong); }
 
         /* Tide panel */
         .tide-panel {
