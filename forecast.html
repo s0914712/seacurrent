@@ -829,6 +829,69 @@ var gfsLayerMeta = {};            // layer id → {type, base_time, hours, step,
 
 var COLORS = ['#4a9eff', '#34d399', '#f59e0b', '#a78bfa', '#f87171'];
 
+// ── Click-to-inspect: latest frame data per layer for point sampling ──
+var lastFrameByType = {};
+
+function interpolateUV(lat, lng, dataPair) {
+    if (!dataPair || dataPair.length < 2) return null;
+    var hu = dataPair[0].header;
+    var u = dataPair[0].data, v = dataPair[1].data;
+    var nx = hu.nx, ny = hu.ny;
+    var fx = (lng - hu.lo1) / hu.dx;
+    var fy = (hu.la1 - lat) / hu.dy;
+    if (fx < 0 || fx > nx - 1 || fy < 0 || fy > ny - 1) return null;
+    var x0 = Math.floor(fx), y0 = Math.floor(fy);
+    var x1 = Math.min(x0 + 1, nx - 1), y1 = Math.min(y0 + 1, ny - 1);
+    var tx = fx - x0, ty = fy - y0;
+    function bil(arr) {
+        var a = arr[y0 * nx + x0], b = arr[y0 * nx + x1];
+        var c = arr[y1 * nx + x0], d = arr[y1 * nx + x1];
+        if (a == null || b == null || c == null || d == null) return null;
+        return (1 - tx) * (1 - ty) * a + tx * (1 - ty) * b
+             + (1 - tx) * ty * c + tx * ty * d;
+    }
+    var uu = bil(u), vv = bil(v);
+    if (uu === null || vv === null) return null;
+    return [uu, vv];
+}
+
+function compassDir(deg) {
+    var d = ['N','NE','E','SE','S','SW','W','NW'];
+    return d[Math.round((((deg % 360) + 360) % 360) / 45) % 8];
+}
+
+// type === 'current' uses oceanographic 'toward' convention,
+// wind types use meteorological 'from' convention.
+function formatVectorAt(type, uv) {
+    if (!uv) return null;
+    var u = uv[0], v = uv[1];
+    var speed = Math.sqrt(u * u + v * v);
+    var toward = (Math.atan2(u, v) * 180 / Math.PI + 360) % 360;
+    if (type === 'current') {
+        return speed.toFixed(2) + ' m/s &rarr; ' + compassDir(toward)
+             + ' (' + Math.round(toward) + '&deg;)';
+    }
+    var from = (toward + 180) % 360;
+    return speed.toFixed(1) + ' m/s &larr; ' + compassDir(from)
+         + ' (' + Math.round(from) + '&deg;)';
+}
+
+map.on('click', function(e) {
+    if (EMBED_MODE) return;
+    var type = activeVelocityLayer;
+    var uv = type ? interpolateUV(e.latlng.lat, e.latlng.lng, lastFrameByType[type]) : null;
+    var title = (type === 'current') ? 'Ocean current'
+              : (type === 'wind') ? 'Wind (surface)'
+              : (type ? vectorLabel(type) : '');
+    var line = uv ? formatVectorAt(type, uv) : 'No data at this location';
+    var html =
+        '<div style="font-weight:600;margin-bottom:4px;">' + title + '</div>' +
+        '<div>' + line + '</div>' +
+        '<div style="color:var(--fg-3);font-size:0.85em;margin-top:6px;">' +
+        e.latlng.lat.toFixed(3) + ', ' + e.latlng.lng.toFixed(3) + '</div>';
+    L.popup().setLatLng(e.latlng).setContent(html).openOn(map);
+});
+
 // ── Velocity layer loading ──
 
 function loadVelocityLayer(url, type) {
@@ -1159,6 +1222,7 @@ function fetchFrame(type, hour) {
 }
 
 function applyFrameToLayer(type, data) {
+    lastFrameByType[type] = data;
     var layer;
     if (type === 'current') layer = currentVelocityLayer;
     else if (type === 'wind') layer = windVelocityLayer;
