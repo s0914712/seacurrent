@@ -226,6 +226,239 @@ class SeaHeader extends HTMLElement {
 customElements.define('sea-header', SeaHeader);
 
 /* ====================================================================== *
+ * <sea-tabbar current-page="home|app|forecast|tide">
+ * Mobile-only fixed bottom navigation (≤767.98px). Hidden on desktop where
+ * <sea-header> takes over. Adds body.has-tabbar so non-:has() browsers can
+ * still lift Leaflet attribution out from under it.
+ * Fires sc:tabbar-nav { to } on click so pages can intercept (e.g. unsaved
+ * form state). Calling event.preventDefault() stops navigation.
+ * ====================================================================== */
+const TAB_ICONS = {
+  home:     '<path d="M3 11l9-8 9 8v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>',
+  app:      '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
+  forecast: '<path d="M3 6h18M3 12h18M3 18h12"/><circle cx="19" cy="18" r="2"/>',
+  tide:     '<path d="M2 12c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 18c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/>',
+};
+
+class SeaTabbar extends HTMLElement {
+  static get observedAttributes() { return ['current-page']; }
+
+  connectedCallback() {
+    if (this._mounted) return;
+    this._mounted = true;
+
+    if (/[?&]embed=1\b/.test(window.location.search)) {
+      this.style.display = 'none';
+      return;
+    }
+
+    document.body.classList.add('has-tabbar');
+    const root = this.attachShadow({ mode: 'open' });
+    root.innerHTML = this._template();
+    this._wire(root);
+  }
+
+  disconnectedCallback() {
+    document.body.classList.remove('has-tabbar');
+  }
+
+  attributeChangedCallback() {
+    if (!this.shadowRoot) return;
+    this.shadowRoot.innerHTML = this._template();
+    this._wire(this.shadowRoot);
+  }
+
+  _template() {
+    const current = this.getAttribute('current-page') || '';
+    const items = NAV_LINKS.map(l => `
+      <a href="${l.href}" class="tab${l.id === current ? ' active' : ''}"
+         data-id="${l.id}"
+         ${l.id === current ? 'aria-current="page"' : ''}
+         aria-label="${l.label} ${l.en}">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+             aria-hidden="true">${TAB_ICONS[l.id] || ''}</svg>
+        <span class="lbl">${l.label}</span>
+      </a>
+    `).join('');
+
+    return `
+      <style>
+        :host { display: none; font-family: var(--font-sans, sans-serif); }
+        @media (max-width: 767.98px) { :host { display: block; } }
+
+        .bar {
+          position: fixed;
+          bottom: 0; left: 0; right: 0;
+          z-index: 1100;
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          background: var(--overlay-bg, rgba(16,29,51,0.92));
+          backdrop-filter: var(--overlay-blur, blur(8px));
+          -webkit-backdrop-filter: var(--overlay-blur, blur(8px));
+          border-top: 1px solid var(--border, #1e3050);
+          padding-bottom: env(safe-area-inset-bottom);
+          min-height: 56px;
+        }
+        .tab {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 2px;
+          padding: 6px 4px;
+          color: var(--fg-2, #c9d2dd);
+          text-decoration: none;
+          font-size: 0.72em;
+          font-weight: 500;
+          min-height: 48px;
+          transition: color var(--dur-fast, 0.15s) var(--ease, ease),
+                      background var(--dur-fast, 0.15s) var(--ease, ease);
+        }
+        .tab .ico { width: 22px; height: 22px; flex-shrink: 0; }
+        .tab .lbl { line-height: 1; }
+        .tab:hover, .tab:focus-visible {
+          color: var(--fg-0, #fff);
+          background: rgba(74, 158, 255, 0.08);
+          outline: none;
+        }
+        .tab:focus-visible { box-shadow: inset 0 0 0 2px var(--accent, #4a9eff); }
+        .tab.active { color: var(--accent, #4a9eff); }
+
+        @media (prefers-reduced-motion: reduce) {
+          .tab { transition: none; }
+        }
+      </style>
+      <nav class="bar" role="navigation" aria-label="主要分頁">${items}</nav>
+    `;
+  }
+
+  _wire(root) {
+    root.querySelectorAll('.tab').forEach(a => {
+      a.addEventListener('click', e => {
+        const to = a.dataset.id;
+        const evt = new CustomEvent('sc:tabbar-nav', {
+          detail: { to, href: a.href },
+          bubbles: true, composed: true, cancelable: true,
+        });
+        this.dispatchEvent(evt);
+        if (evt.defaultPrevented) e.preventDefault();
+      });
+    });
+  }
+}
+customElements.define('sea-tabbar', SeaTabbar);
+
+/* ====================================================================== *
+ * <sea-next-step to="app|forecast|tide|home" title="..." body="..."
+ *                cta-label="..." variant="primary|ghost">
+ * End-of-page CTA card that hands the user to the next likely destination.
+ * Resolves `to` against NAV_LINKS so href and labels stay single-sourced.
+ * ====================================================================== */
+class SeaNextStep extends HTMLElement {
+  static get observedAttributes() { return ['to', 'title', 'body', 'cta-label', 'variant']; }
+
+  connectedCallback() {
+    if (this._mounted) return;
+    this._mounted = true;
+    if (/[?&]embed=1\b/.test(window.location.search)) { this.style.display = 'none'; return; }
+    const root = this.attachShadow({ mode: 'open' });
+    root.innerHTML = this._template();
+  }
+  attributeChangedCallback() {
+    if (!this.shadowRoot) return;
+    this.shadowRoot.innerHTML = this._template();
+  }
+  _template() {
+    const to = this.getAttribute('to') || 'home';
+    const link = NAV_LINKS.find(l => l.id === to) || NAV_LINKS[0];
+    const title = this.getAttribute('title') || `下一步：${link.label}`;
+    const body = this.getAttribute('body') || '';
+    const cta = this.getAttribute('cta-label') || `${link.label} →`;
+    const variant = this.getAttribute('variant') || 'primary';
+    return `
+      <style>
+        :host { display: block; font-family: var(--font-sans, sans-serif); }
+        .card {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+          padding: clamp(1rem, 3vw, 1.5rem);
+          margin: clamp(1.25rem, 4vw, 2rem) auto;
+          max-width: 56rem;
+          background: var(--bg-elevated, #1a3558);
+          border: 1px solid var(--border, #1e3050);
+          border-radius: var(--r-lg, 14px);
+          color: var(--fg-1, #e0e6ed);
+        }
+        :host([variant="ghost"]) .card {
+          background: transparent;
+          border-style: dashed;
+        }
+        .eyebrow {
+          font-size: 0.78em;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          color: var(--fg-3, #9aa6b4);
+          font-weight: 600;
+        }
+        .title {
+          font-size: clamp(1.1em, 2.4vw, 1.35em);
+          font-weight: 700;
+          color: var(--fg-0, #fff);
+          margin: 0;
+        }
+        .body { font-size: 0.95em; line-height: 1.5; color: var(--fg-2, #c9d2dd); margin: 0; }
+        .row {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          margin-top: 0.25rem;
+          flex-wrap: wrap;
+        }
+        .btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.4rem;
+          padding: 0.65rem 1.1rem;
+          min-height: 44px;
+          background: var(--accent, #4a9eff);
+          color: #fff;
+          text-decoration: none;
+          font-weight: 600;
+          border-radius: var(--r-md, 8px);
+          transition: background var(--dur-fast, 0.15s) var(--ease, ease),
+                      transform var(--dur-fast, 0.15s) var(--ease, ease);
+        }
+        .btn:hover { background: var(--accent-strong, #1f7be0); }
+        .btn:focus-visible {
+          outline: none;
+          box-shadow: var(--focus-ring, 0 0 0 3px rgba(74,158,255,0.6));
+        }
+        .btn .chev { transition: transform var(--dur-fast, 0.15s) var(--ease, ease); }
+        .btn:hover .chev { transform: translateX(2px); }
+        @media (prefers-reduced-motion: reduce) {
+          .btn, .btn .chev { transition: none; }
+          .btn:hover .chev { transform: none; }
+        }
+      </style>
+      <section class="card" aria-labelledby="ns-title">
+        <span class="eyebrow">下一步 · NEXT</span>
+        <h2 id="ns-title" class="title">${title}</h2>
+        ${body ? `<p class="body">${body}</p>` : ''}
+        <div class="row">
+          <a class="btn" href="${link.href}">
+            <span>${cta}</span>
+            <span class="chev" aria-hidden="true">→</span>
+          </a>
+        </div>
+      </section>
+    `;
+  }
+}
+customElements.define('sea-next-step', SeaNextStep);
+
+/* ====================================================================== *
  * <sea-footer>
  * ====================================================================== */
 class SeaFooter extends HTMLElement {

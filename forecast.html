@@ -10,9 +10,12 @@
     <link rel="stylesheet" href="assets/tokens.css" />
     <link rel="stylesheet" href="assets/a11y.css" />
     <script src="assets/components.js" defer></script>
+    <script src="assets/transitions.js" defer></script>
+    <script src="assets/swipe.js" defer></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/leaflet-velocity@2.1.4/dist/leaflet-velocity.min.js"></script>
+    <script src="assets/map-tiles.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         html { font-size: clamp(14px, 0.45vw + 11px, 20px); }
@@ -51,13 +54,24 @@
         }
 
         /* Sidebar point list */
-        .point-list {
+        .point-list-wrap {
             width: 280px;
             min-width: 280px;
             background: var(--bg-1);
             border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+        .point-list {
+            flex: 1;
             overflow-y: auto;
             padding: 10px;
+        }
+        .point-list-wrap sea-next-step {
+            border-top: 1px solid var(--border);
+            padding: 0 8px;
+            flex-shrink: 0;
         }
         .point-item {
             padding: 14px;
@@ -473,6 +487,13 @@
             .main { flex-direction: column; }
 
             /* Point list: horizontal scroll, compact chips, no thumbs */
+            .point-list-wrap {
+                width: 100%; min-width: 0;
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+                flex-shrink: 0;
+            }
+            .point-list-wrap sea-next-step { display: none; }
             .point-list {
                 width: 100%; min-width: 0;
                 max-height: none;
@@ -480,7 +501,6 @@
                 overflow-x: auto; overflow-y: hidden;
                 padding: 6px 10px;
                 border-right: none;
-                border-bottom: 1px solid var(--border);
                 -webkit-overflow-scrolling: touch;
                 scrollbar-width: none;
                 scroll-snap-type: x mandatory;
@@ -624,6 +644,7 @@
               index.html's hero visual). Strip most chrome but keep the
               layer selectors so visitors can explore. ── */
         body.embed-mode .topbar,
+        body.embed-mode .point-list-wrap,
         body.embed-mode .point-list,
         body.embed-mode .forecast-strip,
         body.embed-mode .timeline,
@@ -674,9 +695,16 @@
     </div>
 
     <div class="main">
-        <div class="point-list" id="pointList">
-            <div style="padding:20px;color:var(--fg-3);text-align:center;">Loading...</div>
-        </div>
+        <aside class="point-list-wrap" aria-label="預報港口列表">
+            <div class="point-list" id="pointList">
+                <div style="padding:20px;color:var(--fg-3);text-align:center;">Loading...</div>
+            </div>
+            <sea-next-step to="tide"
+                           variant="ghost"
+                           title="對照今日潮汐"
+                           body="切換到潮汐頁，查看 24 小時水位變化曲線。"
+                           cta-label="查看潮汐"></sea-next-step>
+        </aside>
         <main id="main" tabindex="-1" class="map-area">
             <div id="map"></div>
             <div class="loading-msg" id="loadingMsg">Loading forecast data...</div>
@@ -754,7 +782,10 @@
                 <span class="tl-loading" id="tlLoading" style="display:none;">…</span>
             </div>
 
-            <div class="info-panel" id="infoPanel">
+            <div class="info-panel" id="infoPanel"
+                 data-swipe-panel="vertical"
+                 data-swipe-target="infoPanelToggle"
+                 data-swipe-handle=".info-panel-header">
                 <div class="info-panel-header">
                     <h4 id="infoPanelTitle"></h4>
                     <button type="button" class="info-panel-toggle" id="infoPanelToggle"
@@ -804,10 +835,7 @@ if (!IS_PHONE && !EMBED_MODE) {
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 }
 
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OSM &copy; CARTO',
-    maxZoom: 18,
-}).addTo(map);
+SeaTiles.addTo(map, { attribution: '&copy; OSM &copy; CARTO', maxZoom: 18 });
 
 var trajectoryLayer = L.layerGroup().addTo(map);
 var pointMarkers = {};
@@ -1776,5 +1804,6 @@ if (EMBED_MODE) {
 }
 </style>
 <sea-toast></sea-toast>
+<sea-tabbar current-page="forecast"></sea-tabbar>
 </body>
 </html>

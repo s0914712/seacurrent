@@ -2,16 +2,19 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>SeaCurrent Drift Simulator</title>
     <script src="assets/theme.js"></script>
     <link rel="stylesheet" href="colors_and_type.css" />
     <link rel="stylesheet" href="assets/tokens.css" />
     <link rel="stylesheet" href="assets/a11y.css" />
     <script src="assets/components.js" defer></script>
+    <script src="assets/transitions.js" defer></script>
+    <script src="assets/swipe.js" defer></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/leaflet-velocity@2.1.4/dist/leaflet-velocity.min.js"></script>
+    <script src="assets/map-tiles.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         html { font-size: clamp(14px, 0.45vw + 11px, 20px); }
@@ -20,10 +23,15 @@
             background: var(--bg-0);
             color: var(--fg-1);
             min-height: 100vh;
+            min-height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
         .layout {
             display: flex;
-            height: 100vh;
+            flex: 1;
+            min-height: 0;
         }
 
         /* Sidebar */
@@ -469,8 +477,12 @@
 </head>
 <body>
     <a class="skip-link" href="#main">跳至地圖</a>
+    <sea-header current-page="app" variant="topbar"></sea-header>
     <div class="layout">
-        <div class="sidebar" id="sidebar">
+        <div class="sidebar" id="sidebar"
+             data-swipe-panel="vertical"
+             data-swipe-target="sidebarToggle"
+             data-swipe-handle=".sidebar-header">
             <div class="sidebar-header">
                 <div class="titles">
                     <h2>SeaCurrent Drift Simulator</h2>
@@ -576,6 +588,12 @@
             <div id="success"></div>
             <div id="error"></div>
             <div id="logs"></div>
+
+            <sea-next-step to="forecast"
+                           variant="ghost"
+                           title="想看最新預報圖嗎？"
+                           body="瀏覽各港口最新海流與風場預報，對照你剛剛的模擬。"
+                           cta-label="開啟預報圖"></sea-next-step>
         </div>
 
         <main id="main" tabindex="-1" class="map-container">
@@ -650,10 +668,7 @@
 var map = L.map('map', { zoomControl: false }).setView([23.5, 121], 7);
 L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OpenStreetMap &copy; CARTO',
-    maxZoom: 18,
-}).addTo(map);
+SeaTiles.addTo(map, { attribution: '&copy; OpenStreetMap &copy; CARTO', maxZoom: 18 });
 
 var seedMarker = null;
 var trajectoryLayer = L.layerGroup().addTo(map);
@@ -1287,6 +1302,7 @@ initIdxFrames().then(function(ok) {
 }
 </style>
 <sea-toast></sea-toast>
+<sea-tabbar current-page="app"></sea-tabbar>
 <sea-onboarding storage-key="sc:seen-tour" steps='[
   {"title":"歡迎使用 SeaCurrent","body":"模擬人員落水、漂流物或油污在台灣海域的漂流軌跡。整個流程約 1 分鐘。"},
   {"title":"步驟 1．選擇情境","body":"側邊欄三張卡片分別對應人員（Person）、漂流物（Debris）與油污（Oil Spill）。每種情境會載入不同模型參數。"},

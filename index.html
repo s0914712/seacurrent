@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="assets/tokens.css">
     <link rel="stylesheet" href="assets/a11y.css">
     <script src="assets/components.js" defer></script>
+    <script src="assets/transitions.js" defer></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         html { font-size: var(--fs-fluid); scroll-behavior: smooth; }
@@ -1044,6 +1045,13 @@
     </div>
   </div>
 </section>
+
+<div class="wrap">
+  <sea-next-step to="app"
+                 title="準備好試一次模擬了嗎？"
+                 body="輸入起始位置、選擇情境，即可在地圖上看到 24–72 小時的漂流軌跡並寄到信箱。"
+                 cta-label="開始模擬"></sea-next-step>
+</div>
 </main>
 
 <!-- ============ FOOTER ============ -->
@@ -1063,6 +1071,7 @@
 </footer>
 
 <sea-toast></sea-toast>
+<sea-tabbar current-page="home"></sea-tabbar>
 <script>
 (function () {
   var btn = document.querySelector('.nav-toggle');
