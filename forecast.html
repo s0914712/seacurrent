@@ -30,21 +30,21 @@
             overflow: hidden;
         }
 
-        /* Top bar */
-        .topbar {
+        /* Sub-header: page title + data meta below sea-header */
+        .subheader {
             display: flex;
-            align-items: center;
+            align-items: baseline;
             justify-content: space-between;
-            padding: 12px 24px;
+            gap: 1rem;
+            padding: 8px 24px;
             background: var(--bg-1);
             border-bottom: 1px solid var(--border);
             flex-shrink: 0;
+            flex-wrap: wrap;
         }
-        .topbar h2 { font-size: 1.35em; color: var(--fg-0); }
-        .topbar .meta { font-size: 0.9em; color: var(--fg-3); }
-        .topbar .meta span { color: var(--accent); font-weight: 600; }
-        .topbar a { color: var(--accent); text-decoration: none; font-size: 0.95em; }
-        .topbar a:hover { text-decoration: underline; }
+        .subheader h2 { font-size: 1.05em; color: var(--fg-0); font-weight: 600; }
+        .subheader .meta { font-size: 0.85em; color: var(--fg-3); }
+        .subheader .meta span { color: var(--accent); font-weight: 600; }
 
         /* Main layout */
         .main {
@@ -474,15 +474,12 @@
 
         /* Responsive - Mobile */
         @media (max-width: 700px) {
-            .topbar {
-                flex-direction: row;
-                align-items: center;
-                gap: 8px;
-                padding: 8px 12px;
+            .subheader {
+                padding: 6px 12px;
+                gap: 4px 8px;
             }
-            .topbar h2 { font-size: 0.98em; line-height: 1.2; }
-            .topbar a { font-size: 0.78em; flex-shrink: 0; }
-            .topbar .meta { font-size: 0.72em; line-height: 1.35; color: var(--fg-2); }
+            .subheader h2 { font-size: 0.92em; line-height: 1.2; }
+            .subheader .meta { font-size: 0.72em; line-height: 1.35; color: var(--fg-2); }
 
             .main { flex-direction: column; }
 
@@ -628,9 +625,8 @@
         }
 
         @media (max-width: 380px) {
-            .topbar { padding: 6px 10px; gap: 6px; }
-            .topbar h2 { font-size: 0.88em; }
-            .topbar a { font-size: 0.72em; }
+            .subheader { padding: 4px 10px; gap: 2px 6px; }
+            .subheader h2 { font-size: 0.85em; }
             .point-list { padding: 5px 8px; gap: 5px; }
             .point-item { padding: 6px 9px; }
             .point-item .name-zh { font-size: 0.82em; }
@@ -643,7 +639,7 @@
         /* ── Embed mode (used when this page is loaded in an iframe from
               index.html's hero visual). Strip most chrome but keep the
               layer selectors so visitors can explore. ── */
-        body.embed-mode .topbar,
+        body.embed-mode .subheader,
         body.embed-mode .point-list-wrap,
         body.embed-mode .point-list,
         body.embed-mode .forecast-strip,
@@ -687,11 +683,9 @@
 <body>
     <a class="skip-link" href="#main">跳至地圖</a>
     <sea-header current-page="forecast" variant="topbar"></sea-header>
-    <div class="topbar">
-        <div>
-            <h2>Taiwan Waters Drift Forecast</h2>
-            <div class="meta" id="metaInfo"></div>
-        </div>
+    <div class="subheader">
+        <h2>Taiwan Waters Drift Forecast · 台灣海域漂流預報</h2>
+        <div class="meta" id="metaInfo"></div>
     </div>
 
     <div class="main">
