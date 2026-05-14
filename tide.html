@@ -28,18 +28,20 @@
             overflow: hidden;
         }
 
-        .topbar {
+        .subheader {
             display: flex;
-            align-items: center;
+            align-items: baseline;
             justify-content: space-between;
-            padding: 12px 24px;
+            gap: 1rem;
+            padding: 8px 24px;
             background: var(--bg-1);
             border-bottom: 1px solid var(--border);
             flex-shrink: 0;
-            gap: 12px;
+            flex-wrap: wrap;
         }
-        .topbar h2 { font-size: 1.35em; color: var(--fg-0); }
-        .topbar .meta { font-size: 0.9em; color: var(--fg-3); }
+        .subheader h2 { font-size: 1.05em; color: var(--fg-0); font-weight: 600; }
+        .subheader .meta { font-size: 0.85em; color: var(--fg-3); }
+        .subheader .meta span { color: var(--accent); font-weight: 600; }
         .topbar .meta span { color: var(--accent); font-weight: 600; }
         .topbar a { color: var(--accent); text-decoration: none; font-size: 0.95em; }
         .topbar a:hover { text-decoration: underline; }
@@ -331,20 +333,18 @@
                 overflow: visible;
             }
             .tide-chart-wrap canvas { height: 200px; }
-            .topbar { padding: 10px 14px; gap: 8px; }
-            .topbar h2 { font-size: 1.1em; }
-            .topbar .meta { display: none; }
+            .subheader { padding: 6px 12px; gap: 4px 8px; }
+            .subheader h2 { font-size: 0.92em; line-height: 1.2; }
+            .subheader .meta { font-size: 0.72em; }
         }
     </style>
 </head>
 <body>
     <a class="skip-link" href="#main">跳至地圖</a>
     <sea-header current-page="tide" variant="topbar"></sea-header>
-    <div class="topbar">
-        <div>
-            <h2>Tide Forecast &mdash; 潮汐預報</h2>
-            <div class="meta">Source: <span>CWA F-A0021-001</span></div>
-        </div>
+    <div class="subheader">
+        <h2>Tide Forecast · 潮汐預報</h2>
+        <div class="meta">Source: <span>CWA F-A0021-001</span></div>
     </div>
 
     <div class="main">
