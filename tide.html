@@ -13,6 +13,7 @@
     <script src="assets/transitions.js" defer></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="assets/map-tiles.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         html { font-size: clamp(14px, 0.45vw + 11px, 20px); }
@@ -461,10 +462,7 @@ var TIDE_LOCATIONS = [
 // ── Leaflet map ──
 var map = L.map('map', { zoomControl: false }).setView([23.7, 121.0], 7);
 L.control.zoom({ position: 'bottomright' }).addTo(map);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OpenStreetMap &copy; CARTO',
-    maxZoom: 18,
-}).addTo(map);
+SeaTiles.addTo(map, { attribution: '&copy; OpenStreetMap &copy; CARTO', maxZoom: 18 });
 
 var selectedMarker = null;
 var markers = [];

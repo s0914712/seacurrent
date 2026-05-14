@@ -10,9 +10,11 @@
     <link rel="stylesheet" href="assets/a11y.css" />
     <script src="assets/components.js" defer></script>
     <script src="assets/transitions.js" defer></script>
+    <script src="assets/swipe.js" defer></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/leaflet-velocity@2.1.4/dist/leaflet-velocity.min.js"></script>
+    <script src="assets/map-tiles.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         html { font-size: clamp(14px, 0.45vw + 11px, 20px); }
@@ -477,7 +479,10 @@
     <a class="skip-link" href="#main">跳至地圖</a>
     <sea-header current-page="app" variant="topbar"></sea-header>
     <div class="layout">
-        <div class="sidebar" id="sidebar">
+        <div class="sidebar" id="sidebar"
+             data-swipe-panel="vertical"
+             data-swipe-target="sidebarToggle"
+             data-swipe-handle=".sidebar-header">
             <div class="sidebar-header">
                 <div class="titles">
                     <h2>SeaCurrent Drift Simulator</h2>
@@ -663,10 +668,7 @@
 var map = L.map('map', { zoomControl: false }).setView([23.5, 121], 7);
 L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OpenStreetMap &copy; CARTO',
-    maxZoom: 18,
-}).addTo(map);
+SeaTiles.addTo(map, { attribution: '&copy; OpenStreetMap &copy; CARTO', maxZoom: 18 });
 
 var seedMarker = null;
 var trajectoryLayer = L.layerGroup().addTo(map);

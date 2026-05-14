@@ -33,6 +33,31 @@
 
   /* Animation */
   --dur-slow: 0.4s;
+
+  /* Spacing scale (4 / 8 / 12 / 16 / 24 / 32) — use for new components.
+   * Existing pages use ad-hoc rem/px values; new components should adopt
+   * these so cards/buttons stay rhythmically aligned across pages. */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+
+  /* Radius scale — aliases for existing --r-* tokens, kept for clarity. */
+  --radius-1: 6px;
+  --radius-2: 10px;
+  --radius-3: 16px;
+
+  /* Button heights — lg meets WCAG AA touch target (44px) on mobile. */
+  --btn-h-sm: 32px;
+  --btn-h-md: 40px;
+  --btn-h-lg: 48px;
+
+  /* Card defaults */
+  --card-bg: var(--bg-elevated);
+  --card-border: 1px solid var(--border);
+  --card-pad: var(--space-4);
 }
 
 /* Make sure native form-control options render with our palette. Some

@@ -11,9 +11,11 @@
     <link rel="stylesheet" href="assets/a11y.css" />
     <script src="assets/components.js" defer></script>
     <script src="assets/transitions.js" defer></script>
+    <script src="assets/swipe.js" defer></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/leaflet-velocity@2.1.4/dist/leaflet-velocity.min.js"></script>
+    <script src="assets/map-tiles.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         html { font-size: clamp(14px, 0.45vw + 11px, 20px); }
@@ -780,7 +782,10 @@
                 <span class="tl-loading" id="tlLoading" style="display:none;">…</span>
             </div>
 
-            <div class="info-panel" id="infoPanel">
+            <div class="info-panel" id="infoPanel"
+                 data-swipe-panel="vertical"
+                 data-swipe-target="infoPanelToggle"
+                 data-swipe-handle=".info-panel-header">
                 <div class="info-panel-header">
                     <h4 id="infoPanelTitle"></h4>
                     <button type="button" class="info-panel-toggle" id="infoPanelToggle"
@@ -830,10 +835,7 @@ if (!IS_PHONE && !EMBED_MODE) {
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 }
 
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OSM &copy; CARTO',
-    maxZoom: 18,
-}).addTo(map);
+SeaTiles.addTo(map, { attribution: '&copy; OSM &copy; CARTO', maxZoom: 18 });
 
 var trajectoryLayer = L.layerGroup().addTo(map);
 var pointMarkers = {};
