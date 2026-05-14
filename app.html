@@ -855,12 +855,12 @@ function buildIdxVelocityLayer(type, data) {
         data: data,
         maxVelocity: maxV,
         velocityScale: isCurrent ? 0.01 : 0.005,
-        particleAge: 60,
+        particleAge: 90,
         lineWidth: isCurrent ? 2 : 1.5,
-        particleMultiplier: 1 / 250,
+        particleMultiplier: 1 / 160,
         colorScale: isCurrent
             ? ["#1a237e","#1565c0","#42a5f5","#29b6f6","#26c6da","#00e5ff","#76ff03","#ffeb3b","#ff9800","#f44336"]
-            : ["#364fc7","#4c6ef5","#748ffc","#91a7ff","#bac8ff","#dbe4ff","#f8f9fa","#ffe8cc","#ffc078","#ff922b"],
+            : ["#2C2C82","#2C58A0","#2A8AB0","#299E96","#34AF6D","#6BB94A","#B0BA3E","#DFB138","#DD8B1D","#C84F26","#A12F2D","#8B2A52"],
         frameRate: 30,
         opacity: 0.85,
     });
@@ -891,7 +891,7 @@ function idxApplyFrameToVector(type, data) {
 // ── Velocity color bar (vectors) ──
 var IDX_GRADIENTS = {
     current: 'linear-gradient(to right, #1a237e, #1565c0, #42a5f5, #26c6da, #00e5ff, #76ff03, #ffeb3b, #ff9800, #f44336)',
-    wind:    'linear-gradient(to right, #364fc7, #4c6ef5, #91a7ff, #dbe4ff, #f8f9fa, #ffe8cc, #ffc078, #ff922b)',
+    wind:    'linear-gradient(to right, #2C2C82, #2C58A0, #2A8AB0, #299E96, #34AF6D, #6BB94A, #B0BA3E, #DFB138, #DD8B1D, #C84F26, #A12F2D, #8B2A52)',
 };
 function updateIdxVelocityBar(type) {
     var bar = document.getElementById('idxVelocityBar');
