@@ -658,7 +658,52 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
 var seedMarker = null;
 var trajectoryLayer = L.layerGroup().addTo(map);
 
-// Click to set coordinates
+// Latest frame data per vector layer, for click-to-inspect speed/direction.
+var idxLastFrameByType = {};
+
+function idxInterpolateUV(lat, lng, dataPair) {
+    if (!dataPair || dataPair.length < 2) return null;
+    var hu = dataPair[0].header;
+    var u = dataPair[0].data, v = dataPair[1].data;
+    var nx = hu.nx, ny = hu.ny;
+    var fx = (lng - hu.lo1) / hu.dx;
+    var fy = (hu.la1 - lat) / hu.dy;
+    if (fx < 0 || fx > nx - 1 || fy < 0 || fy > ny - 1) return null;
+    var x0 = Math.floor(fx), y0 = Math.floor(fy);
+    var x1 = Math.min(x0 + 1, nx - 1), y1 = Math.min(y0 + 1, ny - 1);
+    var tx = fx - x0, ty = fy - y0;
+    function bil(arr) {
+        var a = arr[y0 * nx + x0], b = arr[y0 * nx + x1];
+        var c = arr[y1 * nx + x0], d = arr[y1 * nx + x1];
+        if (a == null || b == null || c == null || d == null) return null;
+        return (1 - tx) * (1 - ty) * a + tx * (1 - ty) * b
+             + (1 - tx) * ty * c + tx * ty * d;
+    }
+    var uu = bil(u), vv = bil(v);
+    if (uu === null || vv === null) return null;
+    return [uu, vv];
+}
+
+function idxCompass(deg) {
+    var d = ['N','NE','E','SE','S','SW','W','NW'];
+    return d[Math.round((((deg % 360) + 360) % 360) / 45) % 8];
+}
+
+function idxFormatVectorAt(type, uv) {
+    if (!uv) return null;
+    var u = uv[0], v = uv[1];
+    var speed = Math.sqrt(u * u + v * v);
+    var toward = (Math.atan2(u, v) * 180 / Math.PI + 360) % 360;
+    if (type === 'current') {
+        return speed.toFixed(2) + ' m/s &rarr; ' + idxCompass(toward)
+             + ' (' + Math.round(toward) + '&deg;)';
+    }
+    var from = (toward + 180) % 360;
+    return speed.toFixed(1) + ' m/s &larr; ' + idxCompass(from)
+         + ' (' + Math.round(from) + '&deg;)';
+}
+
+// Click to set coordinates (and show wind/current at that point in the popup).
 map.on('click', function(e) {
     document.getElementById('lon').value = e.latlng.lng.toFixed(4);
     document.getElementById('lat').value = e.latlng.lat.toFixed(4);
@@ -672,9 +717,18 @@ map.on('mousemove', function(e) {
 
 function updateSeedMarker(lat, lng) {
     if (seedMarker) map.removeLayer(seedMarker);
+    var lines = ['Seed: ' + lat.toFixed(4) + ', ' + lng.toFixed(4)];
+    var type = (typeof idxActiveVector !== 'undefined') ? idxActiveVector : '';
+    if (type && type !== 'off') {
+        var uv = idxInterpolateUV(lat, lng, idxLastFrameByType[type]);
+        if (uv) {
+            var label = (type === 'current') ? '流速' : '風速';
+            lines.push(label + ': ' + idxFormatVectorAt(type, uv));
+        }
+    }
     seedMarker = L.circleMarker([lat, lng], {
         radius: 8, color: '#ff4444', fillColor: '#ff4444', fillOpacity: 0.8, weight: 2,
-    }).addTo(map).bindPopup('Seed: ' + lat.toFixed(4) + ', ' + lng.toFixed(4));
+    }).addTo(map).bindPopup(lines.join('<br>')).openPopup();
 }
 
 // Init marker
@@ -875,6 +929,7 @@ function idxVectorLabel(name) {
     return m ? 'Wind ' + m[1] + ' hPa' : name;
 }
 function idxApplyFrameToVector(type, data) {
+    idxLastFrameByType[type] = data;
     if (!idxVectorLayers[type]) {
         var layer = buildIdxVelocityLayer(type, data);
         if (idxActiveVector === type) map.addLayer(layer);
