@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="assets/tokens.css" />
     <link rel="stylesheet" href="assets/a11y.css" />
     <script src="assets/components.js" defer></script>
+    <script src="assets/transitions.js" defer></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
@@ -410,6 +411,12 @@
                 <div class="info" id="pgInfo">—</div>
                 <button id="pgNext" disabled>Next &rarr;</button>
             </div>
+
+            <sea-next-step to="app"
+                           variant="ghost"
+                           title="模擬潮汐影響下的漂流"
+                           body="把潮汐資料當參考，回到模擬器送出一筆漂流軌跡。"
+                           cta-label="開始模擬"></sea-next-step>
         </aside>
     </div>
 
@@ -906,5 +913,6 @@ document.getElementById('fltLimit').addEventListener('change', function(e) {
 });
 </script>
 <sea-toast></sea-toast>
+<sea-tabbar current-page="tide"></sea-tabbar>
 </body>
 </html>

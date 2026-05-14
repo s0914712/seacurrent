@@ -63,11 +63,43 @@ summary:focus-visible {
 /* Hide custom elements until they upgrade (avoid FOUC) */
 sea-header:not(:defined),
 sea-footer:not(:defined),
+sea-tabbar:not(:defined),
+sea-side-panel:not(:defined),
+sea-next-step:not(:defined),
 sea-toast:not(:defined),
 sea-skeleton:not(:defined),
 sea-onboarding:not(:defined),
 sea-glossary:not(:defined) {
   visibility: hidden;
+}
+
+/* Lift Leaflet attribution / zoom controls above bottom tab bar on phones,
+ * and reserve space at the bottom of the page so content/map clicks aren't
+ * stolen by the tabbar overlay. .has-tabbar is set by <sea-tabbar> in
+ * connectedCallback as a fallback for browsers without :has() support. */
+@media (max-width: 767.98px) {
+  body.has-tabbar {
+    padding-bottom: calc(56px + env(safe-area-inset-bottom));
+  }
+  body.has-tabbar .leaflet-bottom {
+    margin-bottom: 4px;
+  }
+}
+
+/* Subtle page-load fade-in. Skipped under reduced-motion. */
+@media (prefers-reduced-motion: no-preference) {
+  body {
+    animation: sc-page-in 180ms ease-out both;
+  }
+  @keyframes sc-page-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  /* View Transitions API: cross-fade between pages */
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 200ms;
+  }
 }
 
 /* Reduced motion */
