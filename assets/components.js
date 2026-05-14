@@ -7,6 +7,7 @@ const NAV_LINKS = [
   { id: 'home', href: 'index.html', label: '首頁', en: 'Home' },
   { id: 'app', href: 'app.html', label: '模擬', en: 'Simulator' },
   { id: 'forecast', href: 'forecast.html', label: '預報圖', en: 'Forecast' },
+  { id: 'wind', href: 'wind.html', label: '風流', en: 'Wind' },
   { id: 'tide', href: 'tide.html', label: '潮汐', en: 'Tide' },
 ];
 
@@ -237,6 +238,7 @@ const TAB_ICONS = {
   home:     '<path d="M3 11l9-8 9 8v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>',
   app:      '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
   forecast: '<path d="M3 6h18M3 12h18M3 18h12"/><circle cx="19" cy="18" r="2"/>',
+  wind:     '<path d="M3 8h12a3 3 0 1 0-3-3"/><path d="M3 16h17a3 3 0 1 1-3 3"/><path d="M3 12h9"/>',
   tide:     '<path d="M2 12c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 18c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/>',
 };
 
@@ -292,7 +294,7 @@ class SeaTabbar extends HTMLElement {
           bottom: 0; left: 0; right: 0;
           z-index: 1100;
           display: grid;
-          grid-template-columns: repeat(4, 1fr);
+          grid-template-columns: repeat(${NAV_LINKS.length}, 1fr);
           background: var(--overlay-bg, rgba(16,29,51,0.92));
           backdrop-filter: var(--overlay-blur, blur(8px));
           -webkit-backdrop-filter: var(--overlay-blur, blur(8px));
@@ -497,6 +499,7 @@ class SeaFooter extends HTMLElement {
         <div class="links">
           <a href="app.html">模擬器</a>
           <a href="forecast.html">預報圖</a>
+          <a href="wind.html">風流</a>
           <a href="tide.html">潮汐</a>
           <a href="https://github.com/s0914712/seacurrent" target="_blank" rel="noopener">GitHub</a>
         </div>
