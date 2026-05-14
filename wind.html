@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0a1628">
+    <title>SeaCurrent - Wind Flow · 風流動態</title>
+    <script src="assets/theme.js"></script>
+    <link rel="stylesheet" href="colors_and_type.css" />
+    <link rel="stylesheet" href="assets/tokens.css" />
+    <link rel="stylesheet" href="assets/a11y.css" />
+    <script src="assets/components.js" defer></script>
+    <script src="assets/transitions.js" defer></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet-velocity@2.1.4/dist/leaflet-velocity.min.js"></script>
+    <script src="assets/map-tiles.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html { font-size: clamp(14px, 0.45vw + 11px, 20px); }
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg-0);
+            color: var(--fg-1);
+            height: 100vh;
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .subheader {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 8px 24px;
+            background: var(--bg-1);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+            flex-wrap: wrap;
+        }
+        .subheader h2 { font-size: 1.05em; color: var(--fg-0); font-weight: 600; }
+        .subheader .meta { font-size: 0.85em; color: var(--fg-3); }
+        .subheader .meta span { color: var(--accent); font-weight: 600; }
+
+        .main { flex: 1; position: relative; min-height: 0; }
+        #map { width: 100%; height: 100%; background: var(--bg-2); }
+
+        /* Theme-stable dark glass overlay tokens (parity with forecast.html) */
+        .main {
+            --map-ui-text: #eaf2ff;
+            --map-ui-text-muted: rgba(234, 242, 255, 0.82);
+            --map-ui-text-strong: #ffffff;
+            --map-ui-surface: rgba(10, 22, 40, 0.78);
+            --map-ui-border: rgba(255, 255, 255, 0.12);
+        }
+
+        /* Layer selector */
+        .layer-controls {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            z-index: 500;
+            display: flex;
+            gap: 8px;
+            background: var(--map-ui-surface);
+            border: 1px solid var(--map-ui-border);
+            border-radius: 8px;
+            padding: 8px 10px;
+            color: var(--map-ui-text);
+            backdrop-filter: blur(8px);
+        }
+        .layer-controls label {
+            font-size: 0.78em;
+            color: var(--map-ui-text-muted);
+            display: block;
+            margin-bottom: 3px;
+        }
+        .layer-select {
+            background: rgba(255,255,255,0.06);
+            color: var(--map-ui-text);
+            border: 1px solid var(--map-ui-border);
+            border-radius: 6px;
+            padding: 5px 8px;
+            font-size: 0.9em;
+            min-width: 170px;
+        }
+
+        /* Velocity legend */
+        .velocity-bar {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            z-index: 500;
+            background: var(--map-ui-surface);
+            border: 1px solid var(--map-ui-border);
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: var(--map-ui-text);
+            font-size: 0.82em;
+            backdrop-filter: blur(8px);
+            min-width: 200px;
+        }
+        .velocity-bar .vb-title { font-weight: 600; margin-bottom: 4px; color: var(--map-ui-text-strong); }
+        .velocity-gradient {
+            width: 100%; height: 0.7rem; border-radius: 3px; margin-bottom: 3px;
+            background: linear-gradient(to right,
+                #2C2C82,#2C58A0,#2A8AB0,#299E96,#34AF6D,#6BB94A,
+                #B0BA3E,#DFB138,#DD8B1D,#C84F26,#A12F2D,#8B2A52);
+        }
+        .velocity-labels { display: flex; justify-content: space-between; color: var(--map-ui-text-muted); font-size: 0.92em; }
+
+        /* Probe popup */
+        .leaflet-popup-content-wrapper {
+            background: var(--map-ui-surface);
+            color: var(--map-ui-text);
+            border-radius: 8px;
+            backdrop-filter: blur(8px);
+        }
+        .leaflet-popup-tip { background: var(--map-ui-surface); }
+        .leaflet-popup-close-button { color: var(--map-ui-text) !important; }
+
+        /* Timeline */
+        .timeline {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: 16px;
+            z-index: 500;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--map-ui-surface);
+            border: 1px solid var(--map-ui-border);
+            border-radius: 10px;
+            padding: 10px 14px;
+            color: var(--map-ui-text);
+            backdrop-filter: blur(8px);
+            min-width: 360px;
+            max-width: calc(100% - 24px);
+        }
+        .tl-play {
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 36px; height: 36px;
+            cursor: pointer;
+            font-size: 1.1em;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .tl-play:hover { background: var(--accent-strong); }
+        .tl-info { display: flex; flex-direction: column; line-height: 1.2; flex-shrink: 0; min-width: 7rem; }
+        .tl-label { font-size: 0.85em; font-weight: 600; color: var(--map-ui-text-strong); }
+        .tl-time { font-size: 0.72em; color: var(--map-ui-text-muted); }
+        .tl-range { flex: 1; accent-color: var(--accent); cursor: pointer; min-width: 0; }
+
+        .loading-msg {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 600;
+            background: var(--map-ui-surface);
+            color: var(--map-ui-text);
+            padding: 12px 18px;
+            border-radius: 8px;
+            border: 1px solid var(--map-ui-border);
+            backdrop-filter: blur(8px);
+            font-size: 0.95em;
+        }
+        .loading-msg.hide { display: none; }
+
+        /* Responsive */
+        @media (max-width: 700px) {
+            .subheader { padding: 6px 12px; gap: 4px 8px; }
+            .subheader h2 { font-size: 0.92em; }
+            .subheader .meta { font-size: 0.72em; }
+
+            .layer-controls { top: 8px; left: 8px; right: 8px; padding: 6px 8px; }
+            .layer-select { font-size: 16px; padding: 6px 8px; min-width: 0; flex: 1; }
+
+            .velocity-bar {
+                top: auto; right: 8px; left: 8px;
+                bottom: 80px;
+                font-size: 0.78em;
+                min-width: 0;
+                padding: 6px 10px;
+            }
+
+            .timeline {
+                left: 8px; right: 8px;
+                transform: none;
+                bottom: 10px;
+                min-width: 0;
+                gap: 8px;
+                padding: 8px 10px;
+            }
+            .tl-info { min-width: 4.5rem; }
+            .tl-label { font-size: 0.82em; }
+            .tl-time { font-size: 0.68em; }
+        }
+
+        @media (max-width: 380px) {
+            .tl-play { width: 32px; height: 32px; }
+        }
+    </style>
+</head>
+<body>
+    <a class="skip-link" href="#main">跳至地圖</a>
+    <sea-header current-page="wind" variant="topbar"></sea-header>
+    <div class="subheader">
+        <h2>Wind Flow · 風流動態</h2>
+        <div class="meta" id="metaInfo"></div>
+    </div>
+
+    <main id="main" class="main" tabindex="-1">
+        <div id="map"></div>
+
+            <div class="loading-msg" id="loadingMsg">載入風場資料中… · Loading wind data…</div>
+
+            <div class="layer-controls">
+                <div>
+                    <label for="layerSel">Layer · 高度層</label>
+                    <select id="layerSel" class="layer-select" aria-label="選擇風場層">
+                        <option value="wind" selected>Surface · 地表風</option>
+                        <option value="wind_10m">10 m (GFS)</option>
+                        <option value="wind_1000hPa">1000 hPa</option>
+                        <option value="wind_925hPa">925 hPa</option>
+                        <option value="wind_850hPa">850 hPa</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="velocity-bar" id="velocityBar">
+                <div class="vb-title" id="vbTitle">Wind · 風速 (m/s)</div>
+                <div class="velocity-gradient"></div>
+                <div class="velocity-labels"><span>0</span><span id="vbMax">15</span></div>
+                <div style="color:var(--map-ui-text-muted);font-size:0.85em;margin-top:4px;">點地圖查看該點風速 / 方向</div>
+            </div>
+
+        <div class="timeline" id="timeline" hidden>
+            <button type="button" class="tl-play" id="tlPlay" aria-label="播放 / 暫停">&#9654;</button>
+            <div class="tl-info">
+                <span class="tl-label" id="tlLabel">+0h</span>
+                <span class="tl-time" id="tlTime">—</span>
+            </div>
+            <input type="range" class="tl-range" id="tlRange" min="0" max="12" step="1" value="0" aria-label="時間軸">
+        </div>
+    </main>
+
+<sea-toast></sea-toast>
+<sea-tabbar current-page="wind"></sea-tabbar>
+
+<script>
+'use strict';
+
+// ── Map init ──
+var map = L.map('map', { zoomControl: false }).setView([23.7, 121.0], 7);
+L.control.zoom({ position: 'bottomright' }).addTo(map);
+SeaTiles.addTo(map, { attribution: '&copy; OSM &copy; CARTO', maxZoom: 18 });
+
+// ── State ──
+var FRAMES_INDEX_URL = 'scheduled_results/frames/index.json';
+var currentLayerType = 'wind';
+var currentHour = 0;
+var velocityLayer = null;
+var lastFrameData = null;
+var framesMeta = null;
+var playTimer = null;
+
+// ── DOM ──
+var $ = function (id) { return document.getElementById(id); };
+
+// ── Helpers ──
+function compassDir(deg) {
+    var d = ['N','NE','E','SE','S','SW','W','NW'];
+    return d[Math.round((((deg % 360) + 360) % 360) / 45) % 8];
+}
+function fmtVector(uv) {
+    if (!uv) return null;
+    var u = uv[0], v = uv[1];
+    var speed = Math.sqrt(u * u + v * v);
+    var toward = (Math.atan2(u, v) * 180 / Math.PI + 360) % 360;
+    var from = (toward + 180) % 360;
+    return speed.toFixed(1) + ' m/s &larr; ' + compassDir(from)
+         + ' (' + Math.round(from) + '&deg;)';
+}
+function layerLabel(type) {
+    if (type === 'wind') return 'Surface · 地表風';
+    if (type === 'wind_10m') return 'Wind 10 m (GFS)';
+    if (type === 'wind_1000hPa') return 'Wind 1000 hPa';
+    if (type === 'wind_925hPa') return 'Wind 925 hPa';
+    if (type === 'wind_850hPa') return 'Wind 850 hPa';
+    return type;
+}
+function maxForLayer(type) {
+    return type === 'wind' ? 15 : 30;
+}
+
+// ── Bilinear interpolation on Leaflet-Velocity data shape ──
+function interpolateUV(lat, lon, frame) {
+    if (!frame || frame.length < 2) return null;
+    var uMeta = frame[0].header, vMeta = frame[1].header;
+    var uArr = frame[0].data, vArr = frame[1].data;
+    var nx = uMeta.nx, ny = uMeta.ny;
+    var lo1 = uMeta.lo1, la1 = uMeta.la1;
+    var dx = uMeta.dx, dy = uMeta.dy;
+    var x = (lon - lo1) / dx;
+    var y = (la1 - lat) / dy;
+    if (x < 0 || y < 0 || x > nx - 1 || y > ny - 1) return null;
+    var x0 = Math.floor(x), y0 = Math.floor(y);
+    var x1 = Math.min(x0 + 1, nx - 1), y1 = Math.min(y0 + 1, ny - 1);
+    var tx = x - x0, ty = y - y0;
+    function bil(arr) {
+        var a = arr[y0 * nx + x0], b = arr[y0 * nx + x1];
+        var c = arr[y1 * nx + x0], d = arr[y1 * nx + x1];
+        return (1 - tx) * (1 - ty) * a + tx * (1 - ty) * b
+             + (1 - tx) * ty * c + tx * ty * d;
+    }
+    return [bil(uArr), bil(vArr)];
+}
+
+// ── Build / replace the velocity layer for the active frame ──
+function applyFrame(data) {
+    lastFrameData = data;
+    if (velocityLayer && map.hasLayer(velocityLayer)) map.removeLayer(velocityLayer);
+    velocityLayer = L.velocityLayer({
+        displayValues: true,
+        displayOptions: {
+            velocityType: 'Wind',
+            displayPosition: 'bottomleft',
+            displayEmptyString: 'No data',
+            speedUnit: 'm/s',
+            angleConvention: 'bearingCW',
+        },
+        data: data,
+        maxVelocity: maxForLayer(currentLayerType),
+        velocityScale: 0.005,
+        particleAge: 90,
+        lineWidth: 1.5,
+        particleMultiplier: 1 / 160,
+        colorScale: ["#2C2C82","#2C58A0","#2A8AB0","#299E96","#34AF6D","#6BB94A",
+                     "#B0BA3E","#DFB138","#DD8B1D","#C84F26","#A12F2D","#8B2A52"],
+        frameRate: 30,
+        opacity: 0.92,
+    }).addTo(map);
+}
+
+// ── Frame fetch with simple LRU cache ──
+var frameCache = new Map();
+var FRAME_CACHE_MAX = 24;
+function cacheKey(type, hour) { return type + '|h' + hour; }
+function cacheGet(key) {
+    if (!frameCache.has(key)) return null;
+    var v = frameCache.get(key);
+    frameCache.delete(key);
+    frameCache.set(key, v);
+    return v;
+}
+function cacheSet(key, value) {
+    if (frameCache.has(key)) frameCache.delete(key);
+    frameCache.set(key, value);
+    while (frameCache.size > FRAME_CACHE_MAX) {
+        var first = frameCache.keys().next().value;
+        frameCache.delete(first);
+    }
+}
+
+function loadFrame(type, hour) {
+    var key = cacheKey(type, hour);
+    var cached = cacheGet(key);
+    if (cached) return Promise.resolve(cached);
+    var hh = String(hour).padStart(3, '0');
+    var url = 'scheduled_results/frames/' + type + '/h' + hh + '.json';
+    return fetch(url).then(function (r) {
+        if (!r.ok) throw new Error('Frame ' + hh + ' missing');
+        return r.json();
+    }).then(function (data) {
+        cacheSet(key, data);
+        return data;
+    });
+}
+
+// ── Hours for the active layer ──
+function hoursForLayer(type) {
+    if (!framesMeta) return [0];
+    if (type === 'wind') return (framesMeta.wind && framesMeta.wind.hours) || [0];
+    var layers = framesMeta.layers || {};
+    return (layers[type] && layers[type].hours) || [0];
+}
+function baseTimeForLayer(type) {
+    if (!framesMeta) return null;
+    if (type === 'wind') return framesMeta.wind && framesMeta.wind.base_time;
+    var layers = framesMeta.layers || {};
+    return layers[type] && layers[type].base_time;
+}
+
+// ── UI updates ──
+function refreshTimeline() {
+    var hours = hoursForLayer(currentLayerType);
+    var tl = $('timeline');
+    if (hours.length < 2) { tl.hidden = true; return; }
+    tl.hidden = false;
+    var rng = $('tlRange');
+    rng.min = 0;
+    rng.max = hours.length - 1;
+    var idx = Math.min(rng.value | 0, hours.length - 1);
+    rng.value = idx;
+    updateTimelineLabel(hours[idx]);
+}
+function updateTimelineLabel(hour) {
+    $('tlLabel').textContent = '+' + hour + 'h';
+    var base = baseTimeForLayer(currentLayerType);
+    if (!base) { $('tlTime').textContent = '—'; return; }
+    var d = new Date(base);
+    d.setUTCHours(d.getUTCHours() + hour);
+    try {
+        $('tlTime').textContent = d.toLocaleString('zh-TW', {
+            timeZone: 'Asia/Taipei',
+            month: 'short', day: 'numeric',
+            hour: '2-digit', minute: '2-digit',
+        });
+    } catch (e) {
+        $('tlTime').textContent = d.toISOString().replace('T', ' ').slice(0, 16);
+    }
+}
+function setVelocityBar() {
+    $('vbTitle').textContent = layerLabel(currentLayerType) + ' (m/s)';
+    $('vbMax').textContent = maxForLayer(currentLayerType);
+}
+
+// ── Apply a hour for the current layer ──
+function setHour(hour) {
+    currentHour = hour;
+    updateTimelineLabel(hour);
+    loadFrame(currentLayerType, hour)
+        .then(applyFrame)
+        .then(function () { $('loadingMsg').classList.add('hide'); })
+        .catch(function (err) {
+            console.warn('Wind frame load failed:', err.message);
+            $('loadingMsg').textContent = '此小時無資料 · No data for +' + hour + 'h';
+            $('loadingMsg').classList.remove('hide');
+        });
+}
+
+// ── Layer switching ──
+function selectLayer(type) {
+    currentLayerType = type;
+    setVelocityBar();
+    refreshTimeline();
+    var hours = hoursForLayer(type);
+    var idx = Math.min($('tlRange').value | 0, hours.length - 1);
+    setHour(hours[idx]);
+}
+
+// ── Click probe ──
+map.on('click', function (e) {
+    var uv = interpolateUV(e.latlng.lat, e.latlng.lng, lastFrameData);
+    var line = uv ? fmtVector(uv) : '此處無資料 · No data';
+    var html =
+        '<div style="font-weight:600;margin-bottom:4px;">' + layerLabel(currentLayerType) + '</div>' +
+        '<div>' + line + '</div>' +
+        '<div style="color:var(--map-ui-text-muted);font-size:0.85em;margin-top:6px;">' +
+        e.latlng.lat.toFixed(3) + ', ' + e.latlng.lng.toFixed(3) + '</div>';
+    L.popup().setLatLng(e.latlng).setContent(html).openOn(map);
+});
+
+// ── Wire UI ──
+$('layerSel').addEventListener('change', function (e) { selectLayer(e.target.value); });
+
+$('tlRange').addEventListener('input', function () {
+    var hours = hoursForLayer(currentLayerType);
+    var idx = $('tlRange').value | 0;
+    var h = hours[Math.min(idx, hours.length - 1)];
+    setHour(h);
+});
+
+function togglePlay() {
+    if (playTimer) {
+        clearInterval(playTimer);
+        playTimer = null;
+        $('tlPlay').innerHTML = '&#9654;';
+        $('tlPlay').setAttribute('aria-label', '播放');
+        return;
+    }
+    $('tlPlay').innerHTML = '&#10074;&#10074;';
+    $('tlPlay').setAttribute('aria-label', '暫停');
+    var hours = hoursForLayer(currentLayerType);
+    playTimer = setInterval(function () {
+        var rng = $('tlRange');
+        var next = ((rng.value | 0) + 1) % hours.length;
+        rng.value = next;
+        setHour(hours[next]);
+    }, 700);
+}
+$('tlPlay').addEventListener('click', togglePlay);
+
+// ── Boot ──
+fetch(FRAMES_INDEX_URL).then(function (r) {
+    if (!r.ok) throw new Error('frames index not available');
+    return r.json();
+}).then(function (idx) {
+    framesMeta = idx;
+    var base = baseTimeForLayer('wind');
+    if (base) {
+        try {
+            var d = new Date(base);
+            $('metaInfo').innerHTML =
+                '<span>Base:</span> ' + d.toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' }) +
+                ' · <span>Source:</span> CWA + GFS';
+        } catch (e) { /* ignore */ }
+    }
+    selectLayer('wind');
+}).catch(function (err) {
+    console.error('Boot failed:', err);
+    $('loadingMsg').textContent = '無法載入時間索引 · Cannot load frame index';
+});
+</script>
+</body>
+</html>
