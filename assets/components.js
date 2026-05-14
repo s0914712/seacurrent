@@ -61,8 +61,14 @@ class SeaHeader extends HTMLElement {
           font-family: var(--font-sans, sans-serif);
           color: var(--fg-1, #fff);
           --bar-bg: var(--overlay-bg, rgba(16,29,51,0.92));
+          /* Establish a stacking context so the mobile drawer (position:absolute
+             inside the shadow tree) anchors below the bar and paints above
+             Leaflet panes (z-index ~600) instead of falling to the viewport
+             bottom and getting covered by the map. */
+          position: relative;
+          z-index: 1000;
         }
-        :host([variant="floating"]) { position: sticky; top: 0; z-index: 200; }
+        :host([variant="floating"]) { position: sticky; top: 0; }
 
         .bar {
           display: flex;
